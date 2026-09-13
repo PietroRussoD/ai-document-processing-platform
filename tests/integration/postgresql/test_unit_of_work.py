@@ -1,0 +1,105 @@
+"""SQLAlchemy unit-of-work integration tests."""
+
+from datetime import UTC, datetime
+from uuid import UUID
+
+import pytest
+from pydantic import PostgresDsn
+
+from document_platform.adapters.outbound.postgresql import SqlAlchemyUnitOfWork
+from document_platform.adapters.outbound.postgresql.database import Database, create_database
+from document_platform.domain.documents import Document
+from document_platform.settings import Settings
+
+ACCEPTED_AT = datetime(2026, 9, 13, 11, 0, tzinfo=UTC)
+
+
+class SimulatedFailure(RuntimeError):
+    pass
+
+
+def database_for(postgres_url: str) -> Database:
+    return create_database(Settings(environment="test", database_url=PostgresDsn(postgres_url)))
+
+
+def document_with_id(document_id: UUID) -> Document:
+    return Document.accept_pdf(
+        document_id=document_id,
+        original_filename="purchase-order.pdf",
+        size_bytes=21_000,
+        page_count=1,
+        content_sha256=document_id.hex * 2,
+        storage_key=f"blobs/{document_id}",
+        accepted_at=ACCEPTED_AT,
+    )
+
+
+async def load_document(database: Database, document_id: UUID) -> Document | None:
+    async with SqlAlchemyUnitOfWork(database.sessions) as unit_of_work:
+        return await unit_of_work.documents.get(document_id)
+
+
+@pytest.mark.anyio
+async def test_commits_all_work_explicitly(migrated_postgres_url: str) -> None:
+    database = database_for(migrated_postgres_url)
+    document = document_with_id(UUID("66666666-6666-4666-8666-666666666666"))
+
+    try:
+        async with SqlAlchemyUnitOfWork(database.sessions) as unit_of_work:
+            await unit_of_work.documents.add(document)
+            await unit_of_work.commit()
+
+        loaded = await load_document(database, document.id)
+    finally:
+        await database.dispose()
+
+    assert loaded == document
+
+
+@pytest.mark.anyio
+async def test_rolls_back_when_commit_is_omitted(migrated_postgres_url: str) -> None:
+    database = database_for(migrated_postgres_url)
+    document = document_with_id(UUID("77777777-7777-4777-8777-777777777777"))
+
+    try:
+        async with SqlAlchemyUnitOfWork(database.sessions) as unit_of_work:
+            await unit_of_work.documents.add(document)
+
+        loaded = await load_document(database, document.id)
+    finally:
+        await database.dispose()
+
+    assert loaded is None
+
+
+@pytest.mark.anyio
+async def test_rolls_back_when_the_operation_fails(migrated_postgres_url: str) -> None:
+    database = database_for(migrated_postgres_url)
+    document = document_with_id(UUID("88888888-8888-4888-8888-888888888888"))
+
+    try:
+        with pytest.raises(SimulatedFailure):
+            async with SqlAlchemyUnitOfWork(database.sessions) as unit_of_work:
+                await unit_of_work.documents.add(document)
+                raise SimulatedFailure
+
+        loaded = await load_document(database, document.id)
+    finally:
+        await database.dispose()
+
+    assert loaded is None
+
+
+@pytest.mark.anyio
+async def test_rejects_operations_outside_the_context(migrated_postgres_url: str) -> None:
+    database = database_for(migrated_postgres_url)
+    unit_of_work = SqlAlchemyUnitOfWork(database.sessions)
+
+    try:
+        with pytest.raises(RuntimeError, match="unit of work is not active"):
+            _ = unit_of_work.documents
+
+        with pytest.raises(RuntimeError, match="unit of work is not active"):
+            await unit_of_work.commit()
+    finally:
+        await database.dispose()

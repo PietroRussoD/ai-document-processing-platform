@@ -44,6 +44,15 @@ text extraction, structured extraction and notifications.
 Temporal workflows are deterministic orchestration. Database, filesystem, OCR,
 clock and model calls happen in Activities, never directly inside workflow code.
 
+## Transaction Ownership
+
+Application use cases own transaction boundaries through a unit of work.
+Repositories use its shared session but never commit independently. A use case
+must commit explicitly after all related writes succeed; leaving the context
+without a commit, including after an exception, rolls the transaction back.
+This allows document, processing-run, idempotency and workflow-start records to
+be persisted atomically when those capabilities are introduced.
+
 ## Repository Structure
 
 The layout in the root README is intentionally a map, not a request to create
