@@ -16,10 +16,15 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Typing :: Typed",
 ]
-dependencies = []
+dependencies = [
+  "fastapi>=0.137,<1",
+  "pydantic-settings>=2.12,<3",
+  "uvicorn[standard]>=0.41,<1",
+]
 
 [dependency-groups]
 dev = [
+  "httpx>=0.28,<1",
   "pyright>=1.1.407,<2",
   "pytest>=9.0,<10",
   "ruff>=0.14,<1",

@@ -65,6 +65,18 @@ intentional; empty packages and placeholder abstractions are not committed.
 
 ```bash
 uv sync --all-groups
+uv run uvicorn document_platform.bootstrap:app --reload
+```
+
+The API is available at `http://localhost:8000`. Current endpoints:
+
+- liveness: `GET http://localhost:8000/health/live`;
+- OpenAPI document: `GET http://localhost:8000/openapi.json`;
+- interactive API documentation: `http://localhost:8000/docs`.
+
+Run the quality gates with:
+
+```bash
 uv run ruff check .
 uv run ruff format --check .
 uv run pyright
