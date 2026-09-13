@@ -6,7 +6,7 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from document_platform.adapters.outbound.postgresql.models import DocumentRecord
+from document_platform.adapters.outbound.postgresql import models
 from document_platform.settings import Settings
 
 config = context.config
@@ -14,7 +14,7 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-target_metadata = DocumentRecord.metadata
+target_metadata = models.Base.metadata
 
 
 def database_url() -> str:

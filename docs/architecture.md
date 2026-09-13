@@ -88,6 +88,32 @@ stateDiagram-v2
 Individual processing stages will have their own persisted lifecycle when stage
 execution is introduced; it is not simulated by the current domain model.
 
+## Persistence Model
+
+One document can have multiple processing runs, allowing an explicit future
+reprocessing operation without overwriting execution history:
+
+```mermaid
+erDiagram
+    DOCUMENTS ||--o{ PROCESSING_RUNS : has
+    DOCUMENTS {
+        uuid id PK
+        string content_sha256
+        string status
+        int version
+    }
+    PROCESSING_RUNS {
+        uuid id PK
+        uuid document_id FK
+        string status
+        int attempt_count
+        int version
+    }
+```
+
+Deleting a document as part of an explicit retention operation cascades to its
+processing runs. Ordinary processing never deletes either record.
+
 ## Repository Structure
 
 The layout in the root README is intentionally a map, not a request to create

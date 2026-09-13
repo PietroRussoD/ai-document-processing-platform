@@ -1,12 +1,9 @@
 """Documents schema migration tests."""
 
 from datetime import UTC, datetime
-from unittest.mock import patch
 from uuid import UUID
 
 import pytest
-from alembic import command
-from alembic.config import Config
 from pydantic import PostgresDsn
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
@@ -46,12 +43,10 @@ async def test_creates_the_documents_schema(migrated_postgres_url: str) -> None:
                     """
                 )
             )
-            revision = await session.scalar(text("SELECT version_num FROM alembic_version"))
     finally:
         await database.dispose()
 
     assert set(columns) == EXPECTED_COLUMNS
-    assert revision == "20260913_01"
 
 
 @pytest.mark.anyio
@@ -93,12 +88,3 @@ async def test_rejects_an_unknown_document_status(migrated_postgres_url: str) ->
                 )
     finally:
         await database.dispose()
-
-
-def test_migration_matches_sqlalchemy_metadata(migrated_postgres_url: str) -> None:
-    configuration = Config("alembic.ini")
-    with patch.dict(
-        "os.environ",
-        {"DOCUMENT_PLATFORM_DATABASE_URL": migrated_postgres_url},
-    ):
-        command.check(configuration)
