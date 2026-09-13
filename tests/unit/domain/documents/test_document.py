@@ -1,0 +1,109 @@
+"""Document lifecycle unit tests."""
+
+from datetime import UTC, datetime, timedelta
+from uuid import UUID
+
+import pytest
+
+from document_platform.domain.documents import (
+    Document,
+    DocumentStatus,
+    InvalidDocument,
+    InvalidDocumentTransition,
+)
+
+DOCUMENT_ID = UUID("d13d7954-7051-4ccd-90b3-e97c83e52e56")
+ACCEPTED_AT = datetime(2026, 9, 13, 8, 0, tzinfo=UTC)
+
+
+def accepted_document(**overrides: object) -> Document:
+    values: dict[str, object] = {
+        "document_id": DOCUMENT_ID,
+        "original_filename": "supplier-invoice.pdf",
+        "size_bytes": 42_000,
+        "page_count": 2,
+        "content_sha256": "a" * 64,
+        "storage_key": "blobs/sha256/aa/" + "a" * 64,
+        "accepted_at": ACCEPTED_AT,
+    }
+    values.update(overrides)
+    return Document.accept_pdf(**values)  # type: ignore[arg-type]
+
+
+def test_accepts_a_valid_pdf() -> None:
+    document = accepted_document()
+
+    assert document.id == DOCUMENT_ID
+    assert document.media_type == "application/pdf"
+    assert document.status is DocumentStatus.UPLOADED
+    assert document.status_changed_at == ACCEPTED_AT
+    assert document.version == 0
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid_value"),
+    [
+        ("document_id", UUID(int=0)),
+        ("original_filename", " "),
+        ("original_filename", "../invoice.pdf"),
+        ("original_filename", "folder\\invoice.pdf"),
+        ("size_bytes", 0),
+        ("page_count", 0),
+        ("content_sha256", "A" * 64),
+        ("content_sha256", "abc"),
+        ("storage_key", " "),
+        ("accepted_at", datetime(2026, 9, 13, 8, 0)),
+    ],
+)
+def test_rejects_invalid_document_metadata(field: str, invalid_value: object) -> None:
+    with pytest.raises(InvalidDocument):
+        accepted_document(**{field: invalid_value})
+
+
+def test_completes_automatic_processing() -> None:
+    processing_at = ACCEPTED_AT + timedelta(seconds=1)
+    approved_at = processing_at + timedelta(seconds=2)
+
+    uploaded = accepted_document()
+    processing = uploaded.start_processing(at=processing_at)
+    approved = processing.approve(at=approved_at)
+
+    assert uploaded.status is DocumentStatus.UPLOADED
+    assert processing.status is DocumentStatus.PROCESSING
+    assert processing.version == 1
+    assert approved.status is DocumentStatus.APPROVED
+    assert approved.status_changed_at == approved_at
+    assert approved.version == 2
+
+
+@pytest.mark.parametrize("final_status", [DocumentStatus.APPROVED, DocumentStatus.REJECTED])
+def test_completes_human_review(final_status: DocumentStatus) -> None:
+    document = (
+        accepted_document()
+        .start_processing(at=ACCEPTED_AT + timedelta(seconds=1))
+        .require_review(at=ACCEPTED_AT + timedelta(seconds=2))
+    )
+
+    completed = (
+        document.approve(at=ACCEPTED_AT + timedelta(seconds=3))
+        if final_status is DocumentStatus.APPROVED
+        else document.reject(at=ACCEPTED_AT + timedelta(seconds=3))
+    )
+
+    assert completed.status is final_status
+    assert completed.version == 3
+
+
+def test_rejects_a_transition_that_skips_processing() -> None:
+    with pytest.raises(
+        InvalidDocumentTransition,
+        match="cannot transition from UPLOADED to APPROVED",
+    ):
+        accepted_document().approve(at=ACCEPTED_AT + timedelta(seconds=1))
+
+
+def test_rejects_a_transition_with_a_backwards_timestamp() -> None:
+    document = accepted_document().start_processing(at=ACCEPTED_AT + timedelta(seconds=2))
+
+    with pytest.raises(InvalidDocumentTransition, match="must not move backwards"):
+        document.require_review(at=ACCEPTED_AT + timedelta(seconds=1))
