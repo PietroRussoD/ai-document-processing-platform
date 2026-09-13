@@ -89,6 +89,10 @@ uv run pyright
 uv run pytest
 ```
 
+Tests enforce branch coverage of at least 85%. The same command writes a local
+HTML report to `htmlcov/index.html` and a machine-readable report to
+`coverage.xml`. CI retains both as the `backend-coverage` artifact for 14 days.
+
 ## License
 
 Licensed under the Apache License 2.0. See [LICENSE](LICENSE).
