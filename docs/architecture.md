@@ -53,6 +53,41 @@ without a commit, including after an exception, rolls the transaction back.
 This allows document, processing-run, idempotency and workflow-start records to
 be persisted atomically when those capabilities are introduced.
 
+## Domain Lifecycles
+
+Document status describes the business outcome of the submitted content:
+
+```mermaid
+stateDiagram-v2
+    [*] --> UPLOADED
+    UPLOADED --> PROCESSING
+    PROCESSING --> APPROVED: automatic validation
+    PROCESSING --> REVIEW_REQUIRED: uncertain result
+    REVIEW_REQUIRED --> APPROVED: reviewer approves
+    REVIEW_REQUIRED --> REJECTED: reviewer rejects
+```
+
+Processing-run status describes one durable technical execution. Failures and
+retries belong here rather than in the document lifecycle:
+
+```mermaid
+stateDiagram-v2
+    [*] --> QUEUED
+    QUEUED --> RUNNING
+    QUEUED --> CANCELLED
+    RUNNING --> COMPLETED
+    RUNNING --> WAITING_RETRY
+    WAITING_RETRY --> RUNNING: retry
+    RUNNING --> REVIEW_REQUIRED
+    REVIEW_REQUIRED --> RUNNING: review resolved
+    RUNNING --> FAILED
+    RUNNING --> CANCELLED
+    WAITING_RETRY --> CANCELLED
+```
+
+Individual processing stages will have their own persisted lifecycle when stage
+execution is introduced; it is not simulated by the current domain model.
+
 ## Repository Structure
 
 The layout in the root README is intentionally a map, not a request to create
