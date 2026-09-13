@@ -8,14 +8,13 @@ from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from document_platform.adapters.outbound.postgresql.errors import is_unique_violation
 from document_platform.adapters.outbound.postgresql.models import DocumentRecord
 from document_platform.application.ports import (
     ConcurrentDocumentUpdate,
     DocumentAlreadyExists,
 )
 from document_platform.domain.documents import Document, DocumentStatus
-
-UNIQUE_VIOLATION_SQLSTATE = "23505"
 
 
 class SqlAlchemyDocumentRepository:
@@ -27,7 +26,7 @@ class SqlAlchemyDocumentRepository:
         try:
             await self._session.flush()
         except IntegrityError as error:
-            if _sqlstate(error) == UNIQUE_VIOLATION_SQLSTATE:
+            if is_unique_violation(error):
                 raise DocumentAlreadyExists(document.id) from error
             raise
 
@@ -88,7 +87,3 @@ def _to_domain(record: DocumentRecord) -> Document:
         status_changed_at=record.status_changed_at,
         version=record.version,
     )
-
-
-def _sqlstate(error: IntegrityError) -> str | None:
-    return cast(str | None, getattr(error.orig, "sqlstate", None))

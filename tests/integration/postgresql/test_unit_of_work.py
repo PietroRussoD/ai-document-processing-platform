@@ -9,6 +9,7 @@ from pydantic import PostgresDsn
 from document_platform.adapters.outbound.postgresql import SqlAlchemyUnitOfWork
 from document_platform.adapters.outbound.postgresql.database import Database, create_database
 from document_platform.domain.documents import Document
+from document_platform.domain.processing import ProcessingRun
 from document_platform.settings import Settings
 
 ACCEPTED_AT = datetime(2026, 9, 13, 11, 0, tzinfo=UTC)
@@ -39,21 +40,34 @@ async def load_document(database: Database, document_id: UUID) -> Document | Non
         return await unit_of_work.documents.get(document_id)
 
 
+async def load_run(database: Database, run_id: UUID) -> ProcessingRun | None:
+    async with SqlAlchemyUnitOfWork(database.sessions) as unit_of_work:
+        return await unit_of_work.processing_runs.get(run_id)
+
+
 @pytest.mark.anyio
 async def test_commits_all_work_explicitly(migrated_postgres_url: str) -> None:
     database = database_for(migrated_postgres_url)
     document = document_with_id(UUID("66666666-6666-4666-8666-666666666666"))
+    run = ProcessingRun.queue(
+        run_id=UUID("69696969-6969-4969-8969-696969696969"),
+        document_id=document.id,
+        queued_at=ACCEPTED_AT,
+    )
 
     try:
         async with SqlAlchemyUnitOfWork(database.sessions) as unit_of_work:
             await unit_of_work.documents.add(document)
+            await unit_of_work.processing_runs.add(run)
             await unit_of_work.commit()
 
-        loaded = await load_document(database, document.id)
+        loaded_document = await load_document(database, document.id)
+        loaded_run = await load_run(database, run.id)
     finally:
         await database.dispose()
 
-    assert loaded == document
+    assert loaded_document == document
+    assert loaded_run == run
 
 
 @pytest.mark.anyio
