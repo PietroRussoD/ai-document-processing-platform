@@ -20,6 +20,10 @@ def test_uses_safe_local_defaults(
 
     assert settings.environment == "local"
     assert settings.log_level == "INFO"
+    assert settings.database_url.scheme == "postgresql+asyncpg"
+    assert settings.database_pool_size == 5
+    assert settings.database_max_overflow == 5
+    assert settings.database_pool_timeout_seconds == 5.0
 
 
 def test_rejects_an_unknown_environment(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -27,3 +31,8 @@ def test_rejects_an_unknown_environment(monkeypatch: pytest.MonkeyPatch) -> None
 
     with pytest.raises(ValidationError):
         Settings()
+
+
+def test_rejects_an_invalid_database_pool_size() -> None:
+    with pytest.raises(ValidationError):
+        Settings(database_pool_size=0)

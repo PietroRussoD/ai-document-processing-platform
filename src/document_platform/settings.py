@@ -1,7 +1,8 @@
 """Typed process configuration."""
 
-from typing import Literal
+from typing import Annotated, Literal
 
+from pydantic import Field, PostgresDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 type Environment = Literal["local", "test", "production"]
@@ -17,3 +18,10 @@ class Settings(BaseSettings):
 
     environment: Environment = "local"
     log_level: LogLevel = "INFO"
+    database_url: PostgresDsn = PostgresDsn(
+        "postgresql+asyncpg://document_platform:local-development-only@localhost:5432/"
+        "document_platform"
+    )
+    database_pool_size: Annotated[int, Field(ge=1, le=20)] = 5
+    database_max_overflow: Annotated[int, Field(ge=0, le=20)] = 5
+    database_pool_timeout_seconds: Annotated[float, Field(gt=0, le=30)] = 5.0

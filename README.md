@@ -65,6 +65,8 @@ intentional; empty packages and placeholder abstractions are not committed.
 
 ```bash
 uv sync --all-groups
+docker compose up -d postgres
+uv run alembic upgrade head
 uv run uvicorn document_platform.bootstrap:app --reload
 ```
 
@@ -73,6 +75,10 @@ The API is available at `http://localhost:8000`. Current endpoints:
 - liveness: `GET http://localhost:8000/health/live`;
 - OpenAPI document: `GET http://localhost:8000/openapi.json`;
 - interactive API documentation: `http://localhost:8000/docs`.
+
+PostgreSQL uses local-only credentials from `compose.yaml`. Copy `.env.example`
+to `.env` only when overriding defaults. Alembic is the only schema owner;
+application startup never creates or modifies tables.
 
 Run the quality gates with:
 
