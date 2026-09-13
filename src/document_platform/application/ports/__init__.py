@@ -10,13 +10,16 @@ from document_platform.application.ports.processing_run_repository import (
     ProcessingRunAlreadyExists,
     ProcessingRunRepository,
 )
+from document_platform.application.ports.runtime import Clock, IdGenerator
 from document_platform.application.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
 
 __all__ = [
+    "Clock",
     "ConcurrentDocumentUpdate",
+    "ConcurrentProcessingRunUpdate",
     "DocumentAlreadyExists",
     "DocumentRepository",
-    "ConcurrentProcessingRunUpdate",
+    "IdGenerator",
     "ProcessingRunAlreadyExists",
     "ProcessingRunRepository",
     "UnitOfWork",
