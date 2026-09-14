@@ -107,6 +107,19 @@ content returns `409 Conflict`.
 The status endpoint returns public document metadata and the most recently queued
 processing run. Internal storage paths are never exposed by the HTTP contract.
 
+The versioned API contract is stored at
+[`docs/contracts/document-platform.openapi.json`](docs/contracts/document-platform.openapi.json).
+After changing an HTTP contract, regenerate the JSON and frontend types with:
+
+```bash
+uv run python scripts/export_openapi.py
+cd apps/operator-console
+pnpm generate:api
+```
+
+Backend tests detect runtime-to-JSON drift; `pnpm check:api` detects
+JSON-to-TypeScript drift. Generated TypeScript is never edited manually.
+
 PostgreSQL uses local-only credentials from `compose.yaml`. Copy `.env.example`
 to `.env` only when overriding defaults. Alembic is the only schema owner;
 application startup never creates or modifies tables.
