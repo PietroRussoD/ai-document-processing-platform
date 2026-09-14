@@ -161,6 +161,15 @@ extraction and OCR are later processing stages and do not belong to upload
 acceptance. The current local parser boundary is covered with generated synthetic
 PDFs; hostile-file isolation and malware scanning remain explicit later controls.
 
+## Upload Idempotency
+
+An upload idempotency key identifies one logical client request, not one physical
+blob. The server stores a deterministic fingerprint of the accepted filename,
+media type and content digest with the eventual document and processing-run IDs.
+Reusing the key with the same fingerprint returns the original acceptance result;
+reusing it for different request data is a conflict. Physical blobs remain
+deduplicated independently by their content digest.
+
 ## Repository Structure
 
 The layout in the root README is intentionally a map, not a request to create
