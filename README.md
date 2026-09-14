@@ -93,6 +93,16 @@ Tests enforce branch coverage of at least 85%. The same command writes a local
 HTML report to `htmlcov/index.html` and a machine-readable report to
 `coverage.xml`. CI retains both as the `backend-coverage` artifact for 14 days.
 
+CI scans the complete Git history for committed secrets with Gitleaks. Run the
+same check locally with:
+
+```bash
+docker run --rm --volume "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 git --redact=100 --no-banner /repo
+```
+
+This scan blocks CI after a push; it is not installed as a local pre-commit
+hook.
+
 ## License
 
 Licensed under the Apache License 2.0. See [LICENSE](LICENSE).
