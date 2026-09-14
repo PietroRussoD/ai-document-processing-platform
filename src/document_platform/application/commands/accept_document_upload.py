@@ -54,10 +54,11 @@ class AcceptDocumentUploadHandler:
         self._max_bytes = max_bytes
 
     async def __call__(self, command: AcceptDocumentUpload) -> RegisteredDocument:
-        IdempotencyKey(command.idempotency_key)
-        validate_original_filename(command.original_filename)
-        if command.declared_media_type != PDF_MEDIA_TYPE:
-            raise UnsupportedDocumentMediaType(command.declared_media_type)
+        validate_upload_metadata(
+            idempotency_key=command.idempotency_key,
+            original_filename=command.original_filename,
+            declared_media_type=command.declared_media_type,
+        )
 
         size_bytes = self._validated_size(command.staged_path)
         inspection = await self._pdf_inspector.inspect(command.staged_path)
@@ -87,3 +88,15 @@ class AcceptDocumentUploadHandler:
         if size_bytes > self._max_bytes:
             raise BlobTooLarge(self._max_bytes)
         return size_bytes
+
+
+def validate_upload_metadata(
+    *,
+    idempotency_key: str,
+    original_filename: str,
+    declared_media_type: str,
+) -> None:
+    IdempotencyKey(idempotency_key)
+    validate_original_filename(original_filename)
+    if declared_media_type != PDF_MEDIA_TYPE:
+        raise UnsupportedDocumentMediaType(declared_media_type)

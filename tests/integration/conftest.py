@@ -1,4 +1,4 @@
-"""PostgreSQL integration-test fixtures."""
+"""Shared infrastructure integration-test fixtures."""
 
 from collections.abc import Iterator
 from unittest.mock import patch

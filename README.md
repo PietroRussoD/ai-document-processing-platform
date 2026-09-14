@@ -5,9 +5,10 @@ data from business documents.
 
 ## Status
 
-Repository foundation. The first functional vertical slice is not implemented
-yet. The architectural boundaries are recorded before framework code is added
-so that later infrastructure does not determine the domain model.
+The `v0.1` ingestion milestone is in progress. The API accepts bounded PDF
+uploads through real validation, local blob storage and atomic PostgreSQL
+registration. Document-status queries and the first operator UI are not yet
+implemented.
 
 ## Technology Direction
 
@@ -73,8 +74,21 @@ uv run uvicorn document_platform.bootstrap:app --reload
 The API is available at `http://localhost:8000`. Current endpoints:
 
 - liveness: `GET http://localhost:8000/health/live`;
+- document ingestion: `POST http://localhost:8000/api/v1/documents`;
 - OpenAPI document: `GET http://localhost:8000/openapi.json`;
 - interactive API documentation: `http://localhost:8000/docs`.
+
+Upload a PDF with a client-generated idempotency key:
+
+```bash
+curl --request POST http://localhost:8000/api/v1/documents \
+  --header 'Idempotency-Key: example-upload-001' \
+  --form 'document=@supplier-invoice.pdf;type=application/pdf'
+```
+
+Successful acceptance returns `202 Accepted`. Repeating the same request returns
+the original identifiers with `replayed: true`; reusing the key for different
+content returns `409 Conflict`.
 
 PostgreSQL uses local-only credentials from `compose.yaml`. Copy `.env.example`
 to `.env` only when overriding defaults. Alembic is the only schema owner;
