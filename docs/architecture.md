@@ -114,6 +114,32 @@ erDiagram
 Deleting a document as part of an explicit retention operation cascades to its
 processing runs. Ordinary processing never deletes either record.
 
+## Local Blob Lifecycle
+
+The default storage adapter streams bytes to a private temporary file while
+enforcing the configured size limit and calculating SHA-256. It synchronizes
+the complete file before atomically publishing it under a content-derived key:
+
+```mermaid
+flowchart LR
+    Stream[Async byte stream] --> Temporary[Private temporary file]
+    Temporary --> Check{Non-empty and within limit?}
+    Check -->|no| Cleanup[Delete temporary file]
+    Check -->|yes| Sync[Flush and fsync]
+    Sync --> Publish[Atomic publish]
+    Publish --> Blob[blobs/sha256/prefix/digest]
+    Publish -->|digest already exists| Verify[Verify existing size and digest]
+    Verify --> Blob
+```
+
+Callers cannot choose filesystem paths, and original filenames never become
+storage keys. Files use mode `0600`; generated directories use mode `0700`.
+Concurrent uploads of identical bytes converge on one immutable blob. A
+pre-existing object that does not match its content-derived key is treated as
+an integrity conflict rather than overwritten. Temporary files are removed on
+success and handled failures; crash-orphan reconciliation is a later operational
+capability.
+
 ## Repository Structure
 
 The layout in the root README is intentionally a map, not a request to create

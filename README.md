@@ -80,6 +80,10 @@ PostgreSQL uses local-only credentials from `compose.yaml`. Copy `.env.example`
 to `.env` only when overriding defaults. Alembic is the only schema owner;
 application startup never creates or modifies tables.
 
+Local document blobs are written below `data/` by default and are excluded from
+Git. Override the root with `DOCUMENT_PLATFORM_STORAGE_ROOT` and the 20 MiB
+upload limit with `DOCUMENT_PLATFORM_MAX_DOCUMENT_BYTES`.
+
 Run the quality gates with:
 
 ```bash

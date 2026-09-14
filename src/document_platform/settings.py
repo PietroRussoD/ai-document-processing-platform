@@ -1,5 +1,6 @@
 """Typed process configuration."""
 
+from pathlib import Path
 from typing import Annotated, Literal
 
 from pydantic import Field, PostgresDsn
@@ -18,6 +19,8 @@ class Settings(BaseSettings):
 
     environment: Environment = "local"
     log_level: LogLevel = "INFO"
+    storage_root: Path = Path("data")
+    max_document_bytes: Annotated[int, Field(gt=0)] = 20 * 1024 * 1024
     database_url: PostgresDsn = PostgresDsn(
         "postgresql+asyncpg://document_platform:local-development-only@localhost:5432/"
         "document_platform"
