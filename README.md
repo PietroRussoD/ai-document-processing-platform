@@ -8,7 +8,8 @@ data from business documents.
 The `v0.1` ingestion milestone is in progress. The API accepts bounded PDF
 uploads through real validation, local blob storage and atomic PostgreSQL
 registration. A read endpoint exposes the current document and processing-run
-status. The first operator UI is not yet implemented.
+status. The operator-console foundation now provides tested PDF selection; API
+submission and persisted status rendering are the next slice.
 
 ## Technology Direction
 
@@ -79,6 +80,18 @@ The API is available at `http://localhost:8000`. Current endpoints:
 - OpenAPI document: `GET http://localhost:8000/openapi.json`;
 - interactive API documentation: `http://localhost:8000/docs`.
 
+Run the operator console in a second terminal:
+
+```bash
+cd apps/operator-console
+pnpm install --frozen-lockfile
+pnpm dev
+```
+
+Vite serves the console at `http://localhost:5173` and proxies `/api` requests
+to the backend at `http://localhost:8000` by default. Override the development
+target with `VITE_API_PROXY_TARGET` when required.
+
 Upload a PDF with a client-generated idempotency key:
 
 ```bash
@@ -111,6 +124,13 @@ uv run ruff check .
 uv run ruff format --check .
 uv run pyright
 uv run pytest
+```
+
+Run the frontend quality gates with:
+
+```bash
+cd apps/operator-console
+pnpm check
 ```
 
 Tests enforce branch coverage of at least 85%. The same command writes a local

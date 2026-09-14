@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+:root {
+    --app-canvas: #f7f8f7;
+    --app-surface: #ffffff;
+    --app-foreground: #202322;
+    --app-muted: #626966;
+    --app-border: #dde1df;
+    --app-border-strong: #aab2ae;
+    --app-accent: #087f6b;
+    --app-focus: #006c5b;
+    --app-danger: #b42318;
+
+    color-scheme: light;
+    font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+}
+
+@theme inline {
+    --color-app-canvas: var(--app-canvas);
+    --color-app-surface: var(--app-surface);
+    --color-app-foreground: var(--app-foreground);
+    --color-app-muted: var(--app-muted);
+    --color-app-border: var(--app-border);
+    --color-app-border-strong: var(--app-border-strong);
+    --color-app-accent: var(--app-accent);
+    --color-app-focus: var(--app-focus);
+    --color-app-danger: var(--app-danger);
+}
+
+body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    background: var(--app-canvas);
+}
+
+button,
+input,
+label {
+    -webkit-tap-highlight-color: transparent;
+}
