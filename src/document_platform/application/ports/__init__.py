@@ -13,6 +13,13 @@ from document_platform.application.ports.document_repository import (
     DocumentAlreadyExists,
     DocumentRepository,
 )
+from document_platform.application.ports.pdf_inspector import (
+    EncryptedPdf,
+    InvalidPdf,
+    PdfInspection,
+    PdfInspector,
+    PdfPageLimitExceeded,
+)
 from document_platform.application.ports.processing_run_repository import (
     ConcurrentProcessingRunUpdate,
     ProcessingRunAlreadyExists,
@@ -32,7 +39,12 @@ __all__ = [
     "DocumentAlreadyExists",
     "DocumentRepository",
     "EmptyBlob",
+    "EncryptedPdf",
     "IdGenerator",
+    "InvalidPdf",
+    "PdfInspection",
+    "PdfInspector",
+    "PdfPageLimitExceeded",
     "ProcessingRunAlreadyExists",
     "ProcessingRunRepository",
     "StoredBlob",

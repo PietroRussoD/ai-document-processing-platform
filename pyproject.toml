@@ -22,6 +22,7 @@ dependencies = [
   "asyncpg>=0.31,<1",
   "fastapi>=0.137,<1",
   "pydantic-settings>=2.12,<3",
+  "pymupdf>=1.26,<2",
   "sqlalchemy[asyncio]>=2.0.51,<2.1",
   "uvicorn[standard]>=0.41,<1",
 ]

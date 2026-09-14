@@ -82,7 +82,9 @@ application startup never creates or modifies tables.
 
 Local document blobs are written below `data/` by default and are excluded from
 Git. Override the root with `DOCUMENT_PLATFORM_STORAGE_ROOT` and the 20 MiB
-upload limit with `DOCUMENT_PLATFORM_MAX_DOCUMENT_BYTES`.
+upload limit with `DOCUMENT_PLATFORM_MAX_DOCUMENT_BYTES`. PDF inspection rejects
+invalid, encrypted and over-limit files; the default page limit is 50 and can be
+set through `DOCUMENT_PLATFORM_MAX_DOCUMENT_PAGES`.
 
 Run the quality gates with:
 

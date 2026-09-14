@@ -140,6 +140,27 @@ an integrity conflict rather than overwritten. Temporary files are removed on
 success and handled failures; crash-orphan reconciliation is a later operational
 capability.
 
+## PDF Acceptance Boundary
+
+The upload boundary treats the declared media type as untrusted. A seekable,
+size-bounded temporary file is inspected with PyMuPDF before domain registration:
+
+```mermaid
+flowchart LR
+    Upload[Bounded temporary upload] --> Signature[PDF signature]
+    Signature --> Structure[PyMuPDF structural parse]
+    Structure --> Encryption{Encrypted?}
+    Encryption -->|yes| Reject[Reject and clean up]
+    Encryption -->|no| Pages{Within page limit?}
+    Pages -->|no| Reject
+    Pages -->|yes| Accept[Eligible for durable storage]
+```
+
+The inspector returns only trusted structural metadata such as page count. Text
+extraction and OCR are later processing stages and do not belong to upload
+acceptance. The current local parser boundary is covered with generated synthetic
+PDFs; hostile-file isolation and malware scanning remain explicit later controls.
+
 ## Repository Structure
 
 The layout in the root README is intentionally a map, not a request to create

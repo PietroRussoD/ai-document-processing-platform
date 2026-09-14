@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     log_level: LogLevel = "INFO"
     storage_root: Path = Path("data")
     max_document_bytes: Annotated[int, Field(gt=0)] = 20 * 1024 * 1024
+    max_document_pages: Annotated[int, Field(gt=0)] = 50
     database_url: PostgresDsn = PostgresDsn(
         "postgresql+asyncpg://document_platform:local-development-only@localhost:5432/"
         "document_platform"
