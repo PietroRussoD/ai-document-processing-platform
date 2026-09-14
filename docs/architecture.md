@@ -50,8 +50,9 @@ Application use cases own transaction boundaries through a unit of work.
 Repositories use its shared session but never commit independently. A use case
 must commit explicitly after all related writes succeed; leaving the context
 without a commit, including after an exception, rolls the transaction back.
-This allows document, processing-run, idempotency and workflow-start records to
-be persisted atomically when those capabilities are introduced.
+Document, initial processing run and upload-idempotency result are now persisted
+atomically. The workflow-start request will join that transaction when durable
+workflow dispatch is introduced.
 
 ## Domain Lifecycles
 
@@ -169,6 +170,24 @@ media type and content digest with the eventual document and processing-run IDs.
 Reusing the key with the same fingerprint returns the original acceptance result;
 reusing it for different request data is a conflict. Physical blobs remain
 deduplicated independently by their content digest.
+
+```mermaid
+sequenceDiagram
+    participant H as RegisterDocumentHandler
+    participant U as UnitOfWork
+    participant P as PostgreSQL
+    H->>U: find idempotency key
+    U->>P: SELECT record
+    alt matching record exists
+        H->>U: load original processing run
+        H-->>H: return original IDs as replay
+    else key has different fingerprint
+        H-->>H: reject conflict
+    else key is new
+        H->>U: add document, run and idempotency record
+        U->>P: COMMIT once
+    end
+```
 
 ```mermaid
 erDiagram

@@ -8,6 +8,11 @@ from pydantic import PostgresDsn
 
 from document_platform.adapters.outbound.postgresql import SqlAlchemyUnitOfWork
 from document_platform.adapters.outbound.postgresql.database import Database, create_database
+from document_platform.application.upload_idempotency import (
+    IdempotencyKey,
+    UploadIdempotencyRecord,
+    UploadRequestFingerprint,
+)
 from document_platform.domain.documents import Document
 from document_platform.domain.processing import ProcessingRun
 from document_platform.settings import Settings
@@ -45,6 +50,14 @@ async def load_run(database: Database, run_id: UUID) -> ProcessingRun | None:
         return await unit_of_work.processing_runs.get(run_id)
 
 
+async def load_idempotency_record(
+    database: Database,
+    key: IdempotencyKey,
+) -> UploadIdempotencyRecord | None:
+    async with SqlAlchemyUnitOfWork(database.sessions) as unit_of_work:
+        return await unit_of_work.upload_idempotency.get(key)
+
+
 @pytest.mark.anyio
 async def test_commits_all_work_explicitly(migrated_postgres_url: str) -> None:
     database = database_for(migrated_postgres_url)
@@ -54,20 +67,32 @@ async def test_commits_all_work_explicitly(migrated_postgres_url: str) -> None:
         document_id=document.id,
         queued_at=ACCEPTED_AT,
     )
+    idempotency_record = UploadIdempotencyRecord(
+        key=IdempotencyKey("unit-of-work-test"),
+        request_fingerprint=UploadRequestFingerprint("a" * 64),
+        processing_run_id=run.id,
+        recorded_at=ACCEPTED_AT,
+    )
 
     try:
         async with SqlAlchemyUnitOfWork(database.sessions) as unit_of_work:
             await unit_of_work.documents.add(document)
             await unit_of_work.processing_runs.add(run)
+            await unit_of_work.upload_idempotency.add(idempotency_record)
             await unit_of_work.commit()
 
         loaded_document = await load_document(database, document.id)
         loaded_run = await load_run(database, run.id)
+        loaded_idempotency_record = await load_idempotency_record(
+            database,
+            idempotency_record.key,
+        )
     finally:
         await database.dispose()
 
     assert loaded_document == document
     assert loaded_run == run
+    assert loaded_idempotency_record == idempotency_record
 
 
 @pytest.mark.anyio
@@ -112,6 +137,9 @@ async def test_rejects_operations_outside_the_context(migrated_postgres_url: str
     try:
         with pytest.raises(RuntimeError, match="unit of work is not active"):
             _ = unit_of_work.documents
+
+        with pytest.raises(RuntimeError, match="unit of work is not active"):
+            _ = unit_of_work.upload_idempotency
 
         with pytest.raises(RuntimeError, match="unit of work is not active"):
             await unit_of_work.commit()

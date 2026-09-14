@@ -8,12 +8,21 @@ from uuid import UUID
 import pytest
 
 from document_platform.application.commands import (
+    InconsistentIdempotencyRecord,
     RegisterDocument,
     RegisterDocumentHandler,
 )
 from document_platform.application.ports import (
     DocumentRepository,
     ProcessingRunRepository,
+    UploadIdempotencyRecordAlreadyExists,
+    UploadIdempotencyRepository,
+)
+from document_platform.application.upload_idempotency import (
+    ConflictingIdempotencyKey,
+    IdempotencyKey,
+    UploadIdempotencyRecord,
+    UploadRequestFingerprint,
 )
 from document_platform.domain.documents import Document, InvalidDocument
 from document_platform.domain.processing import ProcessingRun
@@ -53,15 +62,43 @@ class RecordingProcessingRunRepository:
     async def update(self, run: ProcessingRun) -> None:
         raise NotImplementedError
 
+    def seed(self, run: ProcessingRun) -> None:
+        self.added.append(run)
+
 
 class SimulatedPersistenceFailure(RuntimeError):
     pass
 
 
+class RecordingUploadIdempotencyRepository:
+    def __init__(self, *, fail_on_add: bool = False) -> None:
+        self.records: dict[IdempotencyKey, UploadIdempotencyRecord] = {}
+        self.fail_on_add = fail_on_add
+
+    async def add(self, record: UploadIdempotencyRecord) -> None:
+        if self.fail_on_add:
+            raise UploadIdempotencyRecordAlreadyExists(record.key)
+        self.records[record.key] = record
+
+    async def get(self, key: IdempotencyKey) -> UploadIdempotencyRecord | None:
+        return self.records.get(key)
+
+    def seed(self, record: UploadIdempotencyRecord) -> None:
+        self.records[record.key] = record
+
+
 class RecordingUnitOfWork:
-    def __init__(self, *, fail_on_run_add: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        fail_on_run_add: bool = False,
+        fail_on_idempotency_add: bool = False,
+    ) -> None:
         self._documents = RecordingDocumentRepository()
         self._processing_runs = RecordingProcessingRunRepository(fail_on_add=fail_on_run_add)
+        self._upload_idempotency = RecordingUploadIdempotencyRepository(
+            fail_on_add=fail_on_idempotency_add
+        )
         self.commit_count = 0
         self.exit_exception: type[BaseException] | None = None
 
@@ -74,12 +111,31 @@ class RecordingUnitOfWork:
         return self._processing_runs
 
     @property
+    def upload_idempotency(self) -> UploadIdempotencyRepository:
+        return self._upload_idempotency
+
+    @property
     def recorded_documents(self) -> tuple[Document, ...]:
         return tuple(self._documents.added)
 
     @property
     def recorded_processing_runs(self) -> tuple[ProcessingRun, ...]:
         return tuple(self._processing_runs.added)
+
+    @property
+    def recorded_idempotency_records(self) -> tuple[UploadIdempotencyRecord, ...]:
+        return tuple(self._upload_idempotency.records.values())
+
+    def seed_replay(
+        self,
+        processing_run: ProcessingRun,
+        idempotency_record: UploadIdempotencyRecord,
+    ) -> None:
+        self._processing_runs.seed(processing_run)
+        self._upload_idempotency.seed(idempotency_record)
+
+    def seed_idempotency(self, idempotency_record: UploadIdempotencyRecord) -> None:
+        self._upload_idempotency.seed(idempotency_record)
 
     async def __aenter__(self) -> Self:
         return self
@@ -109,6 +165,7 @@ class SequenceIdGenerator:
 
 def command(**overrides: object) -> RegisterDocument:
     values: dict[str, object] = {
+        "idempotency_key": "request-42",
         "original_filename": "supplier-invoice.pdf",
         "size_bytes": 42_000,
         "page_count": 2,
@@ -136,6 +193,7 @@ async def test_registers_a_document_and_initial_run_atomically() -> None:
     assert result.document_id == DOCUMENT_ID
     assert result.processing_run_id == RUN_ID
     assert result.accepted_at == ACCEPTED_AT
+    assert result.replayed is False
     assert unit_of_work.commit_count == 1
     assert unit_of_work.exit_exception is None
 
@@ -146,10 +204,13 @@ async def test_registers_a_document_and_initial_run_atomically() -> None:
     assert processing_run.id == RUN_ID
     assert processing_run.document_id == DOCUMENT_ID
     assert processing_run.queued_at == ACCEPTED_AT
+    idempotency_record = unit_of_work.recorded_idempotency_records[0]
+    assert idempotency_record.processing_run_id == RUN_ID
+    assert idempotency_record.recorded_at == ACCEPTED_AT
 
 
 @pytest.mark.anyio
-async def test_does_not_open_a_transaction_for_invalid_document_data() -> None:
+async def test_does_not_write_or_commit_invalid_document_data() -> None:
     unit_of_work = RecordingUnitOfWork()
     entered = False
 
@@ -167,7 +228,11 @@ async def test_does_not_open_a_transaction_for_invalid_document_data() -> None:
     with pytest.raises(InvalidDocument):
         await register(command(size_bytes=0))
 
-    assert entered is False
+    assert entered is True
+    assert unit_of_work.recorded_documents == ()
+    assert unit_of_work.recorded_processing_runs == ()
+    assert unit_of_work.recorded_idempotency_records == ()
+    assert unit_of_work.commit_count == 0
 
 
 @pytest.mark.anyio
@@ -179,3 +244,109 @@ async def test_does_not_commit_when_a_repository_write_fails() -> None:
 
     assert unit_of_work.commit_count == 0
     assert unit_of_work.exit_exception is SimulatedPersistenceFailure
+
+
+@pytest.mark.anyio
+async def test_replays_the_original_acceptance_for_the_same_request() -> None:
+    unit_of_work = RecordingUnitOfWork()
+    processing_run = ProcessingRun.queue(
+        run_id=RUN_ID,
+        document_id=DOCUMENT_ID,
+        queued_at=ACCEPTED_AT,
+    )
+    idempotency_record = UploadIdempotencyRecord(
+        key=IdempotencyKey("request-42"),
+        request_fingerprint=UploadRequestFingerprint.create(
+            original_filename="supplier-invoice.pdf",
+            media_type="application/pdf",
+            content_sha256="c" * 64,
+        ),
+        processing_run_id=RUN_ID,
+        recorded_at=ACCEPTED_AT,
+    )
+    unit_of_work.seed_replay(processing_run, idempotency_record)
+
+    result = await handler(unit_of_work)(command())
+
+    assert result.document_id == DOCUMENT_ID
+    assert result.processing_run_id == RUN_ID
+    assert result.replayed is True
+    assert unit_of_work.commit_count == 0
+    assert unit_of_work.recorded_documents == ()
+
+
+@pytest.mark.anyio
+async def test_rejects_reusing_a_key_for_different_content() -> None:
+    unit_of_work = RecordingUnitOfWork()
+    idempotency_record = UploadIdempotencyRecord(
+        key=IdempotencyKey("request-42"),
+        request_fingerprint=UploadRequestFingerprint.create(
+            original_filename="supplier-invoice.pdf",
+            media_type="application/pdf",
+            content_sha256="a" * 64,
+        ),
+        processing_run_id=RUN_ID,
+        recorded_at=ACCEPTED_AT,
+    )
+    unit_of_work.seed_idempotency(idempotency_record)
+
+    with pytest.raises(ConflictingIdempotencyKey):
+        await handler(unit_of_work)(command())
+
+    assert unit_of_work.commit_count == 0
+
+
+@pytest.mark.anyio
+async def test_recovers_a_concurrent_same_request_registration() -> None:
+    losing_unit_of_work = RecordingUnitOfWork(fail_on_idempotency_add=True)
+    winning_unit_of_work = RecordingUnitOfWork()
+    winning_run = ProcessingRun.queue(
+        run_id=RUN_ID,
+        document_id=DOCUMENT_ID,
+        queued_at=ACCEPTED_AT,
+    )
+    winning_record = UploadIdempotencyRecord(
+        key=IdempotencyKey("request-42"),
+        request_fingerprint=UploadRequestFingerprint.create(
+            original_filename="supplier-invoice.pdf",
+            media_type="application/pdf",
+            content_sha256="c" * 64,
+        ),
+        processing_run_id=RUN_ID,
+        recorded_at=ACCEPTED_AT,
+    )
+    winning_unit_of_work.seed_replay(winning_run, winning_record)
+    units_of_work = iter((losing_unit_of_work, winning_unit_of_work))
+    register = RegisterDocumentHandler(
+        unit_of_work_factory=lambda: next(units_of_work),
+        clock=lambda: ACCEPTED_AT,
+        id_generator=SequenceIdGenerator(DOCUMENT_ID, RUN_ID),
+    )
+
+    result = await register(command())
+
+    assert result.document_id == DOCUMENT_ID
+    assert result.processing_run_id == RUN_ID
+    assert result.replayed is True
+    assert losing_unit_of_work.commit_count == 0
+    assert losing_unit_of_work.exit_exception is UploadIdempotencyRecordAlreadyExists
+
+
+@pytest.mark.anyio
+async def test_rejects_an_idempotency_record_with_a_missing_run() -> None:
+    unit_of_work = RecordingUnitOfWork()
+    unit_of_work.seed_idempotency(
+        UploadIdempotencyRecord(
+            key=IdempotencyKey("request-42"),
+            request_fingerprint=UploadRequestFingerprint.create(
+                original_filename="supplier-invoice.pdf",
+                media_type="application/pdf",
+                content_sha256="c" * 64,
+            ),
+            processing_run_id=RUN_ID,
+            recorded_at=ACCEPTED_AT,
+        )
+    )
+
+    with pytest.raises(InconsistentIdempotencyRecord):
+        await handler(unit_of_work)(command())

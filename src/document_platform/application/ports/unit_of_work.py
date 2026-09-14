@@ -6,6 +6,9 @@ from typing import Protocol, Self
 
 from document_platform.application.ports.document_repository import DocumentRepository
 from document_platform.application.ports.processing_run_repository import ProcessingRunRepository
+from document_platform.application.ports.upload_idempotency_repository import (
+    UploadIdempotencyRepository,
+)
 
 
 class UnitOfWork(Protocol):
@@ -14,6 +17,9 @@ class UnitOfWork(Protocol):
 
     @property
     def processing_runs(self) -> ProcessingRunRepository: ...
+
+    @property
+    def upload_idempotency(self) -> UploadIdempotencyRepository: ...
 
     async def __aenter__(self) -> Self: ...
 

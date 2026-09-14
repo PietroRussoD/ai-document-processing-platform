@@ -1,6 +1,7 @@
 """Document lifecycle domain model."""
 
 from document_platform.domain.documents.document import (
+    PDF_MEDIA_TYPE,
     Document,
     DocumentStatus,
     InvalidDocument,
@@ -12,4 +13,5 @@ __all__ = [
     "DocumentStatus",
     "InvalidDocument",
     "InvalidDocumentTransition",
+    "PDF_MEDIA_TYPE",
 ]

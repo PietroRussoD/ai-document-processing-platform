@@ -8,8 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from document_platform.adapters.outbound.postgresql.repositories import (
     SqlAlchemyDocumentRepository,
     SqlAlchemyProcessingRunRepository,
+    SqlAlchemyUploadIdempotencyRepository,
 )
-from document_platform.application.ports import DocumentRepository, ProcessingRunRepository
+from document_platform.application.ports import (
+    DocumentRepository,
+    ProcessingRunRepository,
+    UploadIdempotencyRepository,
+)
 
 
 class SqlAlchemyUnitOfWork:
@@ -18,6 +23,7 @@ class SqlAlchemyUnitOfWork:
         self._session: AsyncSession | None = None
         self._documents: DocumentRepository | None = None
         self._processing_runs: ProcessingRunRepository | None = None
+        self._upload_idempotency: UploadIdempotencyRepository | None = None
 
     @property
     def documents(self) -> DocumentRepository:
@@ -31,6 +37,12 @@ class SqlAlchemyUnitOfWork:
             raise RuntimeError("unit of work is not active")
         return self._processing_runs
 
+    @property
+    def upload_idempotency(self) -> UploadIdempotencyRepository:
+        if self._upload_idempotency is None:
+            raise RuntimeError("unit of work is not active")
+        return self._upload_idempotency
+
     async def __aenter__(self) -> Self:
         if self._session is not None:
             raise RuntimeError("unit of work is already active")
@@ -38,6 +50,7 @@ class SqlAlchemyUnitOfWork:
         self._session = self._sessions()
         self._documents = SqlAlchemyDocumentRepository(self._session)
         self._processing_runs = SqlAlchemyProcessingRunRepository(self._session)
+        self._upload_idempotency = SqlAlchemyUploadIdempotencyRepository(self._session)
         return self
 
     async def __aexit__(
@@ -54,6 +67,7 @@ class SqlAlchemyUnitOfWork:
             self._session = None
             self._documents = None
             self._processing_runs = None
+            self._upload_idempotency = None
 
     async def commit(self) -> None:
         await self._require_session().commit()
