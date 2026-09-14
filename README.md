@@ -7,8 +7,8 @@ data from business documents.
 
 The `v0.1` ingestion milestone is in progress. The API accepts bounded PDF
 uploads through real validation, local blob storage and atomic PostgreSQL
-registration. Document-status queries and the first operator UI are not yet
-implemented.
+registration. A read endpoint exposes the current document and processing-run
+status. The first operator UI is not yet implemented.
 
 ## Technology Direction
 
@@ -75,6 +75,7 @@ The API is available at `http://localhost:8000`. Current endpoints:
 
 - liveness: `GET http://localhost:8000/health/live`;
 - document ingestion: `POST http://localhost:8000/api/v1/documents`;
+- document status: `GET http://localhost:8000/api/v1/documents/{document_id}`;
 - OpenAPI document: `GET http://localhost:8000/openapi.json`;
 - interactive API documentation: `http://localhost:8000/docs`.
 
@@ -89,6 +90,9 @@ curl --request POST http://localhost:8000/api/v1/documents \
 Successful acceptance returns `202 Accepted`. Repeating the same request returns
 the original identifiers with `replayed: true`; reusing the key for different
 content returns `409 Conflict`.
+
+The status endpoint returns public document metadata and the most recently queued
+processing run. Internal storage paths are never exposed by the HTTP contract.
 
 PostgreSQL uses local-only credentials from `compose.yaml`. Copy `.env.example`
 to `.env` only when overriding defaults. Alembic is the only schema owner;

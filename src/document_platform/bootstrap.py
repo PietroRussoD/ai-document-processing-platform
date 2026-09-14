@@ -15,10 +15,12 @@ from document_platform.adapters.outbound.filesystem import LocalBlobStore
 from document_platform.adapters.outbound.pdf import PyMuPdfInspector
 from document_platform.adapters.outbound.postgresql import SqlAlchemyUnitOfWork
 from document_platform.adapters.outbound.postgresql.database import create_database
+from document_platform.adapters.outbound.postgresql.queries import SqlAlchemyDocumentStatusReader
 from document_platform.application.commands import (
     AcceptDocumentUploadHandler,
     RegisterDocumentHandler,
 )
+from document_platform.application.queries import GetDocumentStatusHandler
 from document_platform.settings import Settings
 
 PACKAGE_NAME = "ai-document-processing-platform"
@@ -42,6 +44,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         register_document=register_document,
         max_bytes=active_settings.max_document_bytes,
     )
+    get_document_status = GetDocumentStatusHandler(
+        SqlAlchemyDocumentStatusReader(database.sessions)
+    )
 
     @asynccontextmanager
     async def lifespan(_application: FastAPI) -> AsyncGenerator[None]:
@@ -57,6 +62,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.state.settings = active_settings
     application.state.database = database
     application.state.accept_document_upload = accept_document_upload
+    application.state.get_document_status = get_document_status
     install_problem_handlers(application)
     application.include_router(health_router)
     application.include_router(documents_router)

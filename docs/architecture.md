@@ -54,6 +54,10 @@ Document, initial processing run and upload-idempotency result are now persisted
 atomically. The workflow-start request will join that transaction when durable
 workflow dispatch is introduced.
 
+Status queries use a dedicated read-model port. Its PostgreSQL adapter joins the
+document with its most recently queued processing run and returns only the fields
+required by the public API; it does not load aggregates or open a write transaction.
+
 ## Domain Lifecycles
 
 Document status describes the business outcome of the submitted content:

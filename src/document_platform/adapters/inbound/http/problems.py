@@ -18,6 +18,7 @@ from document_platform.application.ports import (
     InvalidPdf,
     PdfPageLimitExceeded,
 )
+from document_platform.application.queries import DocumentNotFound
 from document_platform.application.upload_idempotency import (
     ConflictingIdempotencyKey,
     InvalidIdempotencyKey,
@@ -40,6 +41,10 @@ class ProblemDefinition:
 
 
 PROBLEM_DEFINITIONS: tuple[tuple[type[Exception], ProblemDefinition], ...] = (
+    (
+        DocumentNotFound,
+        ProblemDefinition("urn:problem:document-not-found", "Document not found", 404),
+    ),
     (
         InvalidIdempotencyKey,
         ProblemDefinition("urn:problem:invalid-idempotency-key", "Invalid idempotency key", 400),

@@ -1,5 +1,6 @@
 """Document-upload HTTP integration tests."""
 
+from hashlib import sha256
 from pathlib import Path
 from typing import TypedDict, cast
 
@@ -64,8 +65,9 @@ async def test_accepts_and_replays_a_pdf_upload(
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             first_response = await _post_document(client, content=content)
             replay_response = await _post_document(client, content=content)
+            first = cast(AcceptedDocumentBody, first_response.json())
+            status_response = await client.get(f"/api/v1/documents/{first['document_id']}")
 
-        first = cast(AcceptedDocumentBody, first_response.json())
         replay = cast(AcceptedDocumentBody, replay_response.json())
         async with database.sessions() as session:
             counts = await session.execute(
@@ -93,6 +95,28 @@ async def test_accepts_and_replays_a_pdf_upload(
     assert replay["replayed"] is True
     assert replay["document_id"] == first["document_id"]
     assert replay["processing_run_id"] == first["processing_run_id"]
+    assert status_response.status_code == 200
+    assert status_response.json() == {
+        "id": first["document_id"],
+        "original_filename": "supplier-invoice.pdf",
+        "media_type": "application/pdf",
+        "size_bytes": len(content),
+        "page_count": 1,
+        "content_sha256": sha256(content).hexdigest(),
+        "status": "UPLOADED",
+        "accepted_at": first["accepted_at"],
+        "status_changed_at": first["accepted_at"],
+        "current_run": {
+            "id": first["processing_run_id"],
+            "status": "QUEUED",
+            "queued_at": first["accepted_at"],
+            "started_at": None,
+            "status_changed_at": first["accepted_at"],
+            "finished_at": None,
+            "attempt_count": 0,
+        },
+    }
+    assert "storage_key" not in status_response.json()
     assert persisted_counts == (1, 1, 1)
     assert (
         len([path for path in tmp_path.joinpath("data", "blobs").rglob("*") if path.is_file()]) == 1
@@ -181,6 +205,39 @@ async def test_maps_missing_request_fields_to_problem_details(
     }
 
 
+@pytest.mark.anyio
+async def test_returns_problem_details_for_an_unknown_document(
+    migrated_postgres_url: str,
+    tmp_path: Path,
+) -> None:
+    application = create_app(
+        Settings(
+            environment="test",
+            database_url=PostgresDsn(migrated_postgres_url),
+            storage_root=tmp_path / "data",
+        )
+    )
+    database = cast(Database, application.state.database)
+
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=application),
+            base_url="http://test",
+        ) as client:
+            response = await client.get("/api/v1/documents/77777777-7777-4777-8777-777777777777")
+    finally:
+        await database.dispose()
+
+    assert response.status_code == 404
+    assert response.headers["content-type"] == "application/problem+json"
+    assert response.json() == {
+        "type": "urn:problem:document-not-found",
+        "title": "Document not found",
+        "status": 404,
+        "detail": "document not found: 77777777-7777-4777-8777-777777777777",
+    }
+
+
 def test_exposes_a_stable_document_upload_contract() -> None:
     application = create_app(Settings(environment="test"))
     openapi = application.openapi()
@@ -191,3 +248,9 @@ def test_exposes_a_stable_document_upload_contract() -> None:
     assert operation["tags"] == ["Documents"]
     assert set(operation["responses"]) >= {"202", "400", "409", "413", "415", "422"}
     assert set(operation["responses"]["422"]["content"]) == {"application/problem+json"}
+
+    status_operation = openapi["paths"]["/api/v1/documents/{document_id}"]["get"]
+    assert status_operation["operationId"] == "getDocumentStatus"
+    assert status_operation["tags"] == ["Documents"]
+    assert set(status_operation["responses"]) >= {"200", "404", "422"}
+    assert set(status_operation["responses"]["404"]["content"]) == {"application/problem+json"}

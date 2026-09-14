@@ -12,6 +12,11 @@ from document_platform.application.ports.document_repository import (
     DocumentAlreadyExists,
     DocumentRepository,
 )
+from document_platform.application.ports.document_status_reader import (
+    DocumentStatusReader,
+    DocumentStatusView,
+    ProcessingRunStatusView,
+)
 from document_platform.application.ports.pdf_inspector import (
     EncryptedPdf,
     InvalidPdf,
@@ -40,6 +45,8 @@ __all__ = [
     "ConcurrentProcessingRunUpdate",
     "DocumentAlreadyExists",
     "DocumentRepository",
+    "DocumentStatusReader",
+    "DocumentStatusView",
     "EmptyBlob",
     "EncryptedPdf",
     "IdGenerator",
@@ -49,6 +56,7 @@ __all__ = [
     "PdfPageLimitExceeded",
     "ProcessingRunAlreadyExists",
     "ProcessingRunRepository",
+    "ProcessingRunStatusView",
     "StoredBlob",
     "UnitOfWork",
     "UnitOfWorkFactory",
