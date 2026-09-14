@@ -4,7 +4,6 @@ from document_platform.application.ports.blob_store import (
     BlobIntegrityConflict,
     BlobStore,
     BlobTooLarge,
-    ByteStream,
     EmptyBlob,
     StoredBlob,
 )
@@ -36,7 +35,6 @@ __all__ = [
     "BlobIntegrityConflict",
     "BlobStore",
     "BlobTooLarge",
-    "ByteStream",
     "Clock",
     "ConcurrentDocumentUpdate",
     "ConcurrentProcessingRunUpdate",

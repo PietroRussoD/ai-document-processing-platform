@@ -54,13 +54,7 @@ class Document:
     def __post_init__(self) -> None:
         if self.id.int == 0:
             raise InvalidDocument("id must not be the nil UUID")
-        if not self.original_filename.strip():
-            raise InvalidDocument("original_filename must not be blank")
-        if (
-            PurePath(self.original_filename).name != self.original_filename
-            or "\\" in self.original_filename
-        ):
-            raise InvalidDocument("original_filename must not contain a path")
+        validate_original_filename(self.original_filename)
         if self.media_type != PDF_MEDIA_TYPE:
             raise InvalidDocument(f"unsupported media_type: {self.media_type}")
         if self.size_bytes <= 0:
@@ -136,3 +130,10 @@ class Document:
 
 def _is_timezone_aware(value: datetime) -> bool:
     return value.tzinfo is not None and value.utcoffset() is not None
+
+
+def validate_original_filename(value: str) -> None:
+    if not value.strip():
+        raise InvalidDocument("original_filename must not be blank")
+    if PurePath(value).name != value or "\\" in value:
+        raise InvalidDocument("original_filename must not contain a path")

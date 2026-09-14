@@ -117,13 +117,14 @@ processing runs. Ordinary processing never deletes either record.
 
 ## Local Blob Lifecycle
 
-The default storage adapter streams bytes to a private temporary file while
-enforcing the configured size limit and calculating SHA-256. It synchronizes
-the complete file before atomically publishing it under a content-derived key:
+The default storage adapter copies a request-owned staged file to a private
+temporary file in bounded chunks while enforcing the configured size limit and
+calculating SHA-256. It synchronizes the complete file before atomically
+publishing it under a content-derived key:
 
 ```mermaid
 flowchart LR
-    Stream[Async byte stream] --> Temporary[Private temporary file]
+    Stream[Request-owned staged file] --> Temporary[Private storage temporary file]
     Temporary --> Check{Non-empty and within limit?}
     Check -->|no| Cleanup[Delete temporary file]
     Check -->|yes| Sync[Flush and fsync]
@@ -161,6 +162,14 @@ The inspector returns only trusted structural metadata such as page count. Text
 extraction and OCR are later processing stages and do not belong to upload
 acceptance. The current local parser boundary is covered with generated synthetic
 PDFs; hostile-file isolation and malware scanning remain explicit later controls.
+
+The application acceptance order is metadata validation, byte-limit check, PDF
+inspection, immutable blob publication and finally idempotent database
+registration. Invalid PDFs therefore never enter durable blob storage. The
+filesystem cannot participate in the PostgreSQL transaction: a database failure
+after publication may leave an unreferenced content-addressed blob. Immediate
+deletion would be unsafe under deduplication and concurrent uploads, so an
+age-bounded reference-aware reconciler will remove such orphans.
 
 ## Upload Idempotency
 

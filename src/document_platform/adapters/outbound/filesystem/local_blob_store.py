@@ -11,7 +11,6 @@ import anyio
 from document_platform.application.ports import (
     BlobIntegrityConflict,
     BlobTooLarge,
-    ByteStream,
     EmptyBlob,
     StoredBlob,
 )
@@ -24,7 +23,7 @@ class LocalBlobStore:
         self._root = root
         self._max_bytes = max_bytes
 
-    async def store(self, content: ByteStream) -> StoredBlob:
+    async def store(self, source: Path) -> StoredBlob:
         temporary_directory = self._root / "temporary"
         temporary_path = temporary_directory / f"{uuid4()}.upload"
         await anyio.to_thread.run_sync(_create_private_directory, temporary_directory)
@@ -38,14 +37,13 @@ class LocalBlobStore:
                 "xb",
                 opener=_private_file_opener,
             ) as temporary_file:
-                async for chunk in content:
-                    if not chunk:
-                        continue
-                    size_bytes += len(chunk)
-                    if size_bytes > self._max_bytes:
-                        raise BlobTooLarge(self._max_bytes)
-                    digest.update(chunk)
-                    await temporary_file.write(chunk)
+                async with await anyio.open_file(source, "rb") as source_file:
+                    while chunk := await source_file.read(64 * 1024):
+                        size_bytes += len(chunk)
+                        if size_bytes > self._max_bytes:
+                            raise BlobTooLarge(self._max_bytes)
+                        digest.update(chunk)
+                        await temporary_file.write(chunk)
                 await temporary_file.flush()
 
             if size_bytes == 0:

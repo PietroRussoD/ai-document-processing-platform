@@ -1,10 +1,8 @@
 """Binary object storage contract."""
 
-from collections.abc import AsyncIterable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
-
-type ByteStream = AsyncIterable[bytes]
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,4 +28,4 @@ class BlobIntegrityConflict(RuntimeError):
 
 
 class BlobStore(Protocol):
-    async def store(self, content: ByteStream) -> StoredBlob: ...
+    async def store(self, source: Path) -> StoredBlob: ...

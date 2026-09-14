@@ -6,6 +6,7 @@ from document_platform.domain.documents.document import (
     DocumentStatus,
     InvalidDocument,
     InvalidDocumentTransition,
+    validate_original_filename,
 )
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "InvalidDocument",
     "InvalidDocumentTransition",
     "PDF_MEDIA_TYPE",
+    "validate_original_filename",
 ]

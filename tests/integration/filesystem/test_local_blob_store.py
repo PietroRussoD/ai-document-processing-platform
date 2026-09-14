@@ -3,7 +3,6 @@
 import asyncio
 import hashlib
 import stat
-from collections.abc import AsyncIterator
 from pathlib import Path
 
 import pytest
@@ -12,9 +11,10 @@ from document_platform.adapters.outbound.filesystem import LocalBlobStore
 from document_platform.application.ports import BlobIntegrityConflict, BlobTooLarge, EmptyBlob
 
 
-async def _chunks(*chunks: bytes) -> AsyncIterator[bytes]:
-    for chunk in chunks:
-        yield chunk
+def _source(tmp_path: Path, content: bytes) -> Path:
+    path = tmp_path / "source.pdf"
+    path.write_bytes(content)
+    return path
 
 
 @pytest.mark.anyio
@@ -23,7 +23,7 @@ async def test_stores_streamed_content_under_its_digest(tmp_path: Path) -> None:
     content = b"synthetic invoice"
     expected_digest = hashlib.sha256(content).hexdigest()
 
-    stored = await store.store(_chunks(content[:5], b"", content[5:]))
+    stored = await store.store(_source(tmp_path, content))
 
     assert stored.content_sha256 == expected_digest
     assert stored.size_bytes == len(content)
@@ -42,8 +42,8 @@ async def test_concurrent_identical_content_converges_on_one_blob(tmp_path: Path
     content = b"same immutable content"
 
     first, second = await asyncio.gather(
-        store.store(_chunks(content)),
-        store.store(_chunks(content)),
+        store.store(_source(tmp_path, content)),
+        store.store(tmp_path / "source.pdf"),
     )
 
     assert first == second
@@ -52,15 +52,11 @@ async def test_concurrent_identical_content_converges_on_one_blob(tmp_path: Path
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("chunks", [(), (b"", b"")])
-async def test_rejects_empty_content_and_removes_temporary_file(
-    tmp_path: Path,
-    chunks: tuple[bytes, ...],
-) -> None:
+async def test_rejects_empty_content_and_removes_temporary_file(tmp_path: Path) -> None:
     store = LocalBlobStore(tmp_path, max_bytes=1024)
 
     with pytest.raises(EmptyBlob):
-        await store.store(_chunks(*chunks))
+        await store.store(_source(tmp_path, b""))
 
     assert list((tmp_path / "temporary").iterdir()) == []
     assert not (tmp_path / "blobs").exists()
@@ -71,7 +67,7 @@ async def test_rejects_oversized_content_and_removes_temporary_file(tmp_path: Pa
     store = LocalBlobStore(tmp_path, max_bytes=5)
 
     with pytest.raises(BlobTooLarge, match="5-byte limit"):
-        await store.store(_chunks(b"123", b"456"))
+        await store.store(_source(tmp_path, b"123456"))
 
     assert list((tmp_path / "temporary").iterdir()) == []
     assert not (tmp_path / "blobs").exists()
@@ -87,7 +83,7 @@ async def test_rejects_an_existing_blob_with_invalid_content(tmp_path: Path) -> 
     destination.write_bytes(b"corrupt-content")
 
     with pytest.raises(BlobIntegrityConflict):
-        await store.store(_chunks(content))
+        await store.store(_source(tmp_path, content))
 
     assert destination.read_bytes() == b"corrupt-content"
     assert list((tmp_path / "temporary").iterdir()) == []
