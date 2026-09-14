@@ -21,6 +21,7 @@
     "check": "pnpm check:api && pnpm format:check && pnpm lint && pnpm type-check && pnpm test:coverage && pnpm build"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.102.8",
     "lucide-react": "^1.39.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"

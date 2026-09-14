@@ -8,8 +8,9 @@ data from business documents.
 The `v0.1` ingestion milestone is in progress. The API accepts bounded PDF
 uploads through real validation, local blob storage and atomic PostgreSQL
 registration. A read endpoint exposes the current document and processing-run
-status. The operator-console foundation now provides tested PDF selection; API
-submission and persisted status rendering are the next slice.
+status. The operator console now provides tested PDF selection and submission,
+including acceptance identifiers and safe error feedback. Persisted status
+polling is the next slice.
 
 ## Technology Direction
 

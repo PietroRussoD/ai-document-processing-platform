@@ -58,6 +58,12 @@ Status queries use a dedicated read-model port. Its PostgreSQL adapter joins the
 document with its most recently queued processing run and returns only the fields
 required by the public API; it does not load aggregates or open a write transaction.
 
+The React upload feature keeps temporary file selection in local component state
+and delegates the remote mutation lifecycle to TanStack Query. One client-generated
+idempotency key is retained across retries of the same selection and replaced when
+the selected document changes. Transport types come from the versioned OpenAPI
+contract; unexpected technical error details are not rendered to operators.
+
 ## Domain Lifecycles
 
 Document status describes the business outcome of the submitted content:

@@ -3,9 +3,18 @@ import { useRef, useState } from "react";
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
 
-export function DocumentFilePicker() {
+type DocumentFilePickerProps = {
+    disabled?: boolean;
+    onSelectionChange: (file: File | null) => void;
+    selectedFile: File | null;
+};
+
+export function DocumentFilePicker({
+    disabled = false,
+    onSelectionChange,
+    selectedFile,
+}: DocumentFilePickerProps) {
     const inputRef = useRef<HTMLInputElement>(null);
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [error, setError] = useState<string | null>(null);
 
     function selectFile(file: File | undefined) {
@@ -13,21 +22,21 @@ export function DocumentFilePicker() {
             return;
         }
         if (file.type !== "application/pdf") {
-            setSelectedFile(null);
+            onSelectionChange(null);
             setError("Select a PDF document.");
             return;
         }
         if (file.size > MAX_FILE_BYTES) {
-            setSelectedFile(null);
+            onSelectionChange(null);
             setError("The document must not exceed 20 MiB.");
             return;
         }
-        setSelectedFile(file);
+        onSelectionChange(file);
         setError(null);
     }
 
     function clearSelection() {
-        setSelectedFile(null);
+        onSelectionChange(null);
         setError(null);
         if (inputRef.current !== null) {
             inputRef.current.value = "";
@@ -56,6 +65,7 @@ export function DocumentFilePicker() {
                     type="file"
                     accept="application/pdf,.pdf"
                     aria-label="Choose a PDF"
+                    disabled={disabled}
                     className="sr-only"
                     onChange={(event) => selectFile(event.target.files?.[0])}
                 />
@@ -88,6 +98,7 @@ export function DocumentFilePicker() {
                     <button
                         type="button"
                         onClick={clearSelection}
+                        disabled={disabled}
                         className="grid size-9 shrink-0 place-items-center rounded text-app-muted hover:bg-app-canvas hover:text-app-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
                         aria-label="Remove selected document"
                         title="Remove selected document"

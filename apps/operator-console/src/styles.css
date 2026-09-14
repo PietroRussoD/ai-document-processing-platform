@@ -8,8 +8,12 @@
     --app-border: #dde1df;
     --app-border-strong: #aab2ae;
     --app-accent: #087f6b;
+    --app-accent-hover: #066a5a;
     --app-focus: #006c5b;
     --app-danger: #b42318;
+    --app-success: #166534;
+    --app-success-border: #86b99a;
+    --app-success-surface: #f0f8f3;
 
     color-scheme: light;
     font-family:
@@ -32,8 +36,12 @@
     --color-app-border: var(--app-border);
     --color-app-border-strong: var(--app-border-strong);
     --color-app-accent: var(--app-accent);
+    --color-app-accent-hover: var(--app-accent-hover);
     --color-app-focus: var(--app-focus);
     --color-app-danger: var(--app-danger);
+    --color-app-success: var(--app-success);
+    --color-app-success-border: var(--app-success-border);
+    --color-app-success-surface: var(--app-success-surface);
 }
 
 body {

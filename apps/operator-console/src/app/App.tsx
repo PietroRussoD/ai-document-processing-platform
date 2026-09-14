@@ -1,6 +1,6 @@
 import { FileText } from "lucide-react";
 
-import { DocumentFilePicker } from "../features/document-upload/DocumentFilePicker";
+import { DocumentUploadPanel } from "../features/document-upload/DocumentUploadPanel";
 
 export function App() {
     return (
@@ -48,7 +48,7 @@ export function App() {
                                 Upload a business document
                             </h1>
                         </div>
-                        <DocumentFilePicker />
+                        <DocumentUploadPanel />
                     </section>
 
                     <aside

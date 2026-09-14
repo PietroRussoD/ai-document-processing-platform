@@ -1,10 +1,11 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { useState } from "react";
 import { expect, test } from "vitest";
 
 import { DocumentFilePicker } from "./DocumentFilePicker";
 
 test("shows and clears a selected PDF", () => {
-    render(<DocumentFilePicker />);
+    renderFilePicker();
     const input = screen.getByLabelText("Choose a PDF");
 
     fireEvent.change(input, {
@@ -36,7 +37,7 @@ test("shows and clears a selected PDF", () => {
 });
 
 test("rejects non-PDF files", () => {
-    render(<DocumentFilePicker />);
+    renderFilePicker();
 
     fireEvent.change(screen.getByLabelText("Choose a PDF"), {
         target: {
@@ -51,7 +52,7 @@ test("rejects non-PDF files", () => {
 });
 
 test("rejects files larger than the client limit", () => {
-    render(<DocumentFilePicker />);
+    renderFilePicker();
     const oversizedPdf = new File(["pdf"], "large.pdf", {
         type: "application/pdf",
     });
@@ -67,3 +68,17 @@ test("rejects files larger than the client limit", () => {
         "must not exceed 20 MiB",
     );
 });
+
+function renderFilePicker() {
+    function Harness() {
+        const [selectedFile, setSelectedFile] = useState<File | null>(null);
+        return (
+            <DocumentFilePicker
+                selectedFile={selectedFile}
+                onSelectionChange={setSelectedFile}
+            />
+        );
+    }
+
+    return render(<Harness />);
+}

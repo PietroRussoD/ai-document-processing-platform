@@ -2,9 +2,14 @@ import { render, screen } from "@testing-library/react";
 import { expect, test } from "vitest";
 
 import { App } from "./App";
+import { AppProviders } from "./AppProviders";
 
 test("renders the document intake shell", () => {
-    render(<App />);
+    render(
+        <AppProviders>
+            <App />
+        </AppProviders>,
+    );
 
     expect(
         screen.getByRole("heading", { name: "Upload a business document" }),
