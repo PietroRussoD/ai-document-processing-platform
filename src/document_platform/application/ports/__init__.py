@@ -27,6 +27,10 @@ from document_platform.application.ports.processing_run_repository import (
 )
 from document_platform.application.ports.runtime import Clock, IdGenerator
 from document_platform.application.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
+from document_platform.application.ports.upload_idempotency_repository import (
+    UploadIdempotencyRecordAlreadyExists,
+    UploadIdempotencyRepository,
+)
 
 __all__ = [
     "BlobIntegrityConflict",
@@ -50,4 +54,6 @@ __all__ = [
     "StoredBlob",
     "UnitOfWork",
     "UnitOfWorkFactory",
+    "UploadIdempotencyRecordAlreadyExists",
+    "UploadIdempotencyRepository",
 ]

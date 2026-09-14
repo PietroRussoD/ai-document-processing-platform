@@ -4,6 +4,8 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass
+from datetime import datetime
+from uuid import UUID
 
 MAX_IDEMPOTENCY_KEY_LENGTH = 128
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
@@ -66,6 +68,14 @@ class UploadRequestFingerprint:
 class UploadIdempotencyRecord:
     key: IdempotencyKey
     request_fingerprint: UploadRequestFingerprint
+    processing_run_id: UUID
+    recorded_at: datetime
+
+    def __post_init__(self) -> None:
+        if self.processing_run_id.int == 0:
+            raise ValueError("processing_run_id must not be the nil UUID")
+        if self.recorded_at.tzinfo is None or self.recorded_at.utcoffset() is None:
+            raise ValueError("recorded_at must be timezone-aware")
 
     def ensure_replay_matches(self, request_fingerprint: UploadRequestFingerprint) -> None:
         if request_fingerprint != self.request_fingerprint:

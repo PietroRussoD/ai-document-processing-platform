@@ -7,5 +7,13 @@ from document_platform.adapters.outbound.postgresql.models.document_record impor
 from document_platform.adapters.outbound.postgresql.models.processing_run_record import (
     ProcessingRunRecord,
 )
+from document_platform.adapters.outbound.postgresql.models.upload_idempotency_record import (
+    UploadIdempotencyRecordRow,
+)
 
-__all__ = ["Base", "DocumentRecord", "ProcessingRunRecord"]
+__all__ = [
+    "Base",
+    "DocumentRecord",
+    "ProcessingRunRecord",
+    "UploadIdempotencyRecordRow",
+]

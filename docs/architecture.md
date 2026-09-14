@@ -170,6 +170,18 @@ Reusing the key with the same fingerprint returns the original acceptance result
 reusing it for different request data is a conflict. Physical blobs remain
 deduplicated independently by their content digest.
 
+```mermaid
+erDiagram
+    DOCUMENTS ||--o{ PROCESSING_RUNS : has
+    PROCESSING_RUNS ||--o| UPLOAD_IDEMPOTENCY_RECORDS : identifies
+    UPLOAD_IDEMPOTENCY_RECORDS {
+        string idempotency_key PK
+        string request_fingerprint
+        uuid processing_run_id FK
+        timestamp recorded_at
+    }
+```
+
 ## Repository Structure
 
 The layout in the root README is intentionally a map, not a request to create
