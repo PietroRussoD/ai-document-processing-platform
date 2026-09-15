@@ -2,6 +2,7 @@
 
 from document_platform.application.ports.blob_store import (
     BlobIntegrityConflict,
+    BlobNotFound,
     BlobStore,
     BlobTooLarge,
     EmptyBlob,
@@ -24,6 +25,11 @@ from document_platform.application.ports.pdf_inspector import (
     PdfInspector,
     PdfPageLimitExceeded,
 )
+from document_platform.application.ports.pdf_text_extractor import (
+    ExtractedPdfText,
+    PdfTextExtractor,
+    PdfTextLimitExceeded,
+)
 from document_platform.application.ports.processing_run_repository import (
     ConcurrentProcessingRunUpdate,
     ProcessingRunAlreadyExists,
@@ -44,6 +50,7 @@ from document_platform.application.ports.workflow_starter import WorkflowStarter
 
 __all__ = [
     "BlobIntegrityConflict",
+    "BlobNotFound",
     "BlobStore",
     "BlobTooLarge",
     "Clock",
@@ -58,9 +65,12 @@ __all__ = [
     "EncryptedPdf",
     "IdGenerator",
     "InvalidPdf",
+    "ExtractedPdfText",
     "PdfInspection",
     "PdfInspector",
     "PdfPageLimitExceeded",
+    "PdfTextExtractor",
+    "PdfTextLimitExceeded",
     "ProcessingRunAlreadyExists",
     "ProcessingRunRepository",
     "ProcessingRunStatusView",

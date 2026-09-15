@@ -50,6 +50,9 @@ class RecordingBlobStore:
             size_bytes=self._size_bytes,
         )
 
+    async def load(self, key: str) -> bytes:
+        raise NotImplementedError
+
 
 def staged_upload(path: Path, **overrides: object) -> AcceptDocumentUpload:
     values: dict[str, object] = {

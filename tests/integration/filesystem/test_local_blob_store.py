@@ -8,7 +8,12 @@ from pathlib import Path
 import pytest
 
 from document_platform.adapters.outbound.filesystem import LocalBlobStore
-from document_platform.application.ports import BlobIntegrityConflict, BlobTooLarge, EmptyBlob
+from document_platform.application.ports import (
+    BlobIntegrityConflict,
+    BlobNotFound,
+    BlobTooLarge,
+    EmptyBlob,
+)
 
 
 def _source(tmp_path: Path, content: bytes) -> Path:
@@ -34,6 +39,18 @@ async def test_stores_streamed_content_under_its_digest(tmp_path: Path) -> None:
     assert stat.S_IMODE(tmp_path.joinpath("blobs").stat().st_mode) == 0o700
     assert stat.S_IMODE(stored_path.parent.stat().st_mode) == 0o700
     assert list((tmp_path / "temporary").iterdir()) == []
+
+
+@pytest.mark.anyio
+async def test_loads_content_only_from_a_canonical_blob_key(tmp_path: Path) -> None:
+    store = LocalBlobStore(tmp_path, max_bytes=1024)
+    content = b"synthetic invoice"
+    stored = await store.store(_source(tmp_path, content))
+
+    assert await store.load(stored.key) == content
+
+    with pytest.raises(BlobNotFound):
+        await store.load("../outside")
 
 
 @pytest.mark.anyio

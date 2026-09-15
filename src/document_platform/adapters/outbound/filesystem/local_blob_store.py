@@ -2,6 +2,7 @@
 
 import hashlib
 import os
+import re
 from pathlib import Path
 from uuid import uuid4
 
@@ -15,6 +16,7 @@ from document_platform.adapters.filesystem_safety import (
 )
 from document_platform.application.ports import (
     BlobIntegrityConflict,
+    BlobNotFound,
     BlobTooLarge,
     EmptyBlob,
     StoredBlob,
@@ -74,6 +76,18 @@ class LocalBlobStore:
         finally:
             await anyio.to_thread.run_sync(temporary_path.unlink, True)
 
+    async def load(self, key: str) -> bytes:
+        return await anyio.to_thread.run_sync(_load, self._path_for_key(key), self._max_bytes)
+
+    def _path_for_key(self, key: str) -> Path:
+        match = _BLOB_KEY.fullmatch(key)
+        if match is None or match.group("prefix") != match.group("digest")[:2]:
+            raise BlobNotFound(key)
+        return self._root / key
+
+
+_BLOB_KEY = re.compile(r"blobs/sha256/(?P<prefix>[0-9a-f]{2})/(?P<digest>[0-9a-f]{64})")
+
 
 def _publish(
     temporary_path: Path,
@@ -100,3 +114,13 @@ def _matches(path: Path, content_sha256: str, size_bytes: int) -> bool:
         while chunk := stored_file.read(1024 * 1024):
             digest.update(chunk)
     return digest.hexdigest() == content_sha256
+
+
+def _load(path: Path, max_bytes: int) -> bytes:
+    try:
+        if path.stat().st_size > max_bytes:
+            raise BlobTooLarge(max_bytes)
+        return path.read_bytes()
+    except FileNotFoundError:
+        key = path.relative_to(path.parents[3]).as_posix()
+        raise BlobNotFound(key) from None

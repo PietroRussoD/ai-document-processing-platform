@@ -27,5 +27,12 @@ class BlobIntegrityConflict(RuntimeError):
         super().__init__(f"stored blob does not match its content-derived key: {key}")
 
 
+class BlobNotFound(FileNotFoundError):
+    def __init__(self, key: str) -> None:
+        super().__init__(f"stored blob not found: {key}")
+
+
 class BlobStore(Protocol):
     async def store(self, source: Path) -> StoredBlob: ...
+
+    async def load(self, key: str) -> bytes: ...

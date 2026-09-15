@@ -23,6 +23,7 @@ def test_uses_safe_local_defaults(
     assert settings.storage_root == Path("data")
     assert settings.max_document_bytes == 20 * 1024 * 1024
     assert settings.max_document_pages == 50
+    assert settings.max_extracted_text_characters == 1_000_000
     assert settings.database_url.scheme == "postgresql+asyncpg"
     assert settings.database_pool_size == 5
     assert settings.database_max_overflow == 5
@@ -56,6 +57,11 @@ def test_rejects_a_non_positive_document_size_limit() -> None:
 def test_rejects_a_non_positive_document_page_limit() -> None:
     with pytest.raises(ValidationError):
         Settings(max_document_pages=0)
+
+
+def test_rejects_a_non_positive_extracted_text_limit() -> None:
+    with pytest.raises(ValidationError):
+        Settings(max_extracted_text_characters=0)
 
 
 def test_rejects_an_invalid_dispatcher_batch_size() -> None:
