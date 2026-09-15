@@ -39,7 +39,8 @@ HTTP / React -> application use cases -> domain rules
 ```
 
 See [architecture documentation](docs/architecture.md) and
-[architectural decisions](docs/decisions/).
+[architectural decisions](docs/decisions/). The repeatable release checks are
+documented in the [v0.1 verification runbook](docs/runbooks/v0.1-verification.md).
 
 ## Repository Layout
 
