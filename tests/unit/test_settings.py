@@ -27,6 +27,13 @@ def test_uses_safe_local_defaults(
     assert settings.database_pool_size == 5
     assert settings.database_max_overflow == 5
     assert settings.database_pool_timeout_seconds == 5.0
+    assert settings.temporal_target_host == "localhost:7233"
+    assert settings.temporal_namespace == "default"
+    assert settings.temporal_task_queue == "document-processing"
+    assert settings.dispatcher_owner == "local-dispatcher"
+    assert settings.dispatcher_batch_size == 10
+    assert settings.dispatcher_lease_seconds == 30.0
+    assert settings.dispatcher_poll_seconds == 2.0
 
 
 def test_rejects_an_unknown_environment(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -49,3 +56,13 @@ def test_rejects_a_non_positive_document_size_limit() -> None:
 def test_rejects_a_non_positive_document_page_limit() -> None:
     with pytest.raises(ValidationError):
         Settings(max_document_pages=0)
+
+
+def test_rejects_an_invalid_dispatcher_batch_size() -> None:
+    with pytest.raises(ValidationError):
+        Settings(dispatcher_batch_size=0)
+
+
+def test_rejects_an_invalid_dispatcher_poll_interval() -> None:
+    with pytest.raises(ValidationError):
+        Settings(dispatcher_poll_seconds=0)

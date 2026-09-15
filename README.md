@@ -98,6 +98,28 @@ Vite serves the console at `http://localhost:5173` and proxies `/api` requests
 to the backend at `http://localhost:8000` by default. Override the development
 target with `VITE_API_PROXY_TARGET` when required.
 
+### Temporal Handoff Environment
+
+The optional local Temporal profile is independent from the application
+PostgreSQL instance. Start it when working on workflow handoff or inspecting
+workflow execution history:
+
+```bash
+docker compose --profile temporal up -d
+```
+
+Temporal listens on `localhost:7233`; its local UI is available at
+`http://localhost:8233`. The dispatcher is a separate process so HTTP uploads
+remain available when Temporal is being restarted:
+
+```bash
+uv run python -m document_platform.dispatcher
+```
+
+The current dispatcher records durable Temporal handoff only. Until the
+processing worker is introduced, started workflows remain queued on the
+`document-processing` task queue rather than executing document extraction.
+
 Upload a PDF with a client-generated idempotency key:
 
 ```bash

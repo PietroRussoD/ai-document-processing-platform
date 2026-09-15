@@ -18,5 +18,48 @@ services:
     volumes:
       - document-platform-postgres:/var/lib/postgresql
 
+  temporal-postgres:
+    profiles: ["temporal"]
+    image: postgres:16.11
+    environment:
+      POSTGRES_DB: temporal
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: temporal-local-development-only
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal -d temporal"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    volumes:
+      - document-platform-temporal-postgres:/var/lib/postgresql
+
+  temporal:
+    profiles: ["temporal"]
+    image: temporalio/auto-setup:1.28.1
+    depends_on:
+      temporal-postgres:
+        condition: service_healthy
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: temporal
+      POSTGRES_PWD: temporal-local-development-only
+      POSTGRES_SEEDS: temporal-postgres
+    ports:
+      - "${TEMPORAL_PORT:-7233}:7233"
+
+  temporal-ui:
+    profiles: ["temporal"]
+    image: temporalio/ui:2.26.2
+    depends_on:
+      temporal:
+        condition: service_started
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    ports:
+      - "${TEMPORAL_UI_PORT:-8233}:8080"
+
 volumes:
   document-platform-postgres:
+  document-platform-temporal-postgres:

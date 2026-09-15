@@ -29,3 +29,10 @@ class Settings(BaseSettings):
     database_pool_size: Annotated[int, Field(ge=1, le=20)] = 5
     database_max_overflow: Annotated[int, Field(ge=0, le=20)] = 5
     database_pool_timeout_seconds: Annotated[float, Field(gt=0, le=30)] = 5.0
+    temporal_target_host: Annotated[str, Field(min_length=1, max_length=255)] = "localhost:7233"
+    temporal_namespace: Annotated[str, Field(min_length=1, max_length=255)] = "default"
+    temporal_task_queue: Annotated[str, Field(min_length=1, max_length=255)] = "document-processing"
+    dispatcher_owner: Annotated[str, Field(min_length=1, max_length=64)] = "local-dispatcher"
+    dispatcher_batch_size: Annotated[int, Field(ge=1, le=100)] = 10
+    dispatcher_lease_seconds: Annotated[float, Field(gt=0, le=300)] = 30.0
+    dispatcher_poll_seconds: Annotated[float, Field(gt=0, le=60)] = 2.0
