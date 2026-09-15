@@ -18,6 +18,10 @@ from document_platform.application.ports.document_status_reader import (
     DocumentStatusView,
     ProcessingRunStatusView,
 )
+from document_platform.application.ports.document_text_extraction_repository import (
+    DocumentTextExtractionAlreadyExists,
+    DocumentTextExtractionRepository,
+)
 from document_platform.application.ports.pdf_inspector import (
     EncryptedPdf,
     InvalidPdf,
@@ -58,6 +62,8 @@ __all__ = [
     "ConcurrentProcessingRunUpdate",
     "ConcurrentWorkflowStartRequestUpdate",
     "DocumentAlreadyExists",
+    "DocumentTextExtractionAlreadyExists",
+    "DocumentTextExtractionRepository",
     "DocumentRepository",
     "DocumentStatusReader",
     "DocumentStatusView",

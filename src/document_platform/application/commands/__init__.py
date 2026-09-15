@@ -15,6 +15,14 @@ from document_platform.application.commands.dispatch_workflow_start_requests imp
     DispatchWorkflowStartRequestsHandler,
     WorkflowStartDispatchResult,
 )
+from document_platform.application.commands.extract_document_text import (
+    DocumentTextExtracted,
+    ExtractDocumentText,
+    ExtractDocumentTextHandler,
+    InvalidTextExtractionRun,
+    TextExtractionDocumentNotFound,
+    TextExtractionRunNotFound,
+)
 from document_platform.application.commands.register_document import (
     InconsistentIdempotencyRecord,
     RegisterDocument,
@@ -37,8 +45,12 @@ __all__ = [
     "ClaimWorkflowStartRequests",
     "ClaimWorkflowStartRequestsHandler",
     "DispatchWorkflowStartRequestsHandler",
+    "DocumentTextExtracted",
+    "ExtractDocumentText",
+    "ExtractDocumentTextHandler",
     "InconsistentIdempotencyRecord",
     "InvalidStagedUpload",
+    "InvalidTextExtractionRun",
     "InvalidProcessingDocumentStart",
     "InvalidProcessingRunStart",
     "InvalidWorkflowStartRequestClaim",
@@ -50,6 +62,8 @@ __all__ = [
     "ProcessingRunStarted",
     "StartProcessingRun",
     "StartProcessingRunHandler",
+    "TextExtractionDocumentNotFound",
+    "TextExtractionRunNotFound",
     "UnsupportedDocumentMediaType",
     "WorkflowStartDispatchResult",
 ]

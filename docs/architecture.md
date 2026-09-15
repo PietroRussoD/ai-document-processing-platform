@@ -42,10 +42,10 @@ flowchart LR
     Model -. optional .-> OpenAI[External provider]
 ```
 
-Temporal, OCR, structured extraction and review components are planned
-extensions. When introduced, PostgreSQL will remain authoritative for business
-state, Temporal will own durable workflow execution history, and the model
-provider will never be an authority for business state.
+OCR, structured extraction and review components are planned extensions.
+PostgreSQL remains authoritative for business state, Temporal owns durable
+workflow execution history, and a model provider will never be an authority for
+business state.
 
 ## Dependency Direction
 
@@ -58,9 +58,8 @@ SDK types. The application defines ports only for boundaries that are external,
 fallible or plausibly replaceable: repositories, object storage, workflow start,
 text extraction, structured extraction and notifications.
 
-When introduced, Temporal workflows will be deterministic orchestration.
-Database, filesystem, OCR, clock and model calls will happen in Activities,
-never directly inside workflow code.
+Temporal workflows are deterministic orchestration. Database, filesystem, OCR,
+clock and model calls happen in Activities, never directly inside workflow code.
 
 ## Transaction Ownership
 
@@ -90,16 +89,20 @@ sequenceDiagram
     Dispatcher->>DB: Mark request DISPATCHED
     Temporal->>Worker: Run workflow on document-processing queue
     Worker->>DB: Start document and processing run atomically
+    Worker->>Worker: Extract bounded embedded text from local blob
+    Worker->>DB: Persist immutable text extraction per run
 ```
 
-`v0.2` currently implements the durable request, PostgreSQL claim and
-application dispatch steps. The Temporal adapter starts the stable workflow ID
+`v0.2` currently implements durable request claiming, application dispatch and
+two Temporal activities. The Temporal adapter starts the stable workflow ID
 with an existing-running workflow treated as the same successful handoff. A
 separate dispatcher process owns the Temporal connection and polling loop; it
 is deliberately independent from the HTTP API so network I/O never occurs
-inside the upload transaction. The processing worker currently performs only
-the first durable activity: `UPLOADED -> PROCESSING` for the document and
-`QUEUED -> RUNNING` for its run. PDF extraction is introduced separately.
+inside the upload transaction. The worker transitions `UPLOADED -> PROCESSING`
+and `QUEUED -> RUNNING` atomically, then reads the immutable blob and persists
+one bounded PyMuPDF embedded-text extraction for that run. The extraction row
+is the idempotency boundary for activity retries: a saved row is reused without
+reading or parsing the PDF again.
 
 Status queries use a dedicated read-model port. Its PostgreSQL adapter joins the
 document with its most recently queued processing run and returns only the fields
@@ -282,11 +285,21 @@ sequenceDiagram
 erDiagram
     DOCUMENTS ||--o{ PROCESSING_RUNS : has
     PROCESSING_RUNS ||--o| UPLOAD_IDEMPOTENCY_RECORDS : identifies
+    PROCESSING_RUNS ||--o| DOCUMENT_TEXT_EXTRACTIONS : produces
     UPLOAD_IDEMPOTENCY_RECORDS {
         string idempotency_key PK
         string request_fingerprint
         uuid processing_run_id FK
         timestamp recorded_at
+    }
+    DOCUMENT_TEXT_EXTRACTIONS {
+        uuid processing_run_id PK, FK
+        string method
+        text text
+        int page_count
+        int character_count
+        int non_whitespace_character_count
+        timestamp extracted_at
     }
 ```
 
@@ -308,8 +321,8 @@ tests/e2e/           API and browser journeys
 | --- | --- | --- |
 | Object storage | Local filesystem | S3-compatible adapter |
 | Structured extraction | Not implemented | Deterministic fake; Ollama; policy-gated OpenAI comparison |
-| Text extraction | PyMuPDF structural validation | Text extraction and Tesseract OCR |
-| Workflow execution | Queued PostgreSQL processing run | Temporal development server; managed/self-hosted Temporal later |
+| Text extraction | Bounded PyMuPDF embedded-text extraction persisted per run | Tesseract OCR fallback and quality policy |
+| Workflow execution | Temporal development server with local worker | Managed/self-hosted Temporal later |
 
 ## Related Decisions
 

@@ -5,8 +5,7 @@ from uuid import UUID
 from temporalio import activity
 
 from document_platform.application.commands import StartProcessingRun, StartProcessingRunHandler
-
-START_PROCESSING_RUN_ACTIVITY = "start-processing-run"
+from document_platform.application.temporal_contracts import START_PROCESSING_RUN_ACTIVITY
 
 
 class StartProcessingRunActivity:

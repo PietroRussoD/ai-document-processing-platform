@@ -15,6 +15,7 @@ from document_platform.application.commands import (
 )
 from document_platform.application.ports import (
     DocumentRepository,
+    DocumentTextExtractionRepository,
     ProcessingRunRepository,
     UploadIdempotencyRecordAlreadyExists,
     UploadIdempotencyRepository,
@@ -114,6 +115,14 @@ class RecordingWorkflowStartRequestRepository:
         self.requests[request.processing_run_id] = request
 
 
+class UnusedDocumentTextExtractionRepository:
+    async def add(self, extraction: object) -> None:
+        raise AssertionError("not used")
+
+    async def get(self, processing_run_id: UUID) -> None:
+        raise AssertionError("not used")
+
+
 class RecordingUnitOfWork:
     def __init__(
         self,
@@ -127,12 +136,17 @@ class RecordingUnitOfWork:
             fail_on_add=fail_on_idempotency_add
         )
         self._workflow_start_requests = RecordingWorkflowStartRequestRepository()
+        self._document_text_extractions = UnusedDocumentTextExtractionRepository()
         self.commit_count = 0
         self.exit_exception: type[BaseException] | None = None
 
     @property
     def documents(self) -> DocumentRepository:
         return self._documents
+
+    @property
+    def document_text_extractions(self) -> DocumentTextExtractionRepository:
+        return self._document_text_extractions  # type: ignore[return-value]
 
     @property
     def processing_runs(self) -> ProcessingRunRepository:

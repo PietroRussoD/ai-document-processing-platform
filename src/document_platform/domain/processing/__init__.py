@@ -1,5 +1,10 @@
 """Document-processing lifecycle domain model."""
 
+from document_platform.domain.processing.document_text_extraction import (
+    DocumentTextExtraction,
+    InvalidDocumentTextExtraction,
+    TextExtractionMethod,
+)
 from document_platform.domain.processing.processing_run import (
     InvalidProcessingRun,
     InvalidProcessingRunTransition,
@@ -15,8 +20,11 @@ from document_platform.domain.processing.workflow_start_request import (
 __all__ = [
     "InvalidProcessingRun",
     "InvalidProcessingRunTransition",
+    "DocumentTextExtraction",
+    "InvalidDocumentTextExtraction",
     "ProcessingRun",
     "ProcessingRunStatus",
+    "TextExtractionMethod",
     "InvalidWorkflowStartRequest",
     "WorkflowStartRequest",
     "WorkflowStartRequestStatus",

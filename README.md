@@ -6,23 +6,25 @@ data from business documents.
 ## Status
 
 The [`v0.1.0` release](docs/releases/v0.1.0.md) is the first functional
-ingestion milestone. The API accepts bounded PDF uploads through real
-validation, local blob storage and atomic PostgreSQL registration. A read
-endpoint exposes the current document and processing-run status. The operator
-console provides tested PDF selection and submission, including acceptance
-identifiers, safe error feedback and polling of the persisted document and
-processing-run status.
+ingestion milestone. Current `v0.2.0.dev0` work adds a durable Temporal
+handoff, a worker-driven `QUEUED -> RUNNING` transition, and persisted bounded
+embedded-text extraction with PyMuPDF. The API accepts bounded PDF uploads
+through real validation, local blob storage and atomic PostgreSQL registration.
+A read endpoint exposes the current document and processing-run status. The
+operator console provides tested PDF selection and submission, including
+acceptance identifiers, safe error feedback and polling of the persisted
+document and processing-run status.
 
 ## Implemented Technology
 
 - Python 3.13 and `uv`;
 - FastAPI and PostgreSQL;
-- PyMuPDF for PDF structural validation;
+- PyMuPDF for PDF validation and embedded-text extraction;
+- Temporal for durable local workflow execution;
 - React and TypeScript for the operator console.
 
 ## Planned Extensions
 
-- Temporal for durable asynchronous workflows;
 - Tesseract for OCR and Ollama for local structured extraction;
 - optional S3-compatible storage and external-provider comparison;
 - processing, review and retention workflows.
@@ -122,9 +124,11 @@ Start the processing worker in a third terminal after the API and dispatcher:
 uv run python -m document_platform.worker
 ```
 
-The worker currently performs the first durable processing transition only:
-it moves the document and its processing run to `PROCESSING` and `RUNNING` in
-one database transaction. PDF extraction is introduced separately.
+The worker starts the document and its processing run atomically, then extracts
+embedded text with bounded PyMuPDF processing. Each extraction is immutable and
+keyed by its processing run, so a Temporal activity retry reuses the persisted
+result instead of repeating the work. OCR, classification and structured
+extraction are later stages.
 
 Upload a PDF with a client-generated idempotency key:
 

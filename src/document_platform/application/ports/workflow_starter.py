@@ -3,7 +3,9 @@
 from typing import Protocol
 from uuid import UUID
 
-PROCESS_BUSINESS_DOCUMENT_WORKFLOW = "process-business-document"
+from document_platform.application.temporal_contracts import PROCESS_BUSINESS_DOCUMENT_WORKFLOW
+
+__all__ = ["PROCESS_BUSINESS_DOCUMENT_WORKFLOW", "WorkflowStarter"]
 
 
 class WorkflowStarter(Protocol):
