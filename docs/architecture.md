@@ -102,7 +102,10 @@ inside the upload transaction. The worker transitions `UPLOADED -> PROCESSING`
 and `QUEUED -> RUNNING` atomically, then reads the immutable blob and persists
 one bounded PyMuPDF embedded-text extraction for that run. The extraction row
 is the idempotency boundary for activity retries: a saved row is reused without
-reading or parsing the PDF again.
+reading or parsing the PDF again. Its persisted quality is a deterministic
+`SUFFICIENT` or `OCR_RECOMMENDED` decision based on a configured minimum count
+of non-whitespace characters. This is intentionally an observable policy, not
+an implicit trigger for OCR.
 
 Status queries use a dedicated read-model port. Its PostgreSQL adapter joins the
 document with its most recently queued processing run and returns only the fields
@@ -295,6 +298,7 @@ erDiagram
     DOCUMENT_TEXT_EXTRACTIONS {
         uuid processing_run_id PK, FK
         string method
+        string quality
         text text
         int page_count
         int character_count
@@ -321,7 +325,7 @@ tests/e2e/           API and browser journeys
 | --- | --- | --- |
 | Object storage | Local filesystem | S3-compatible adapter |
 | Structured extraction | Not implemented | Deterministic fake; Ollama; policy-gated OpenAI comparison |
-| Text extraction | Bounded PyMuPDF embedded-text extraction persisted per run | Tesseract OCR fallback and quality policy |
+| Text extraction | Bounded PyMuPDF extraction and persisted OCR recommendation | Tesseract OCR fallback |
 | Workflow execution | Temporal development server with local worker | Managed/self-hosted Temporal later |
 
 ## Related Decisions

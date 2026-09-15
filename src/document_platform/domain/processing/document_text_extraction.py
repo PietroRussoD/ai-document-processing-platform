@@ -5,6 +5,8 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
+from document_platform.domain.processing.embedded_text_quality import EmbeddedTextQuality
+
 
 class TextExtractionMethod(StrEnum):
     PYMUPDF = "PYMUPDF"
@@ -22,6 +24,7 @@ class DocumentTextExtraction:
     page_count: int
     character_count: int
     non_whitespace_character_count: int
+    quality: EmbeddedTextQuality
     extracted_at: datetime
 
     def __post_init__(self) -> None:

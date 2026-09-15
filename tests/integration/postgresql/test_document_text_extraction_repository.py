@@ -15,6 +15,7 @@ from document_platform.adapters.outbound.postgresql.repositories import (
 from document_platform.domain.documents import Document
 from document_platform.domain.processing import (
     DocumentTextExtraction,
+    EmbeddedTextQuality,
     ProcessingRun,
     TextExtractionMethod,
 )
@@ -51,6 +52,7 @@ async def test_adds_and_loads_an_immutable_document_text_extraction(
         page_count=1,
         character_count=10,
         non_whitespace_character_count=9,
+        quality=EmbeddedTextQuality.OCR_RECOMMENDED,
         extracted_at=RECORDED_AT,
     )
 

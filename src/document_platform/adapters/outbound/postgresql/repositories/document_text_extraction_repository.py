@@ -8,7 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from document_platform.adapters.outbound.postgresql.errors import is_unique_violation
 from document_platform.adapters.outbound.postgresql.models import DocumentTextExtractionRecord
 from document_platform.application.ports import DocumentTextExtractionAlreadyExists
-from document_platform.domain.processing import DocumentTextExtraction, TextExtractionMethod
+from document_platform.domain.processing import (
+    DocumentTextExtraction,
+    EmbeddedTextQuality,
+    TextExtractionMethod,
+)
 
 
 class SqlAlchemyDocumentTextExtractionRepository:
@@ -33,6 +37,7 @@ def _to_record(extraction: DocumentTextExtraction) -> DocumentTextExtractionReco
     return DocumentTextExtractionRecord(
         processing_run_id=extraction.processing_run_id,
         method=extraction.method.value,
+        quality=extraction.quality.value,
         text=extraction.text,
         page_count=extraction.page_count,
         character_count=extraction.character_count,
@@ -45,6 +50,7 @@ def _to_domain(record: DocumentTextExtractionRecord) -> DocumentTextExtraction:
     return DocumentTextExtraction(
         processing_run_id=record.processing_run_id,
         method=TextExtractionMethod(record.method),
+        quality=EmbeddedTextQuality(record.quality),
         text=record.text,
         page_count=record.page_count,
         character_count=record.character_count,

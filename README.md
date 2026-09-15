@@ -127,8 +127,9 @@ uv run python -m document_platform.worker
 The worker starts the document and its processing run atomically, then extracts
 embedded text with bounded PyMuPDF processing. Each extraction is immutable and
 keyed by its processing run, so a Temporal activity retry reuses the persisted
-result instead of repeating the work. OCR, classification and structured
-extraction are later stages.
+result instead of repeating the work. A deterministic, configurable threshold
+marks low-text documents as `OCR_RECOMMENDED`; it does not silently invoke OCR.
+OCR, classification and structured extraction are later stages.
 
 Upload a PDF with a client-generated idempotency key:
 

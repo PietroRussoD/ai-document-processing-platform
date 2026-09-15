@@ -16,6 +16,8 @@ from document_platform.application.ports import ExtractedPdfText, StoredBlob, Un
 from document_platform.domain.documents import Document
 from document_platform.domain.processing import (
     DocumentTextExtraction,
+    EmbeddedTextQuality,
+    EmbeddedTextQualityPolicy,
     ProcessingRun,
     TextExtractionMethod,
 )
@@ -127,6 +129,7 @@ def handler(
         unit_of_work_factory=lambda: cast(UnitOfWork, unit_of_work),
         blob_store=blob_store,  # type: ignore[arg-type]
         pdf_text_extractor=extractor,  # type: ignore[arg-type]
+        embedded_text_quality_policy=EmbeddedTextQualityPolicy(10),
         clock=lambda: EXTRACTED_AT,
     )
 
@@ -143,6 +146,10 @@ async def test_extracts_and_persists_embedded_text_once() -> None:
     assert unit_of_work.commit_count == 1
     assert unit_of_work.document_text_extractions.added[0].method is TextExtractionMethod.PYMUPDF
     assert unit_of_work.document_text_extractions.added[0].text == "Invoice 42"
+    assert (
+        unit_of_work.document_text_extractions.added[0].quality
+        is EmbeddedTextQuality.OCR_RECOMMENDED
+    )
 
 
 @pytest.mark.anyio

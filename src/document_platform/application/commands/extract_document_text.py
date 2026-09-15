@@ -12,6 +12,7 @@ from document_platform.application.ports import (
 )
 from document_platform.domain.processing import (
     DocumentTextExtraction,
+    EmbeddedTextQualityPolicy,
     ProcessingRunStatus,
     TextExtractionMethod,
 )
@@ -52,11 +53,13 @@ class ExtractDocumentTextHandler:
         unit_of_work_factory: UnitOfWorkFactory,
         blob_store: BlobStore,
         pdf_text_extractor: PdfTextExtractor,
+        embedded_text_quality_policy: EmbeddedTextQualityPolicy,
         clock: Clock,
     ) -> None:
         self._unit_of_work_factory = unit_of_work_factory
         self._blob_store = blob_store
         self._pdf_text_extractor = pdf_text_extractor
+        self._embedded_text_quality_policy = embedded_text_quality_policy
         self._clock = clock
 
     async def __call__(self, command: ExtractDocumentText) -> DocumentTextExtracted:
@@ -85,6 +88,9 @@ class ExtractDocumentTextHandler:
             page_count=extracted.page_count,
             character_count=extracted.character_count,
             non_whitespace_character_count=extracted.non_whitespace_character_count,
+            quality=self._embedded_text_quality_policy.assess(
+                non_whitespace_character_count=extracted.non_whitespace_character_count
+            ),
             extracted_at=self._clock(),
         )
 

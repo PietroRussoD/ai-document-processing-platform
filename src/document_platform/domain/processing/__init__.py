@@ -5,6 +5,10 @@ from document_platform.domain.processing.document_text_extraction import (
     InvalidDocumentTextExtraction,
     TextExtractionMethod,
 )
+from document_platform.domain.processing.embedded_text_quality import (
+    EmbeddedTextQuality,
+    EmbeddedTextQualityPolicy,
+)
 from document_platform.domain.processing.processing_run import (
     InvalidProcessingRun,
     InvalidProcessingRunTransition,
@@ -21,6 +25,8 @@ __all__ = [
     "InvalidProcessingRun",
     "InvalidProcessingRunTransition",
     "DocumentTextExtraction",
+    "EmbeddedTextQuality",
+    "EmbeddedTextQualityPolicy",
     "InvalidDocumentTextExtraction",
     "ProcessingRun",
     "ProcessingRunStatus",

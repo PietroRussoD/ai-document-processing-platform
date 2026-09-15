@@ -19,6 +19,7 @@ from document_platform.application.commands import (
     ExtractDocumentTextHandler,
     StartProcessingRunHandler,
 )
+from document_platform.domain.processing import EmbeddedTextQualityPolicy
 from document_platform.settings import Settings
 from document_platform.workflows import ProcessBusinessDocumentWorkflow
 
@@ -50,6 +51,9 @@ async def run_worker(settings: Settings) -> None:
                 pdf_text_extractor=PyMuPdfTextExtractor(
                     max_pages=settings.max_document_pages,
                     max_characters=settings.max_extracted_text_characters,
+                ),
+                embedded_text_quality_policy=EmbeddedTextQualityPolicy(
+                    settings.minimum_embedded_text_characters
                 ),
                 clock=lambda: datetime.now(UTC),
             )

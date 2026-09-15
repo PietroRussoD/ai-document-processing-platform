@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     max_document_bytes: Annotated[int, Field(gt=0)] = 20 * 1024 * 1024
     max_document_pages: Annotated[int, Field(gt=0)] = 50
     max_extracted_text_characters: Annotated[int, Field(gt=0)] = 1_000_000
+    minimum_embedded_text_characters: Annotated[int, Field(gt=0)] = 100
     database_url: PostgresDsn = PostgresDsn(
         "postgresql+asyncpg://document_platform:local-development-only@localhost:5432/"
         "document_platform"

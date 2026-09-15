@@ -17,6 +17,7 @@ class DocumentTextExtractionRecord(Base):
             name="processing_run_id_not_nil",
         ),
         CheckConstraint("method IN ('PYMUPDF')", name="method_valid"),
+        CheckConstraint("quality IN ('SUFFICIENT', 'OCR_RECOMMENDED')", name="quality_valid"),
         CheckConstraint("page_count > 0", name="page_count_positive"),
         CheckConstraint("character_count = char_length(text)", name="character_count_matches_text"),
         CheckConstraint("non_whitespace_character_count >= 0", name="non_whitespace_count_valid"),
@@ -32,6 +33,7 @@ class DocumentTextExtractionRecord(Base):
         primary_key=True,
     )
     method: Mapped[str] = mapped_column(String(32))
+    quality: Mapped[str] = mapped_column(String(32))
     text: Mapped[str] = mapped_column(Text)
     page_count: Mapped[int] = mapped_column(Integer)
     character_count: Mapped[int] = mapped_column(Integer)
