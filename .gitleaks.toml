@@ -1,0 +1,6 @@
+[allowlist]
+description = "Ignore the documented non-secret idempotency-key example in history."
+regexTarget = "match"
+regexes = [
+  '''Idempotency-Key: v0-1-verification-001''',
+]
