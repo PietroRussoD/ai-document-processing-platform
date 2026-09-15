@@ -11,6 +11,10 @@ from document_platform.application.commands.claim_workflow_start_requests import
     ClaimWorkflowStartRequestsHandler,
     InvalidWorkflowStartRequestClaim,
 )
+from document_platform.application.commands.dispatch_workflow_start_requests import (
+    DispatchWorkflowStartRequestsHandler,
+    WorkflowStartDispatchResult,
+)
 from document_platform.application.commands.register_document import (
     InconsistentIdempotencyRecord,
     RegisterDocument,
@@ -23,6 +27,7 @@ __all__ = [
     "AcceptDocumentUploadHandler",
     "ClaimWorkflowStartRequests",
     "ClaimWorkflowStartRequestsHandler",
+    "DispatchWorkflowStartRequestsHandler",
     "InconsistentIdempotencyRecord",
     "InvalidStagedUpload",
     "InvalidWorkflowStartRequestClaim",
@@ -30,4 +35,5 @@ __all__ = [
     "RegisterDocumentHandler",
     "RegisteredDocument",
     "UnsupportedDocumentMediaType",
+    "WorkflowStartDispatchResult",
 ]

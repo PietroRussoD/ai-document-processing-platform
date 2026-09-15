@@ -35,7 +35,7 @@ def test_claims_and_marks_a_request_as_dispatched() -> None:
         lease_duration=timedelta(seconds=30),
     )
 
-    dispatched = claimed.mark_dispatched(at=REQUESTED_AT + timedelta(seconds=2))
+    dispatched = claimed.mark_dispatched(token=CLAIM_TOKEN, at=REQUESTED_AT + timedelta(seconds=2))
 
     assert claimed.status is WorkflowStartRequestStatus.DISPATCHING
     assert claimed.dispatch_token == CLAIM_TOKEN
@@ -59,11 +59,11 @@ def test_rejects_dispatching_a_request_twice() -> None:
             at=REQUESTED_AT + timedelta(seconds=1),
             lease_duration=timedelta(seconds=30),
         )
-        .mark_dispatched(at=REQUESTED_AT + timedelta(seconds=2))
+        .mark_dispatched(token=CLAIM_TOKEN, at=REQUESTED_AT + timedelta(seconds=2))
     )
 
     with pytest.raises(InvalidWorkflowStartRequest, match="only a claimed request"):
-        request.mark_dispatched(at=REQUESTED_AT + timedelta(seconds=3))
+        request.mark_dispatched(token=CLAIM_TOKEN, at=REQUESTED_AT + timedelta(seconds=3))
 
 
 def test_reclaims_an_expired_claim() -> None:
@@ -87,3 +87,21 @@ def test_reclaims_an_expired_claim() -> None:
     assert reclaimed.dispatch_owner == "dispatcher-b"
     assert reclaimed.attempt_count == 2
     assert reclaimed.version == 2
+
+
+def test_rejects_completion_with_a_stale_claim_token() -> None:
+    request = WorkflowStartRequest.request(
+        processing_run_id=RUN_ID,
+        requested_at=REQUESTED_AT,
+    ).claim(
+        owner="dispatcher-a",
+        token=CLAIM_TOKEN,
+        at=REQUESTED_AT + timedelta(seconds=1),
+        lease_duration=timedelta(seconds=30),
+    )
+
+    with pytest.raises(InvalidWorkflowStartRequest, match="does not own"):
+        request.mark_dispatched(
+            token=UUID("33333333-3333-4333-8333-333333333333"),
+            at=REQUESTED_AT + timedelta(seconds=2),
+        )

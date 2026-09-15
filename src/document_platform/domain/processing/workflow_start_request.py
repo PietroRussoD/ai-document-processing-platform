@@ -132,9 +132,11 @@ class WorkflowStartRequest:
             version=self.version + 1,
         )
 
-    def mark_dispatched(self, *, at: datetime) -> "WorkflowStartRequest":
+    def mark_dispatched(self, *, token: UUID, at: datetime) -> "WorkflowStartRequest":
         if self.status is not WorkflowStartRequestStatus.DISPATCHING:
             raise InvalidWorkflowStartRequest("only a claimed request can be dispatched")
+        if token != self.dispatch_token:
+            raise InvalidWorkflowStartRequest("dispatch token does not own the active claim")
         if not _is_timezone_aware(at):
             raise InvalidWorkflowStartRequest("dispatch time must be timezone-aware")
         if at < self.requested_at:

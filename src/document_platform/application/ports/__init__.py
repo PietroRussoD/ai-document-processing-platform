@@ -40,6 +40,7 @@ from document_platform.application.ports.workflow_start_request_repository impor
     WorkflowStartRequestAlreadyExists,
     WorkflowStartRequestRepository,
 )
+from document_platform.application.ports.workflow_starter import WorkflowStarter
 
 __all__ = [
     "BlobIntegrityConflict",
@@ -70,4 +71,5 @@ __all__ = [
     "UploadIdempotencyRepository",
     "WorkflowStartRequestAlreadyExists",
     "WorkflowStartRequestRepository",
+    "WorkflowStarter",
 ]

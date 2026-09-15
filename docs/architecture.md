@@ -89,9 +89,12 @@ sequenceDiagram
     Dispatcher->>DB: Mark request DISPATCHED
 ```
 
-`v0.2` currently implements the durable request and claim steps. The dispatcher
-runtime and Temporal adapter are introduced separately so network I/O never
-occurs inside the upload transaction.
+`v0.2` currently implements the durable request, PostgreSQL claim and
+application dispatch steps. The Temporal adapter starts the stable workflow ID
+with an existing-running workflow treated as the same successful handoff. The
+dispatcher runtime and worker are introduced separately so network I/O never
+occurs inside the upload transaction and no workflow is started without an
+available worker.
 
 Status queries use a dedicated read-model port. Its PostgreSQL adapter joins the
 document with its most recently queued processing run and returns only the fields

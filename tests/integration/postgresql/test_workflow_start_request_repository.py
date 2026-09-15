@@ -55,7 +55,11 @@ async def test_adds_loads_and_marks_a_workflow_start_request(
         at=REQUESTED_AT + timedelta(seconds=1),
         lease_duration=timedelta(seconds=30),
     )
-    dispatched = claimed.mark_dispatched(at=REQUESTED_AT + timedelta(seconds=2))
+    assert claimed.dispatch_token is not None
+    dispatched = claimed.mark_dispatched(
+        token=claimed.dispatch_token,
+        at=REQUESTED_AT + timedelta(seconds=2),
+    )
 
     try:
         await add_run(database, UUID("14141414-1414-4141-8141-141414141414"), run_id)
@@ -93,6 +97,7 @@ async def test_rejects_a_stale_workflow_start_request_update(
         at=REQUESTED_AT + timedelta(seconds=1),
         lease_duration=timedelta(seconds=30),
     )
+    assert first_update.dispatch_token is not None
     stale_update = request.claim(
         owner="dispatcher-b",
         token=UUID("19191919-1919-4191-8191-191919191919"),
@@ -113,7 +118,10 @@ async def test_rejects_a_stale_workflow_start_request_update(
 
         async with database.sessions.begin() as session:
             await SqlAlchemyWorkflowStartRequestRepository(session).update(
-                first_update.mark_dispatched(at=REQUESTED_AT + timedelta(seconds=2))
+                first_update.mark_dispatched(
+                    token=first_update.dispatch_token,
+                    at=REQUESTED_AT + timedelta(seconds=2),
+                )
             )
     finally:
         await database.dispose()
