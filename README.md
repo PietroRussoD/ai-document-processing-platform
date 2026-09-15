@@ -5,21 +5,26 @@ data from business documents.
 
 ## Status
 
-The `v0.1` ingestion milestone is in progress. The API accepts bounded PDF
-uploads through real validation, local blob storage and atomic PostgreSQL
-registration. A read endpoint exposes the current document and processing-run
-status. The operator console now provides tested PDF selection and submission,
-including acceptance identifiers, safe error feedback and polling of the
-persisted document and processing-run status.
+The `v0.1` ingestion milestone is functionally complete and undergoing release
+verification. The API accepts bounded PDF uploads through real validation,
+local blob storage and atomic PostgreSQL registration. A read endpoint exposes
+the current document and processing-run status. The operator console provides
+tested PDF selection and submission, including acceptance identifiers, safe
+error feedback and polling of the persisted document and processing-run status.
 
-## Technology Direction
+## Implemented Technology
 
 - Python 3.13 and `uv`;
 - FastAPI and PostgreSQL;
+- PyMuPDF for PDF structural validation;
+- React and TypeScript for the operator console.
+
+## Planned Extensions
+
 - Temporal for durable asynchronous workflows;
-- PyMuPDF and Tesseract for text extraction and OCR;
-- Ollama for optional local structured extraction;
-- React and TypeScript for upload, processing and review workflows.
+- Tesseract for OCR and Ollama for local structured extraction;
+- optional S3-compatible storage and external-provider comparison;
+- processing, review and retention workflows.
 
 ## Architecture
 
@@ -29,8 +34,8 @@ types. Adapters implement those external boundaries.
 
 ```text
 HTTP / React -> application use cases -> domain rules
-                       |       |       |
-                  PostgreSQL  storage  Temporal/OCR/AI
+                       |       |
+                  PostgreSQL  local storage
 ```
 
 See [architecture documentation](docs/architecture.md) and
@@ -51,9 +56,7 @@ src/document_platform/
     ports/                      # interfaces to external boundaries
   adapters/
     inbound/http/               # FastAPI routes and transport mapping
-    outbound/                   # PostgreSQL, storage, Temporal, OCR, AI, notifications
-  workflows/                    # deterministic Temporal workflow definitions
-  observability/                # logging, metrics and correlation support
+    outbound/                   # PostgreSQL, local storage and PDF validation
   bootstrap.py                  # dependency composition and process startup
 tests/
   unit/                         # domain and application behavior

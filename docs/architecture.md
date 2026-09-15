@@ -2,12 +2,29 @@
 
 ## Purpose
 
-The platform accepts synthetic business documents, processes them asynchronously
-and presents validated results for review. It is designed as a local-first
-system: a clean default run does not require cloud credentials or a paid AI
-provider.
+The platform accepts synthetic business documents and will process them
+asynchronously for validation and review. `v0.1` implements the ingestion
+boundary only: it durably accepts eligible PDFs and creates a queued processing
+run. It is designed as a local-first system: a clean default run does not
+require cloud credentials or a paid AI provider.
 
-## Components
+## Implemented Components (`v0.1`)
+
+```mermaid
+flowchart LR
+    Console[React operator console] --> API[FastAPI HTTP adapter]
+    API --> Application[Application use cases]
+    Application --> Domain[Domain rules]
+    Application --> PostgreSQL[(PostgreSQL)]
+    Application --> Storage[Local filesystem]
+```
+
+PostgreSQL is authoritative for documents, processing runs, upload idempotency
+records and user-facing status projections. Filesystem storage owns uploaded
+document blobs. The current processing run is intentionally left in `QUEUED`
+until a worker is introduced.
+
+## Target Components
 
 ```mermaid
 flowchart LR
@@ -25,10 +42,10 @@ flowchart LR
     Model -. optional .-> OpenAI[External provider]
 ```
 
-PostgreSQL is authoritative for documents, processing runs, state transitions,
-review decisions and user-facing projections. Temporal stores durable workflow
-execution history. Filesystem storage owns document blobs and derived artifacts.
-The model provider is never an authority for business state.
+Temporal, OCR, structured extraction and review components are planned
+extensions. When introduced, PostgreSQL will remain authoritative for business
+state, Temporal will own durable workflow execution history, and the model
+provider will never be an authority for business state.
 
 ## Dependency Direction
 
@@ -41,8 +58,9 @@ SDK types. The application defines ports only for boundaries that are external,
 fallible or plausibly replaceable: repositories, object storage, workflow start,
 text extraction, structured extraction and notifications.
 
-Temporal workflows are deterministic orchestration. Database, filesystem, OCR,
-clock and model calls happen in Activities, never directly inside workflow code.
+When introduced, Temporal workflows will be deterministic orchestration.
+Database, filesystem, OCR, clock and model calls will happen in Activities,
+never directly inside workflow code.
 
 ## Transaction Ownership
 
@@ -87,7 +105,8 @@ background. The feature stops polling when the processing run reaches
 
 ## Domain Lifecycles
 
-Document status describes the business outcome of the submitted content:
+The domain model reserves the following document lifecycle for future processing
+and review. `v0.1` currently persists `UPLOADED` only:
 
 ```mermaid
 stateDiagram-v2
@@ -100,7 +119,8 @@ stateDiagram-v2
 ```
 
 Processing-run status describes one durable technical execution. Failures and
-retries belong here rather than in the document lifecycle:
+retries belong here rather than in the document lifecycle. `v0.1` currently
+creates a `QUEUED` run only:
 
 ```mermaid
 stateDiagram-v2
@@ -255,12 +275,12 @@ tests/e2e/           API and browser journeys
 
 ## Current Boundaries
 
-| Boundary | Default implementation | Optional implementation |
+| Boundary | `v0.1` implementation | Planned extension |
 | --- | --- | --- |
 | Object storage | Local filesystem | S3-compatible adapter |
-| Structured extraction | Deterministic fake for CI | Ollama; policy-gated OpenAI comparison |
-| Text extraction | PyMuPDF, Tesseract when required | None initially |
-| Workflow execution | Temporal development server | Managed/self-hosted Temporal later |
+| Structured extraction | Not implemented | Deterministic fake; Ollama; policy-gated OpenAI comparison |
+| Text extraction | PyMuPDF structural validation | Text extraction and Tesseract OCR |
+| Workflow execution | Queued PostgreSQL processing run | Temporal development server; managed/self-hosted Temporal later |
 
 ## Related Decisions
 
