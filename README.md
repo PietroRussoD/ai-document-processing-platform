@@ -5,12 +5,13 @@ data from business documents.
 
 ## Status
 
-The `v0.1` ingestion milestone is functionally complete and undergoing release
-verification. The API accepts bounded PDF uploads through real validation,
-local blob storage and atomic PostgreSQL registration. A read endpoint exposes
-the current document and processing-run status. The operator console provides
-tested PDF selection and submission, including acceptance identifiers, safe
-error feedback and polling of the persisted document and processing-run status.
+The [`v0.1.0` release](docs/releases/v0.1.0.md) is the first functional
+ingestion milestone. The API accepts bounded PDF uploads through real
+validation, local blob storage and atomic PostgreSQL registration. A read
+endpoint exposes the current document and processing-run status. The operator
+console provides tested PDF selection and submission, including acceptance
+identifiers, safe error feedback and polling of the persisted document and
+processing-run status.
 
 ## Implemented Technology
 
