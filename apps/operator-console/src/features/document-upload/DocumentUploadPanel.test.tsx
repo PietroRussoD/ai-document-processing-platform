@@ -5,6 +5,7 @@ import { expect, type Mock, test, vi } from "vitest";
 
 import {
     type AcceptedDocument,
+    type DocumentStatus,
     DocumentApiProblem,
 } from "../../api/documentApi";
 import { DocumentUploadPanel } from "./DocumentUploadPanel";
@@ -14,6 +15,27 @@ const acceptedDocument: AcceptedDocument = {
     processing_run_id: "22222222-2222-4222-8222-222222222222",
     accepted_at: "2026-09-14T19:00:00Z",
     replayed: false,
+};
+
+const persistedStatus: DocumentStatus = {
+    id: acceptedDocument.document_id,
+    original_filename: "invoice.pdf",
+    media_type: "application/pdf",
+    size_bytes: 3,
+    page_count: 1,
+    content_sha256: "a".repeat(64),
+    status: "UPLOADED",
+    accepted_at: acceptedDocument.accepted_at,
+    status_changed_at: acceptedDocument.accepted_at,
+    current_run: {
+        id: acceptedDocument.processing_run_id,
+        status: "QUEUED",
+        queued_at: acceptedDocument.accepted_at,
+        started_at: null,
+        status_changed_at: acceptedDocument.accepted_at,
+        finished_at: null,
+        attempt_count: 0,
+    },
 };
 
 type UploadFunction = (
@@ -77,10 +99,20 @@ test("shows a safe message for unexpected failures", async () => {
     ).not.toBeInTheDocument();
 });
 
-function renderPanel(upload: Mock<UploadFunction>) {
+function renderPanel(
+    upload: Mock<UploadFunction>,
+    getStatus = vi
+        .fn<
+            (
+                documentId: string,
+                signal?: AbortSignal,
+            ) => Promise<DocumentStatus>
+        >()
+        .mockResolvedValue(persistedStatus),
+) {
     return render(
         <DocumentUploadPanel
-            api={{ upload }}
+            api={{ getStatus, upload }}
             idGenerator={() => "stable-upload-key"}
         />,
         { wrapper: QueryWrapper },

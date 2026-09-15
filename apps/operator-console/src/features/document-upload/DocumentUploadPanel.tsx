@@ -7,12 +7,11 @@ import {
     type DocumentApi,
     DocumentApiProblem,
 } from "../../api/documentApi";
+import { DocumentStatusPanel } from "../document-status/DocumentStatusPanel";
 import { DocumentFilePicker } from "./DocumentFilePicker";
 
-type UploadApi = Pick<DocumentApi, "upload">;
-
 type DocumentUploadPanelProps = {
-    api?: UploadApi;
+    api?: DocumentApi;
     idGenerator?: () => string;
 };
 
@@ -89,26 +88,32 @@ export function DocumentUploadPanel({
                 ) : null}
 
                 {upload.data !== undefined ? (
-                    <section className="mt-6 border border-app-success-border bg-app-success-surface p-5">
-                        <div className="flex items-center gap-2 text-app-success">
-                            <CheckCircle2 aria-hidden="true" size={20} />
-                            <h2 className="font-semibold">
-                                {upload.data.replayed
-                                    ? "Previously accepted"
-                                    : "Document accepted"}
-                            </h2>
-                        </div>
-                        <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                            <Identifier
-                                label="Document ID"
-                                value={upload.data.document_id}
-                            />
-                            <Identifier
-                                label="Processing run ID"
-                                value={upload.data.processing_run_id}
-                            />
-                        </dl>
-                    </section>
+                    <>
+                        <section className="mt-6 border border-app-success-border bg-app-success-surface p-5">
+                            <div className="flex items-center gap-2 text-app-success">
+                                <CheckCircle2 aria-hidden="true" size={20} />
+                                <h2 className="font-semibold">
+                                    {upload.data.replayed
+                                        ? "Previously accepted"
+                                        : "Document accepted"}
+                                </h2>
+                            </div>
+                            <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                                <Identifier
+                                    label="Document ID"
+                                    value={upload.data.document_id}
+                                />
+                                <Identifier
+                                    label="Processing run ID"
+                                    value={upload.data.processing_run_id}
+                                />
+                            </dl>
+                        </section>
+                        <DocumentStatusPanel
+                            api={api}
+                            documentId={upload.data.document_id}
+                        />
+                    </>
                 ) : null}
             </div>
         </form>

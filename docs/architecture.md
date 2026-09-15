@@ -64,6 +64,27 @@ idempotency key is retained across retries of the same selection and replaced wh
 the selected document changes. Transport types come from the versioned OpenAPI
 contract; unexpected technical error details are not rendered to operators.
 
+```mermaid
+sequenceDiagram
+    actor Operator
+    participant UI as React console
+    participant API as FastAPI
+    participant DB as PostgreSQL
+    Operator->>UI: Select and submit PDF
+    UI->>API: POST /api/v1/documents + idempotency key
+    API->>DB: Commit document, run and idempotency result
+    API-->>UI: 202 + document and run IDs
+    loop Every 2 seconds while run is non-terminal
+        UI->>API: GET /api/v1/documents/{id}
+        API->>DB: Read document + most recent run
+        API-->>UI: Persisted status projection
+    end
+```
+
+TanStack Query pauses ordinary interval refetching when the page is in the
+background. The feature stops polling when the processing run reaches
+`COMPLETED`, `FAILED` or `CANCELLED`; review and retry states remain observable.
+
 ## Domain Lifecycles
 
 Document status describes the business outcome of the submitted content:
