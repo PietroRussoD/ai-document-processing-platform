@@ -9,6 +9,7 @@ from document_platform.adapters.outbound.postgresql.repositories.idempotency_rep
 from document_platform.adapters.outbound.postgresql.repositories.processing_run_repository import (
     SqlAlchemyProcessingRunRepository,
 )
+
 from .workflow_start_request_repository import SqlAlchemyWorkflowStartRequestRepository
 
 __all__ = [
