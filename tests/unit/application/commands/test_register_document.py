@@ -1,6 +1,7 @@
 """Register-document application tests."""
 
-from datetime import UTC, datetime
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 from types import TracebackType
 from typing import Self
 from uuid import UUID
@@ -97,6 +98,17 @@ class RecordingWorkflowStartRequestRepository:
 
     async def get(self, processing_run_id: UUID) -> WorkflowStartRequest | None:
         return self.requests.get(processing_run_id)
+
+    async def claim_pending(
+        self,
+        *,
+        owner: str,
+        claimed_at: datetime,
+        lease_duration: timedelta,
+        limit: int,
+        token_generator: Callable[[], UUID],
+    ) -> tuple[WorkflowStartRequest, ...]:
+        raise NotImplementedError
 
     async def update(self, request: WorkflowStartRequest) -> None:
         self.requests[request.processing_run_id] = request

@@ -73,6 +73,26 @@ workflow-start request are persisted atomically. The request uses the processing
 run ID to derive a stable future Temporal workflow ID. A dispatcher will start
 that workflow only after the transaction commits.
 
+## Durable Workflow Handoff
+
+```mermaid
+sequenceDiagram
+    participant API as Upload use case
+    participant DB as PostgreSQL
+    participant Dispatcher as Future dispatcher
+    participant Temporal as Future Temporal service
+
+    API->>DB: Commit document, run, idempotency record and PENDING request
+    Dispatcher->>DB: Claim PENDING request with owner, token and lease
+    Note over Dispatcher,DB: Concurrent dispatchers use SKIP LOCKED.<br/>Expired leases are reclaimable.
+    Dispatcher->>Temporal: Start deterministic workflow ID
+    Dispatcher->>DB: Mark request DISPATCHED
+```
+
+`v0.2` currently implements the durable request and claim steps. The dispatcher
+runtime and Temporal adapter are introduced separately so network I/O never
+occurs inside the upload transaction.
+
 Status queries use a dedicated read-model port. Its PostgreSQL adapter joins the
 document with its most recently queued processing run and returns only the fields
 required by the public API; it does not load aggregates or open a write transaction.

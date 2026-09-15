@@ -20,17 +20,41 @@ class WorkflowStartRequestRecord(Base):
             "workflow_id = btrim(workflow_id) AND length(workflow_id) > 0",
             name="workflow_id_format",
         ),
-        CheckConstraint("status IN ('PENDING', 'DISPATCHED')", name="status_valid"),
+        CheckConstraint("status IN ('PENDING', 'DISPATCHING', 'DISPATCHED')", name="status_valid"),
         CheckConstraint(
             "(status = 'DISPATCHED') = (dispatched_at IS NOT NULL)",
             name="dispatch_status_has_time",
+        ),
+        CheckConstraint(
+            "(status = 'DISPATCHING') = "
+            "(dispatch_owner IS NOT NULL AND dispatch_token IS NOT NULL "
+            "AND lease_expires_at IS NOT NULL)",
+            name="dispatching_has_claim",
+        ),
+        CheckConstraint(
+            "lease_expires_at IS NULL OR lease_expires_at > requested_at",
+            name="lease_time_ordered",
+        ),
+        CheckConstraint("attempt_count >= 0", name="attempt_count_not_negative"),
+        CheckConstraint(
+            "status <> 'PENDING' OR attempt_count = 0",
+            name="pending_has_no_attempts",
+        ),
+        CheckConstraint(
+            "status = 'PENDING' OR attempt_count >= 1",
+            name="claimed_has_attempt",
         ),
         CheckConstraint(
             "dispatched_at IS NULL OR dispatched_at >= requested_at",
             name="dispatch_time_ordered",
         ),
         CheckConstraint("version >= 0", name="version_not_negative"),
-        Index("ix_workflow_start_requests_status_requested_at", "status", "requested_at"),
+        Index(
+            "ix_workflow_start_requests_status_lease_requested_at",
+            "status",
+            "lease_expires_at",
+            "requested_at",
+        ),
     )
 
     processing_run_id: Mapped[UUID] = mapped_column(
@@ -46,4 +70,8 @@ class WorkflowStartRequestRecord(Base):
     status: Mapped[str] = mapped_column(String(16))
     requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     dispatched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    dispatch_owner: Mapped[str | None] = mapped_column(String(64))
+    dispatch_token: Mapped[UUID | None] = mapped_column(Uuid(as_uuid=True))
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attempt_count: Mapped[int] = mapped_column(Integer)
     version: Mapped[int] = mapped_column(Integer)

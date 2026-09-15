@@ -1,9 +1,11 @@
 """SQLAlchemy workflow-start request repository."""
 
+from collections.abc import Callable
+from datetime import datetime, timedelta
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import update
+from sqlalchemy import and_, or_, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,6 +36,47 @@ class SqlAlchemyWorkflowStartRequestRepository:
         record = await self._session.get(WorkflowStartRequestRecord, processing_run_id)
         return _to_domain(record) if record is not None else None
 
+    async def claim_pending(
+        self,
+        *,
+        owner: str,
+        claimed_at: datetime,
+        lease_duration: timedelta,
+        limit: int,
+        token_generator: Callable[[], UUID],
+    ) -> tuple[WorkflowStartRequest, ...]:
+        records = list(
+            await self._session.scalars(
+                select(WorkflowStartRequestRecord)
+                .where(
+                    or_(
+                        WorkflowStartRequestRecord.status
+                        == WorkflowStartRequestStatus.PENDING.value,
+                        and_(
+                            WorkflowStartRequestRecord.status
+                            == WorkflowStartRequestStatus.DISPATCHING.value,
+                            WorkflowStartRequestRecord.lease_expires_at <= claimed_at,
+                        ),
+                    )
+                )
+                .order_by(WorkflowStartRequestRecord.requested_at)
+                .limit(limit)
+                .with_for_update(skip_locked=True)
+            )
+        )
+        claimed = tuple(
+            _to_domain(record).claim(
+                owner=owner,
+                token=token_generator(),
+                at=claimed_at,
+                lease_duration=lease_duration,
+            )
+            for record in records
+        )
+        for request in claimed:
+            await self.update(request)
+        return claimed
+
     async def update(self, request: WorkflowStartRequest) -> None:
         if request.version < 1:
             raise ValueError("an updated workflow start request must have a positive version")
@@ -49,6 +92,10 @@ class SqlAlchemyWorkflowStartRequestRepository:
                 .values(
                     status=request.status.value,
                     dispatched_at=request.dispatched_at,
+                    dispatch_owner=request.dispatch_owner,
+                    dispatch_token=request.dispatch_token,
+                    lease_expires_at=request.lease_expires_at,
+                    attempt_count=request.attempt_count,
                     version=request.version,
                 )
             ),
@@ -64,6 +111,10 @@ def _to_record(request: WorkflowStartRequest) -> WorkflowStartRequestRecord:
         status=request.status.value,
         requested_at=request.requested_at,
         dispatched_at=request.dispatched_at,
+        dispatch_owner=request.dispatch_owner,
+        dispatch_token=request.dispatch_token,
+        lease_expires_at=request.lease_expires_at,
+        attempt_count=request.attempt_count,
         version=request.version,
     )
 
@@ -75,5 +126,9 @@ def _to_domain(record: WorkflowStartRequestRecord) -> WorkflowStartRequest:
         status=WorkflowStartRequestStatus(record.status),
         requested_at=record.requested_at,
         dispatched_at=record.dispatched_at,
+        dispatch_owner=record.dispatch_owner,
+        dispatch_token=record.dispatch_token,
+        lease_expires_at=record.lease_expires_at,
+        attempt_count=record.attempt_count,
         version=record.version,
     )

@@ -1,5 +1,7 @@
 """Persistence contract for durable workflow-start requests."""
 
+from collections.abc import Callable
+from datetime import datetime, timedelta
 from typing import Protocol
 from uuid import UUID
 
@@ -20,5 +22,15 @@ class WorkflowStartRequestRepository(Protocol):
     async def add(self, request: WorkflowStartRequest) -> None: ...
 
     async def get(self, processing_run_id: UUID) -> WorkflowStartRequest | None: ...
+
+    async def claim_pending(
+        self,
+        *,
+        owner: str,
+        claimed_at: datetime,
+        lease_duration: timedelta,
+        limit: int,
+        token_generator: Callable[[], UUID],
+    ) -> tuple[WorkflowStartRequest, ...]: ...
 
     async def update(self, request: WorkflowStartRequest) -> None: ...
