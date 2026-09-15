@@ -6,7 +6,7 @@ from temporalio.client import Client
 from temporalio.common import WorkflowIDConflictPolicy, WorkflowIDReusePolicy
 from temporalio.exceptions import WorkflowAlreadyStartedError
 
-PROCESS_BUSINESS_DOCUMENT_WORKFLOW = "process-business-document"
+from document_platform.application.ports.workflow_starter import PROCESS_BUSINESS_DOCUMENT_WORKFLOW
 
 
 class TemporalWorkflowStarter:

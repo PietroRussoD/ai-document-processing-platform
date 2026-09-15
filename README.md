@@ -116,9 +116,15 @@ remain available when Temporal is being restarted:
 uv run python -m document_platform.dispatcher
 ```
 
-The current dispatcher records durable Temporal handoff only. Until the
-processing worker is introduced, started workflows remain queued on the
-`document-processing` task queue rather than executing document extraction.
+Start the processing worker in a third terminal after the API and dispatcher:
+
+```bash
+uv run python -m document_platform.worker
+```
+
+The worker currently performs the first durable processing transition only:
+it moves the document and its processing run to `PROCESSING` and `RUNNING` in
+one database transaction. PDF extraction is introduced separately.
 
 Upload a PDF with a client-generated idempotency key:
 

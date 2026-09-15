@@ -21,6 +21,15 @@ from document_platform.application.commands.register_document import (
     RegisterDocumentHandler,
     RegisteredDocument,
 )
+from document_platform.application.commands.start_processing_run import (
+    InvalidProcessingDocumentStart,
+    InvalidProcessingRunStart,
+    ProcessingRunDocumentNotFound,
+    ProcessingRunNotFound,
+    ProcessingRunStarted,
+    StartProcessingRun,
+    StartProcessingRunHandler,
+)
 
 __all__ = [
     "AcceptDocumentUpload",
@@ -30,10 +39,17 @@ __all__ = [
     "DispatchWorkflowStartRequestsHandler",
     "InconsistentIdempotencyRecord",
     "InvalidStagedUpload",
+    "InvalidProcessingDocumentStart",
+    "InvalidProcessingRunStart",
     "InvalidWorkflowStartRequestClaim",
     "RegisterDocument",
     "RegisterDocumentHandler",
     "RegisteredDocument",
+    "ProcessingRunDocumentNotFound",
+    "ProcessingRunNotFound",
+    "ProcessingRunStarted",
+    "StartProcessingRun",
+    "StartProcessingRunHandler",
     "UnsupportedDocumentMediaType",
     "WorkflowStartDispatchResult",
 ]

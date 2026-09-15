@@ -3,6 +3,8 @@
 from typing import Protocol
 from uuid import UUID
 
+PROCESS_BUSINESS_DOCUMENT_WORKFLOW = "process-business-document"
+
 
 class WorkflowStarter(Protocol):
     async def start(

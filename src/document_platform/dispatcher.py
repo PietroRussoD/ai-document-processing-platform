@@ -92,7 +92,10 @@ def _log_dispatch_result(result: WorkflowStartDispatchResult) -> None:
 def main() -> None:
     settings = Settings()
     logging.basicConfig(level=settings.log_level)
-    asyncio.run(run_dispatcher(settings))
+    try:
+        asyncio.run(run_dispatcher(settings))
+    except KeyboardInterrupt:
+        return
 
 
 if __name__ == "__main__":

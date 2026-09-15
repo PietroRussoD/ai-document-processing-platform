@@ -79,14 +79,17 @@ that workflow only after the transaction commits.
 sequenceDiagram
     participant API as Upload use case
     participant DB as PostgreSQL
-    participant Dispatcher as Future dispatcher
-    participant Temporal as Future Temporal service
+    participant Dispatcher
+    participant Temporal
+    participant Worker
 
     API->>DB: Commit document, run, idempotency record and PENDING request
     Dispatcher->>DB: Claim PENDING request with owner, token and lease
     Note over Dispatcher,DB: Concurrent dispatchers use SKIP LOCKED.<br/>Expired leases are reclaimable.
     Dispatcher->>Temporal: Start deterministic workflow ID
     Dispatcher->>DB: Mark request DISPATCHED
+    Temporal->>Worker: Run workflow on document-processing queue
+    Worker->>DB: Start document and processing run atomically
 ```
 
 `v0.2` currently implements the durable request, PostgreSQL claim and
@@ -94,7 +97,9 @@ application dispatch steps. The Temporal adapter starts the stable workflow ID
 with an existing-running workflow treated as the same successful handoff. A
 separate dispatcher process owns the Temporal connection and polling loop; it
 is deliberately independent from the HTTP API so network I/O never occurs
-inside the upload transaction. The processing worker is introduced separately.
+inside the upload transaction. The processing worker currently performs only
+the first durable activity: `UPLOADED -> PROCESSING` for the document and
+`QUEUED -> RUNNING` for its run. PDF extraction is introduced separately.
 
 Status queries use a dedicated read-model port. Its PostgreSQL adapter joins the
 document with its most recently queued processing run and returns only the fields
