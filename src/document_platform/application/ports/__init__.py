@@ -29,6 +29,13 @@ from document_platform.application.ports.pdf_inspector import (
     PdfInspector,
     PdfPageLimitExceeded,
 )
+from document_platform.application.ports.pdf_ocr_extractor import (
+    ExtractedOcrText,
+    OcrEngineUnavailable,
+    OcrExtractionFailed,
+    OcrTextLimitExceeded,
+    PdfOcrExtractor,
+)
 from document_platform.application.ports.pdf_text_extractor import (
     ExtractedPdfText,
     PdfTextExtractor,
@@ -72,11 +79,16 @@ __all__ = [
     "IdGenerator",
     "InvalidPdf",
     "ExtractedPdfText",
+    "ExtractedOcrText",
     "PdfInspection",
+    "PdfOcrExtractor",
     "PdfInspector",
     "PdfPageLimitExceeded",
     "PdfTextExtractor",
     "PdfTextLimitExceeded",
+    "OcrEngineUnavailable",
+    "OcrExtractionFailed",
+    "OcrTextLimitExceeded",
     "ProcessingRunAlreadyExists",
     "ProcessingRunRepository",
     "ProcessingRunStatusView",

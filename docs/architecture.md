@@ -107,6 +107,12 @@ reading or parsing the PDF again. Its persisted quality is a deterministic
 of non-whitespace characters. This is intentionally an observable policy, not
 an implicit trigger for OCR.
 
+The local OCR adapter rasterizes pages with PyMuPDF and invokes the configured
+Tesseract executable one page at a time. It applies the accepted page limit,
+the same bounded text limit, a configurable DPI and a per-page timeout. Serial
+execution is intentional: the worker should bound CPU and memory consumption
+before configurable parallelism is introduced with operational evidence.
+
 Status queries use a dedicated read-model port. Its PostgreSQL adapter joins the
 document with its most recently queued processing run and returns only the fields
 required by the public API; it does not load aggregates or open a write transaction.
@@ -325,7 +331,7 @@ tests/e2e/           API and browser journeys
 | --- | --- | --- |
 | Object storage | Local filesystem | S3-compatible adapter |
 | Structured extraction | Not implemented | Deterministic fake; Ollama; policy-gated OpenAI comparison |
-| Text extraction | Bounded PyMuPDF extraction and persisted OCR recommendation | Tesseract OCR fallback |
+| Text extraction | PyMuPDF extraction, OCR recommendation and bounded Tesseract adapter | Workflow-driven OCR fallback |
 | Workflow execution | Temporal development server with local worker | Managed/self-hosted Temporal later |
 
 ## Related Decisions

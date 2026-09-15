@@ -21,6 +21,7 @@ document and processing-run status.
 - FastAPI and PostgreSQL;
 - PyMuPDF for PDF validation and embedded-text extraction;
 - Temporal for durable local workflow execution;
+- a bounded local Tesseract OCR adapter, ready for the later fallback stage;
 - React and TypeScript for the operator console.
 
 ## Planned Extensions
@@ -130,6 +131,12 @@ keyed by its processing run, so a Temporal activity retry reuses the persisted
 result instead of repeating the work. A deterministic, configurable threshold
 marks low-text documents as `OCR_RECOMMENDED`; it does not silently invoke OCR.
 OCR, classification and structured extraction are later stages.
+
+The Tesseract adapter is intentionally not invoked until the OCR fallback
+workflow slice. Before enabling that slice, install the `tesseract` executable
+with the required language data and verify it with `tesseract --list-langs`.
+The default configuration expects the `eng` language and exposes command,
+language, raster DPI and per-page timeout through `.env`.
 
 Upload a PDF with a client-generated idempotency key:
 
