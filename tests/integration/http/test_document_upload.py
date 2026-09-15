@@ -77,7 +77,9 @@ async def test_accepts_and_replays_a_pdf_upload(
                         (SELECT count(*) FROM documents WHERE id = :document_id),
                         (SELECT count(*) FROM processing_runs WHERE id = :processing_run_id),
                         (SELECT count(*) FROM upload_idempotency_records
-                         WHERE idempotency_key = 'http-upload-test')
+                         WHERE idempotency_key = 'http-upload-test'),
+                        (SELECT count(*) FROM workflow_start_requests
+                         WHERE processing_run_id = :processing_run_id)
                     """
                 ),
                 {
@@ -117,7 +119,7 @@ async def test_accepts_and_replays_a_pdf_upload(
         },
     }
     assert "storage_key" not in status_response.json()
-    assert persisted_counts == (1, 1, 1)
+    assert persisted_counts == (1, 1, 1, 1)
     assert (
         len([path for path in tmp_path.joinpath("data", "blobs").rglob("*") if path.is_file()]) == 1
     )

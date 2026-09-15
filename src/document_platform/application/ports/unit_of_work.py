@@ -9,6 +9,9 @@ from document_platform.application.ports.processing_run_repository import Proces
 from document_platform.application.ports.upload_idempotency_repository import (
     UploadIdempotencyRepository,
 )
+from document_platform.application.ports.workflow_start_request_repository import (
+    WorkflowStartRequestRepository,
+)
 
 
 class UnitOfWork(Protocol):
@@ -20,6 +23,9 @@ class UnitOfWork(Protocol):
 
     @property
     def upload_idempotency(self) -> UploadIdempotencyRepository: ...
+
+    @property
+    def workflow_start_requests(self) -> WorkflowStartRequestRepository: ...
 
     async def __aenter__(self) -> Self: ...
 

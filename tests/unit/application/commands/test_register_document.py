@@ -17,6 +17,7 @@ from document_platform.application.ports import (
     ProcessingRunRepository,
     UploadIdempotencyRecordAlreadyExists,
     UploadIdempotencyRepository,
+    WorkflowStartRequestRepository,
 )
 from document_platform.application.upload_idempotency import (
     ConflictingIdempotencyKey,
@@ -25,7 +26,7 @@ from document_platform.application.upload_idempotency import (
     UploadRequestFingerprint,
 )
 from document_platform.domain.documents import Document, InvalidDocument
-from document_platform.domain.processing import ProcessingRun
+from document_platform.domain.processing import ProcessingRun, WorkflowStartRequest
 
 DOCUMENT_ID = UUID("c1e87668-329b-4862-87fc-e4f5150e233c")
 RUN_ID = UUID("91c5567b-8951-4713-b9c6-211055d4bb3e")
@@ -87,6 +88,20 @@ class RecordingUploadIdempotencyRepository:
         self.records[record.key] = record
 
 
+class RecordingWorkflowStartRequestRepository:
+    def __init__(self) -> None:
+        self.requests: dict[UUID, WorkflowStartRequest] = {}
+
+    async def add(self, request: WorkflowStartRequest) -> None:
+        self.requests[request.processing_run_id] = request
+
+    async def get(self, processing_run_id: UUID) -> WorkflowStartRequest | None:
+        return self.requests.get(processing_run_id)
+
+    async def update(self, request: WorkflowStartRequest) -> None:
+        self.requests[request.processing_run_id] = request
+
+
 class RecordingUnitOfWork:
     def __init__(
         self,
@@ -99,6 +114,7 @@ class RecordingUnitOfWork:
         self._upload_idempotency = RecordingUploadIdempotencyRepository(
             fail_on_add=fail_on_idempotency_add
         )
+        self._workflow_start_requests = RecordingWorkflowStartRequestRepository()
         self.commit_count = 0
         self.exit_exception: type[BaseException] | None = None
 
@@ -115,6 +131,10 @@ class RecordingUnitOfWork:
         return self._upload_idempotency
 
     @property
+    def workflow_start_requests(self) -> WorkflowStartRequestRepository:
+        return self._workflow_start_requests
+
+    @property
     def recorded_documents(self) -> tuple[Document, ...]:
         return tuple(self._documents.added)
 
@@ -125,6 +145,10 @@ class RecordingUnitOfWork:
     @property
     def recorded_idempotency_records(self) -> tuple[UploadIdempotencyRecord, ...]:
         return tuple(self._upload_idempotency.records.values())
+
+    @property
+    def recorded_workflow_start_requests(self) -> tuple[WorkflowStartRequest, ...]:
+        return tuple(self._workflow_start_requests.requests.values())
 
     def seed_replay(
         self,
@@ -207,6 +231,10 @@ async def test_registers_a_document_and_initial_run_atomically() -> None:
     idempotency_record = unit_of_work.recorded_idempotency_records[0]
     assert idempotency_record.processing_run_id == RUN_ID
     assert idempotency_record.recorded_at == ACCEPTED_AT
+    workflow_start_request = unit_of_work.recorded_workflow_start_requests[0]
+    assert workflow_start_request.processing_run_id == RUN_ID
+    assert workflow_start_request.workflow_id == f"process-business-document/{RUN_ID}"
+    assert workflow_start_request.requested_at == ACCEPTED_AT
 
 
 @pytest.mark.anyio
@@ -232,6 +260,7 @@ async def test_does_not_write_or_commit_invalid_document_data() -> None:
     assert unit_of_work.recorded_documents == ()
     assert unit_of_work.recorded_processing_runs == ()
     assert unit_of_work.recorded_idempotency_records == ()
+    assert unit_of_work.recorded_workflow_start_requests == ()
     assert unit_of_work.commit_count == 0
 
 
@@ -273,6 +302,7 @@ async def test_replays_the_original_acceptance_for_the_same_request() -> None:
     assert result.replayed is True
     assert unit_of_work.commit_count == 0
     assert unit_of_work.recorded_documents == ()
+    assert unit_of_work.recorded_workflow_start_requests == ()
 
 
 @pytest.mark.anyio

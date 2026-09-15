@@ -17,7 +17,7 @@ from document_platform.application.upload_idempotency import (
     UploadRequestFingerprint,
 )
 from document_platform.domain.documents import PDF_MEDIA_TYPE, Document
-from document_platform.domain.processing import ProcessingRun
+from document_platform.domain.processing import ProcessingRun, WorkflowStartRequest
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,10 +114,15 @@ class RegisterDocumentHandler:
             processing_run_id=processing_run.id,
             recorded_at=accepted_at,
         )
+        workflow_start_request = WorkflowStartRequest.request(
+            processing_run_id=processing_run.id,
+            requested_at=accepted_at,
+        )
 
         await unit_of_work.documents.add(document)
         await unit_of_work.processing_runs.add(processing_run)
         await unit_of_work.upload_idempotency.add(idempotency_record)
+        await unit_of_work.workflow_start_requests.add(workflow_start_request)
         await unit_of_work.commit()
 
         return RegisteredDocument(

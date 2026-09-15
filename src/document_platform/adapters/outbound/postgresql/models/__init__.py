@@ -10,10 +10,14 @@ from document_platform.adapters.outbound.postgresql.models.processing_run_record
 from document_platform.adapters.outbound.postgresql.models.upload_idempotency_record import (
     UploadIdempotencyRecordRow,
 )
+from document_platform.adapters.outbound.postgresql.models.workflow_start_request_record import (
+    WorkflowStartRequestRecord,
+)
 
 __all__ = [
     "Base",
     "DocumentRecord",
     "ProcessingRunRecord",
     "UploadIdempotencyRecordRow",
+    "WorkflowStartRequestRecord",
 ]

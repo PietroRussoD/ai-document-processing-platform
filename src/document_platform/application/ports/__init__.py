@@ -35,6 +35,11 @@ from document_platform.application.ports.upload_idempotency_repository import (
     UploadIdempotencyRecordAlreadyExists,
     UploadIdempotencyRepository,
 )
+from document_platform.application.ports.workflow_start_request_repository import (
+    ConcurrentWorkflowStartRequestUpdate,
+    WorkflowStartRequestAlreadyExists,
+    WorkflowStartRequestRepository,
+)
 
 __all__ = [
     "BlobIntegrityConflict",
@@ -43,6 +48,7 @@ __all__ = [
     "Clock",
     "ConcurrentDocumentUpdate",
     "ConcurrentProcessingRunUpdate",
+    "ConcurrentWorkflowStartRequestUpdate",
     "DocumentAlreadyExists",
     "DocumentRepository",
     "DocumentStatusReader",
@@ -62,4 +68,6 @@ __all__ = [
     "UnitOfWorkFactory",
     "UploadIdempotencyRecordAlreadyExists",
     "UploadIdempotencyRepository",
+    "WorkflowStartRequestAlreadyExists",
+    "WorkflowStartRequestRepository",
 ]

@@ -68,9 +68,10 @@ Application use cases own transaction boundaries through a unit of work.
 Repositories use its shared session but never commit independently. A use case
 must commit explicitly after all related writes succeed; leaving the context
 without a commit, including after an exception, rolls the transaction back.
-Document, initial processing run and upload-idempotency result are now persisted
-atomically. The workflow-start request will join that transaction when durable
-workflow dispatch is introduced.
+Document, initial processing run, upload-idempotency result and a pending
+workflow-start request are persisted atomically. The request uses the processing
+run ID to derive a stable future Temporal workflow ID. A dispatcher will start
+that workflow only after the transaction commits.
 
 Status queries use a dedicated read-model port. Its PostgreSQL adapter joins the
 document with its most recently queued processing run and returns only the fields

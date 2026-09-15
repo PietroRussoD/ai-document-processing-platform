@@ -9,11 +9,13 @@ from document_platform.adapters.outbound.postgresql.repositories import (
     SqlAlchemyDocumentRepository,
     SqlAlchemyProcessingRunRepository,
     SqlAlchemyUploadIdempotencyRepository,
+    SqlAlchemyWorkflowStartRequestRepository,
 )
 from document_platform.application.ports import (
     DocumentRepository,
     ProcessingRunRepository,
     UploadIdempotencyRepository,
+    WorkflowStartRequestRepository,
 )
 
 
@@ -24,6 +26,7 @@ class SqlAlchemyUnitOfWork:
         self._documents: DocumentRepository | None = None
         self._processing_runs: ProcessingRunRepository | None = None
         self._upload_idempotency: UploadIdempotencyRepository | None = None
+        self._workflow_start_requests: WorkflowStartRequestRepository | None = None
 
     @property
     def documents(self) -> DocumentRepository:
@@ -43,6 +46,12 @@ class SqlAlchemyUnitOfWork:
             raise RuntimeError("unit of work is not active")
         return self._upload_idempotency
 
+    @property
+    def workflow_start_requests(self) -> WorkflowStartRequestRepository:
+        if self._workflow_start_requests is None:
+            raise RuntimeError("unit of work is not active")
+        return self._workflow_start_requests
+
     async def __aenter__(self) -> Self:
         if self._session is not None:
             raise RuntimeError("unit of work is already active")
@@ -51,6 +60,7 @@ class SqlAlchemyUnitOfWork:
         self._documents = SqlAlchemyDocumentRepository(self._session)
         self._processing_runs = SqlAlchemyProcessingRunRepository(self._session)
         self._upload_idempotency = SqlAlchemyUploadIdempotencyRepository(self._session)
+        self._workflow_start_requests = SqlAlchemyWorkflowStartRequestRepository(self._session)
         return self
 
     async def __aexit__(
@@ -68,6 +78,7 @@ class SqlAlchemyUnitOfWork:
             self._documents = None
             self._processing_runs = None
             self._upload_idempotency = None
+            self._workflow_start_requests = None
 
     async def commit(self) -> None:
         await self._require_session().commit()
