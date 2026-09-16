@@ -70,6 +70,26 @@ test("allows a failed status request to be retried", async () => {
     expect(getStatus).toHaveBeenCalledTimes(2);
 });
 
+test("confirms when processing results are ready", async () => {
+    const getStatus = vi
+        .fn<
+            (
+                documentId: string,
+                signal?: AbortSignal,
+            ) => Promise<DocumentStatus>
+        >()
+        .mockResolvedValue(status("PROCESSING", "COMPLETED"));
+
+    render(
+        <DocumentStatusPanel api={{ getStatus }} documentId={DOCUMENT_ID} />,
+        { wrapper: QueryWrapper },
+    );
+
+    expect(
+        await screen.findByText("Processing results are ready."),
+    ).toBeVisible();
+});
+
 test("polls active states and stops for every terminal run state", () => {
     expect(statusPollInterval(undefined)).toBe(2_000);
     expect(statusPollInterval("QUEUED")).toBe(2_000);

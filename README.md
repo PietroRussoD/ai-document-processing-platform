@@ -139,7 +139,10 @@ The workflow then persists the selected canonical source and its reason, so
 downstream stages receive a traceable input. It classifies that selected text
 using a small deterministic, word-boundary keyword policy. The persisted type
 and reason distinguish a single keyword match from no match or an ambiguous
-match. Structured extraction remains future work.
+match. It then marks the technical processing run `COMPLETED`, which stops
+console polling. The document remains `PROCESSING` until a future structured
+validation or review decision changes its business lifecycle. Structured
+extraction remains future work.
 
 Before starting an OCR-recommended workflow, install the `tesseract` executable
 with the required language data and verify it with `tesseract --list-langs`.

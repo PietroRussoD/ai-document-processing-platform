@@ -9,6 +9,7 @@ from temporalio.worker import Worker
 
 from document_platform.adapters.inbound.temporal import (
     ClassifyDocumentActivity,
+    CompleteProcessingRunActivity,
     ExtractDocumentTextActivity,
     ExtractOcrTextActivity,
     SelectProcessingTextActivity,
@@ -21,6 +22,7 @@ from document_platform.adapters.outbound.postgresql import SqlAlchemyUnitOfWork
 from document_platform.adapters.outbound.postgresql.database import create_database
 from document_platform.application.commands import (
     ClassifyDocumentHandler,
+    CompleteProcessingRunHandler,
     ExtractDocumentTextHandler,
     ExtractOcrTextHandler,
     SelectProcessingTextHandler,
@@ -101,6 +103,12 @@ async def run_worker(settings: Settings) -> None:
                 clock=lambda: datetime.now(UTC),
             )
         )
+        completion_activity = CompleteProcessingRunActivity(
+            CompleteProcessingRunHandler(
+                unit_of_work_factory=unit_of_work_factory,
+                clock=lambda: datetime.now(UTC),
+            )
+        )
         worker = Worker(
             client,
             task_queue=settings.temporal_task_queue,
@@ -111,6 +119,7 @@ async def run_worker(settings: Settings) -> None:
                 ocr_activity.extract_ocr_text,
                 selection_activity.select_processing_text,
                 classification_activity.classify_document,
+                completion_activity.complete_processing_run,
             ],
         )
         await worker.run()

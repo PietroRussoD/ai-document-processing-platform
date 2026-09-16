@@ -89,6 +89,7 @@ sequenceDiagram
     Worker->>DB: Persist immutable OCR extraction per run
     Worker->>DB: Persist canonical text source and selection reason
     Worker->>DB: Persist deterministic document type and classification reason
+    Worker->>DB: Mark technical processing run COMPLETED
 ```
 
 `v0.2` currently implements durable request claiming, application dispatch and
@@ -119,6 +120,12 @@ for invoice, purchase-order and credit-note terms. Exactly one category match
 is persisted as that type; no match and multiple matches persist `UNKNOWN` with
 distinct reasons. This is a deterministic baseline for later model evaluation,
 not a claim of AI accuracy.
+
+After those implemented stages succeed, `complete-processing-run` transitions
+the technical run from `RUNNING` to `COMPLETED`. The document itself remains
+`PROCESSING`: it has not yet passed the future structured validation or human
+review decision. The terminal run state stops console polling and provides clear
+feedback that the current processing scope produced observable results.
 
 The local OCR adapter rasterizes pages with PyMuPDF and invokes the configured
 Tesseract executable one page at a time. It applies the accepted page limit,

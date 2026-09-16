@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { RefreshCw } from "lucide-react";
+import { CheckCircle2, RefreshCw } from "lucide-react";
 
 import {
     createDocumentApi,
@@ -67,6 +67,15 @@ export function DocumentStatusPanel({
     return (
         <section className="mt-4 border border-app-border bg-app-surface p-5">
             <h3 className="text-sm font-semibold">Persisted status</h3>
+            {document.current_run.status === "COMPLETED" ? (
+                <div
+                    role="status"
+                    className="mt-4 flex items-center gap-2 border-l-2 border-app-success pl-3 text-sm text-app-success"
+                >
+                    <CheckCircle2 aria-hidden="true" size={18} />
+                    <p>Processing results are ready.</p>
+                </div>
+            ) : null}
             <dl className="mt-4 grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
                 <StatusValue label="Document status" status={document.status} />
                 <StatusValue

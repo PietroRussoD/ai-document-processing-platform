@@ -18,6 +18,13 @@ from document_platform.application.commands.classify_document import (
     ClassifyDocumentHandler,
     DocumentClassified,
 )
+from document_platform.application.commands.complete_processing_run import (
+    CompleteProcessingRun,
+    CompleteProcessingRunHandler,
+    InvalidProcessingRunCompletion,
+    ProcessingRunCompleted,
+    ProcessingRunCompletionNotFound,
+)
 from document_platform.application.commands.dispatch_workflow_start_requests import (
     DispatchWorkflowStartRequestsHandler,
     WorkflowStartDispatchResult,
@@ -65,6 +72,8 @@ __all__ = [
     "ClassifyDocumentHandler",
     "ClassificationRequiresSelectedText",
     "ClassificationRequiresTextSelection",
+    "CompleteProcessingRun",
+    "CompleteProcessingRunHandler",
     "DispatchWorkflowStartRequestsHandler",
     "DocumentTextExtracted",
     "DocumentClassified",
@@ -78,11 +87,14 @@ __all__ = [
     "OcrTextExtractionResult",
     "InvalidProcessingDocumentStart",
     "InvalidProcessingRunStart",
+    "InvalidProcessingRunCompletion",
     "InvalidWorkflowStartRequestClaim",
     "RegisterDocument",
     "RegisterDocumentHandler",
     "RegisteredDocument",
     "ProcessingRunDocumentNotFound",
+    "ProcessingRunCompleted",
+    "ProcessingRunCompletionNotFound",
     "ProcessingRunNotFound",
     "ProcessingRunStarted",
     "ProcessingTextSelected",
