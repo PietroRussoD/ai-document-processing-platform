@@ -16,6 +16,9 @@ from document_platform.adapters.outbound.postgresql.models.document_text_extract
 from document_platform.adapters.outbound.postgresql.models.document_text_selection_record import (
     DocumentTextSelectionRecord,
 )
+from document_platform.adapters.outbound.postgresql.models.invoice_extraction_record import (
+    InvoiceExtractionRecord,
+)
 from document_platform.adapters.outbound.postgresql.models.processing_run_record import (
     ProcessingRunRecord,
 )
@@ -33,6 +36,7 @@ __all__ = [
     "DocumentTextSelectionRecord",
     "DocumentOcrExtractionRecord",
     "DocumentClassificationRecord",
+    "InvoiceExtractionRecord",
     "ProcessingRunRecord",
     "UploadIdempotencyRecordRow",
     "WorkflowStartRequestRecord",

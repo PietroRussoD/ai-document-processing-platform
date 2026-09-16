@@ -39,6 +39,10 @@ from document_platform.application.ports.document_text_selection_repository impo
     DocumentTextSelectionAlreadyExists,
     DocumentTextSelectionRepository,
 )
+from document_platform.application.ports.invoice_extraction_repository import (
+    InvoiceExtractionAlreadyExists,
+    InvoiceExtractionRepository,
+)
 from document_platform.application.ports.pdf_inspector import (
     EncryptedPdf,
     InvalidPdf,
@@ -101,6 +105,8 @@ __all__ = [
     "EmptyBlob",
     "EncryptedPdf",
     "IdGenerator",
+    "InvoiceExtractionAlreadyExists",
+    "InvoiceExtractionRepository",
     "InvalidPdf",
     "ExtractedPdfText",
     "ExtractedOcrText",

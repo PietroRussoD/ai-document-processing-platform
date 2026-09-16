@@ -17,6 +17,9 @@ from document_platform.application.ports.document_text_extraction_repository imp
 from document_platform.application.ports.document_text_selection_repository import (
     DocumentTextSelectionRepository,
 )
+from document_platform.application.ports.invoice_extraction_repository import (
+    InvoiceExtractionRepository,
+)
 from document_platform.application.ports.processing_run_repository import ProcessingRunRepository
 from document_platform.application.ports.upload_idempotency_repository import (
     UploadIdempotencyRepository,
@@ -41,6 +44,9 @@ class UnitOfWork(Protocol):
 
     @property
     def document_classifications(self) -> DocumentClassificationRepository: ...
+
+    @property
+    def invoice_extractions(self) -> InvoiceExtractionRepository: ...
 
     @property
     def processing_runs(self) -> ProcessingRunRepository: ...
