@@ -9,6 +9,7 @@ from document_platform.adapters.outbound.postgresql.repositories import (
     SqlAlchemyDocumentOcrExtractionRepository,
     SqlAlchemyDocumentRepository,
     SqlAlchemyDocumentTextExtractionRepository,
+    SqlAlchemyDocumentTextSelectionRepository,
     SqlAlchemyProcessingRunRepository,
     SqlAlchemyUploadIdempotencyRepository,
     SqlAlchemyWorkflowStartRequestRepository,
@@ -17,6 +18,7 @@ from document_platform.application.ports import (
     DocumentOcrExtractionRepository,
     DocumentRepository,
     DocumentTextExtractionRepository,
+    DocumentTextSelectionRepository,
     ProcessingRunRepository,
     UploadIdempotencyRepository,
     WorkflowStartRequestRepository,
@@ -30,6 +32,7 @@ class SqlAlchemyUnitOfWork:
         self._documents: DocumentRepository | None = None
         self._document_ocr_extractions: DocumentOcrExtractionRepository | None = None
         self._document_text_extractions: DocumentTextExtractionRepository | None = None
+        self._document_text_selections: DocumentTextSelectionRepository | None = None
         self._processing_runs: ProcessingRunRepository | None = None
         self._upload_idempotency: UploadIdempotencyRepository | None = None
         self._workflow_start_requests: WorkflowStartRequestRepository | None = None
@@ -51,6 +54,12 @@ class SqlAlchemyUnitOfWork:
         if self._document_text_extractions is None:
             raise RuntimeError("unit of work is not active")
         return self._document_text_extractions
+
+    @property
+    def document_text_selections(self) -> DocumentTextSelectionRepository:
+        if self._document_text_selections is None:
+            raise RuntimeError("unit of work is not active")
+        return self._document_text_selections
 
     @property
     def processing_runs(self) -> ProcessingRunRepository:
@@ -78,6 +87,7 @@ class SqlAlchemyUnitOfWork:
         self._documents = SqlAlchemyDocumentRepository(self._session)
         self._document_ocr_extractions = SqlAlchemyDocumentOcrExtractionRepository(self._session)
         self._document_text_extractions = SqlAlchemyDocumentTextExtractionRepository(self._session)
+        self._document_text_selections = SqlAlchemyDocumentTextSelectionRepository(self._session)
         self._processing_runs = SqlAlchemyProcessingRunRepository(self._session)
         self._upload_idempotency = SqlAlchemyUploadIdempotencyRepository(self._session)
         self._workflow_start_requests = SqlAlchemyWorkflowStartRequestRepository(self._session)
@@ -98,6 +108,7 @@ class SqlAlchemyUnitOfWork:
             self._documents = None
             self._document_ocr_extractions = None
             self._document_text_extractions = None
+            self._document_text_selections = None
             self._processing_runs = None
             self._upload_idempotency = None
             self._workflow_start_requests = None

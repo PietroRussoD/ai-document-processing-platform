@@ -34,6 +34,11 @@ from document_platform.application.commands.register_document import (
     RegisterDocumentHandler,
     RegisteredDocument,
 )
+from document_platform.application.commands.select_processing_text import (
+    ProcessingTextSelected,
+    SelectProcessingText,
+    SelectProcessingTextHandler,
+)
 from document_platform.application.commands.start_processing_run import (
     InvalidProcessingDocumentStart,
     InvalidProcessingRunStart,
@@ -68,8 +73,11 @@ __all__ = [
     "ProcessingRunDocumentNotFound",
     "ProcessingRunNotFound",
     "ProcessingRunStarted",
+    "ProcessingTextSelected",
     "StartProcessingRun",
     "StartProcessingRunHandler",
+    "SelectProcessingText",
+    "SelectProcessingTextHandler",
     "TextExtractionDocumentNotFound",
     "TextExtractionRunNotFound",
     "UnsupportedDocumentMediaType",

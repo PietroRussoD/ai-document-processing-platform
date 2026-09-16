@@ -26,6 +26,10 @@ from document_platform.application.ports.document_text_extraction_repository imp
     DocumentTextExtractionAlreadyExists,
     DocumentTextExtractionRepository,
 )
+from document_platform.application.ports.document_text_selection_repository import (
+    DocumentTextSelectionAlreadyExists,
+    DocumentTextSelectionRepository,
+)
 from document_platform.application.ports.pdf_inspector import (
     EncryptedPdf,
     InvalidPdf,
@@ -75,6 +79,8 @@ __all__ = [
     "DocumentAlreadyExists",
     "DocumentTextExtractionAlreadyExists",
     "DocumentTextExtractionRepository",
+    "DocumentTextSelectionAlreadyExists",
+    "DocumentTextSelectionRepository",
     "DocumentRepository",
     "DocumentOcrExtractionAlreadyExists",
     "DocumentOcrExtractionRepository",

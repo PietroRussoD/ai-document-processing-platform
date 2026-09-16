@@ -10,6 +10,7 @@ from temporalio.worker import Worker
 from document_platform.adapters.inbound.temporal import (
     ExtractDocumentTextActivity,
     ExtractOcrTextActivity,
+    SelectProcessingTextActivity,
     StartProcessingRunActivity,
 )
 from document_platform.adapters.outbound.filesystem import LocalBlobStore
@@ -20,9 +21,13 @@ from document_platform.adapters.outbound.postgresql.database import create_datab
 from document_platform.application.commands import (
     ExtractDocumentTextHandler,
     ExtractOcrTextHandler,
+    SelectProcessingTextHandler,
     StartProcessingRunHandler,
 )
-from document_platform.domain.processing import EmbeddedTextQualityPolicy
+from document_platform.domain.processing import (
+    EmbeddedTextQualityPolicy,
+    ProcessingTextSelectionPolicy,
+)
 from document_platform.settings import Settings
 from document_platform.workflows import ProcessBusinessDocumentWorkflow
 
@@ -79,6 +84,13 @@ async def run_worker(settings: Settings) -> None:
                 clock=lambda: datetime.now(UTC),
             )
         )
+        selection_activity = SelectProcessingTextActivity(
+            SelectProcessingTextHandler(
+                unit_of_work_factory=unit_of_work_factory,
+                selection_policy=ProcessingTextSelectionPolicy(),
+                clock=lambda: datetime.now(UTC),
+            )
+        )
         worker = Worker(
             client,
             task_queue=settings.temporal_task_queue,
@@ -87,6 +99,7 @@ async def run_worker(settings: Settings) -> None:
                 start_activity.start_processing_run,
                 extract_activity.extract_document_text,
                 ocr_activity.extract_ocr_text,
+                selection_activity.select_processing_text,
             ],
         )
         await worker.run()

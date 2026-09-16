@@ -93,6 +93,7 @@ sequenceDiagram
     Worker->>DB: Persist immutable text extraction per run
     Worker->>Worker: OCR only when quality recommends it
     Worker->>DB: Persist immutable OCR extraction per run
+    Worker->>DB: Persist canonical text source and selection reason
 ```
 
 `v0.2` currently implements durable request claiming, application dispatch and
@@ -109,6 +110,13 @@ reading or parsing the PDF again. Its persisted quality is a deterministic
 of non-whitespace characters. The next activity reads that decision: it skips
 all OCR I/O for `SUFFICIENT`, or persists one immutable Tesseract result for
 `OCR_RECOMMENDED`. A saved OCR row is reused on retry.
+
+The final `select-processing-text` activity persists a canonical source for
+downstream stages without duplicating document text. `SUFFICIENT` embedded text
+is selected directly. Otherwise, the policy selects OCR only when it contains
+strictly more non-whitespace characters; ties and lower-quality OCR remain on
+the embedded source. The persisted source and reason make this decision
+auditable and stable across retries.
 
 The local OCR adapter rasterizes pages with PyMuPDF and invokes the configured
 Tesseract executable one page at a time. It applies the accepted page limit,
@@ -298,6 +306,8 @@ erDiagram
     DOCUMENTS ||--o{ PROCESSING_RUNS : has
     PROCESSING_RUNS ||--o| UPLOAD_IDEMPOTENCY_RECORDS : identifies
     PROCESSING_RUNS ||--o| DOCUMENT_TEXT_EXTRACTIONS : produces
+    PROCESSING_RUNS ||--o| DOCUMENT_OCR_EXTRACTIONS : produces
+    PROCESSING_RUNS ||--o| DOCUMENT_TEXT_SELECTIONS : selects
     UPLOAD_IDEMPOTENCY_RECORDS {
         string idempotency_key PK
         string request_fingerprint
@@ -323,6 +333,12 @@ erDiagram
         int non_whitespace_character_count
         timestamp extracted_at
     }
+    DOCUMENT_TEXT_SELECTIONS {
+        uuid processing_run_id PK, FK
+        string source
+        string reason
+        timestamp selected_at
+    }
 ```
 
 ## Repository Structure
@@ -343,7 +359,7 @@ tests/e2e/           API and browser journeys
 | --- | --- | --- |
 | Object storage | Local filesystem | S3-compatible adapter |
 | Structured extraction | Not implemented | Deterministic fake; Ollama; policy-gated OpenAI comparison |
-| Text extraction | Workflow-driven PyMuPDF extraction and conditional Tesseract OCR | OCR quality calibration and language policy |
+| Text extraction | Embedded/OCR extraction and persisted canonical source selection | OCR quality calibration and language policy |
 | Workflow execution | Temporal development server with local worker | Managed/self-hosted Temporal later |
 
 ## Related Decisions

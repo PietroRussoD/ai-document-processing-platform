@@ -9,6 +9,7 @@ from document_platform.application.temporal_contracts import (
     EXTRACT_DOCUMENT_TEXT_ACTIVITY,
     EXTRACT_OCR_TEXT_ACTIVITY,
     PROCESS_BUSINESS_DOCUMENT_WORKFLOW,
+    SELECT_PROCESSING_TEXT_ACTIVITY,
     START_PROCESSING_RUN_ACTIVITY,
 )
 
@@ -27,6 +28,12 @@ class ProcessBusinessDocumentWorkflow:
             EXTRACT_OCR_TEXT_ACTIVITY,
             processing_run_id,
             start_to_close_timeout=timedelta(minutes=5),
+            retry_policy=RetryPolicy(maximum_attempts=3),
+        )
+        await workflow.execute_activity(
+            SELECT_PROCESSING_TEXT_ACTIVITY,
+            processing_run_id,
+            start_to_close_timeout=timedelta(seconds=30),
             retry_policy=RetryPolicy(maximum_attempts=3),
         )
         await workflow.execute_activity(

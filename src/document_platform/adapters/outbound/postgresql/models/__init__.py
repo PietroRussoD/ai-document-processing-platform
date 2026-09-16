@@ -10,6 +10,9 @@ from document_platform.adapters.outbound.postgresql.models.document_record impor
 from document_platform.adapters.outbound.postgresql.models.document_text_extraction_record import (
     DocumentTextExtractionRecord,
 )
+from document_platform.adapters.outbound.postgresql.models.document_text_selection_record import (
+    DocumentTextSelectionRecord,
+)
 from document_platform.adapters.outbound.postgresql.models.processing_run_record import (
     ProcessingRunRecord,
 )
@@ -24,6 +27,7 @@ __all__ = [
     "Base",
     "DocumentRecord",
     "DocumentTextExtractionRecord",
+    "DocumentTextSelectionRecord",
     "DocumentOcrExtractionRecord",
     "ProcessingRunRecord",
     "UploadIdempotencyRecordRow",

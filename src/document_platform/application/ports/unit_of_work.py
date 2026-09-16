@@ -11,6 +11,9 @@ from document_platform.application.ports.document_repository import DocumentRepo
 from document_platform.application.ports.document_text_extraction_repository import (
     DocumentTextExtractionRepository,
 )
+from document_platform.application.ports.document_text_selection_repository import (
+    DocumentTextSelectionRepository,
+)
 from document_platform.application.ports.processing_run_repository import ProcessingRunRepository
 from document_platform.application.ports.upload_idempotency_repository import (
     UploadIdempotencyRepository,
@@ -26,6 +29,9 @@ class UnitOfWork(Protocol):
 
     @property
     def document_text_extractions(self) -> DocumentTextExtractionRepository: ...
+
+    @property
+    def document_text_selections(self) -> DocumentTextSelectionRepository: ...
 
     @property
     def document_ocr_extractions(self) -> DocumentOcrExtractionRepository: ...

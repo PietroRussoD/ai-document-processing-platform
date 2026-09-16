@@ -10,6 +10,13 @@ from document_platform.domain.processing.document_text_extraction import (
     InvalidDocumentTextExtraction,
     TextExtractionMethod,
 )
+from document_platform.domain.processing.document_text_selection import (
+    DocumentTextSelection,
+    InvalidDocumentTextSelection,
+    ProcessingTextSelectionPolicy,
+    ProcessingTextSelectionReason,
+    ProcessingTextSource,
+)
 from document_platform.domain.processing.embedded_text_quality import (
     EmbeddedTextQuality,
     EmbeddedTextQualityPolicy,
@@ -30,13 +37,18 @@ __all__ = [
     "InvalidProcessingRun",
     "InvalidProcessingRunTransition",
     "DocumentTextExtraction",
+    "DocumentTextSelection",
     "DocumentOcrExtraction",
     "EmbeddedTextQuality",
     "EmbeddedTextQualityPolicy",
     "InvalidDocumentTextExtraction",
+    "InvalidDocumentTextSelection",
     "InvalidDocumentOcrExtraction",
     "ProcessingRun",
     "ProcessingRunStatus",
+    "ProcessingTextSelectionPolicy",
+    "ProcessingTextSelectionReason",
+    "ProcessingTextSource",
     "OcrExtractionMethod",
     "TextExtractionMethod",
     "InvalidWorkflowStartRequest",

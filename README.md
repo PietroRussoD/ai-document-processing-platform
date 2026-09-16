@@ -131,7 +131,9 @@ keyed by its processing run, so a Temporal activity retry reuses the persisted
 result instead of repeating the work. A deterministic, configurable threshold
 marks low-text documents as `OCR_RECOMMENDED`. Only those runs execute bounded
 Tesseract OCR and persist an immutable OCR result; activity retries reuse it.
-Classification and structured extraction are later stages.
+The workflow then persists the selected canonical source and its reason, so
+classification and structured extraction receive a traceable input. Those
+stages are still future work.
 
 Before starting an OCR-recommended workflow, install the `tesseract` executable
 with the required language data and verify it with `tesseract --list-langs`.
