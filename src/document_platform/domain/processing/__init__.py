@@ -1,5 +1,8 @@
 """Document-processing lifecycle domain model."""
 
+from document_platform.domain.processing.deterministic_invoice_extraction import (
+    DeterministicInvoiceExtractionPolicy,
+)
 from document_platform.domain.processing.document_classification import (
     BusinessDocumentType,
     DocumentClassification,
@@ -55,6 +58,7 @@ __all__ = [
     "DocumentClassification",
     "DocumentClassificationPolicy",
     "DocumentClassificationReason",
+    "DeterministicInvoiceExtractionPolicy",
     "EmbeddedTextQuality",
     "EmbeddedTextQualityPolicy",
     "InvalidDocumentTextExtraction",
