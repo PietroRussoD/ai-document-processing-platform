@@ -8,6 +8,10 @@ from document_platform.application.ports.blob_store import (
     EmptyBlob,
     StoredBlob,
 )
+from document_platform.application.ports.document_ocr_extraction_repository import (
+    DocumentOcrExtractionAlreadyExists,
+    DocumentOcrExtractionRepository,
+)
 from document_platform.application.ports.document_repository import (
     ConcurrentDocumentUpdate,
     DocumentAlreadyExists,
@@ -72,6 +76,8 @@ __all__ = [
     "DocumentTextExtractionAlreadyExists",
     "DocumentTextExtractionRepository",
     "DocumentRepository",
+    "DocumentOcrExtractionAlreadyExists",
+    "DocumentOcrExtractionRepository",
     "DocumentStatusReader",
     "DocumentStatusView",
     "EmptyBlob",

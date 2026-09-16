@@ -1,6 +1,7 @@
 """Tesseract PDF OCR adapter tests without a local Tesseract installation."""
 
 from collections.abc import Sequence
+from shutil import which
 
 import pymupdf
 import pytest
@@ -33,6 +34,15 @@ def pdf_with_text(text: str) -> bytes:
     document = pymupdf.open()
     page = document.new_page()
     page.insert_text((72, 72), text)  # pyright: ignore[reportUnknownMemberType]
+    content = document.tobytes()  # pyright: ignore[reportUnknownMemberType]
+    document.close()
+    return content
+
+
+def high_contrast_pdf() -> bytes:
+    document = pymupdf.open()
+    page = document.new_page()
+    page.insert_text((72, 120), "INVOICE 42", fontsize=36)  # pyright: ignore[reportUnknownMemberType]
     content = document.tobytes()  # pyright: ignore[reportUnknownMemberType]
     document.close()
     return content
@@ -93,3 +103,12 @@ async def test_enforces_the_ocr_text_limit(monkeypatch: pytest.MonkeyPatch) -> N
 
     with pytest.raises(OcrTextLimitExceeded, match="5-character"):
         await extractor(max_characters=5).extract(pdf_with_text("synthetic input"))
+
+
+@pytest.mark.skipif(which("tesseract") is None, reason="Tesseract is not installed")
+@pytest.mark.anyio
+async def test_runs_tesseract_against_a_synthetic_pdf() -> None:
+    result = await extractor().extract(high_contrast_pdf())
+
+    assert "INVOICE" in result.text.upper()
+    assert result.page_count == 1

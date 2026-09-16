@@ -91,6 +91,8 @@ sequenceDiagram
     Worker->>DB: Start document and processing run atomically
     Worker->>Worker: Extract bounded embedded text from local blob
     Worker->>DB: Persist immutable text extraction per run
+    Worker->>Worker: OCR only when quality recommends it
+    Worker->>DB: Persist immutable OCR extraction per run
 ```
 
 `v0.2` currently implements durable request claiming, application dispatch and
@@ -104,8 +106,9 @@ one bounded PyMuPDF embedded-text extraction for that run. The extraction row
 is the idempotency boundary for activity retries: a saved row is reused without
 reading or parsing the PDF again. Its persisted quality is a deterministic
 `SUFFICIENT` or `OCR_RECOMMENDED` decision based on a configured minimum count
-of non-whitespace characters. This is intentionally an observable policy, not
-an implicit trigger for OCR.
+of non-whitespace characters. The next activity reads that decision: it skips
+all OCR I/O for `SUFFICIENT`, or persists one immutable Tesseract result for
+`OCR_RECOMMENDED`. A saved OCR row is reused on retry.
 
 The local OCR adapter rasterizes pages with PyMuPDF and invokes the configured
 Tesseract executable one page at a time. It applies the accepted page limit,
@@ -311,6 +314,15 @@ erDiagram
         int non_whitespace_character_count
         timestamp extracted_at
     }
+    DOCUMENT_OCR_EXTRACTIONS {
+        uuid processing_run_id PK, FK
+        string method
+        text text
+        int page_count
+        int character_count
+        int non_whitespace_character_count
+        timestamp extracted_at
+    }
 ```
 
 ## Repository Structure
@@ -331,7 +343,7 @@ tests/e2e/           API and browser journeys
 | --- | --- | --- |
 | Object storage | Local filesystem | S3-compatible adapter |
 | Structured extraction | Not implemented | Deterministic fake; Ollama; policy-gated OpenAI comparison |
-| Text extraction | PyMuPDF extraction, OCR recommendation and bounded Tesseract adapter | Workflow-driven OCR fallback |
+| Text extraction | Workflow-driven PyMuPDF extraction and conditional Tesseract OCR | OCR quality calibration and language policy |
 | Workflow execution | Temporal development server with local worker | Managed/self-hosted Temporal later |
 
 ## Related Decisions

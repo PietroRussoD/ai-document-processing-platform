@@ -10,15 +10,19 @@ from document_platform.adapters.outbound.postgresql.repositories.processing_run_
     SqlAlchemyProcessingRunRepository,
 )
 
-from . import document_text_extraction_repository
+from . import document_ocr_extraction_repository, document_text_extraction_repository
 from .workflow_start_request_repository import SqlAlchemyWorkflowStartRequestRepository
 
 SqlAlchemyDocumentTextExtractionRepository = (
     document_text_extraction_repository.SqlAlchemyDocumentTextExtractionRepository
 )
+SqlAlchemyDocumentOcrExtractionRepository = (
+    document_ocr_extraction_repository.SqlAlchemyDocumentOcrExtractionRepository
+)
 
 __all__ = [
     "SqlAlchemyDocumentRepository",
+    "SqlAlchemyDocumentOcrExtractionRepository",
     "SqlAlchemyDocumentTextExtractionRepository",
     "SqlAlchemyProcessingRunRepository",
     "SqlAlchemyUploadIdempotencyRepository",

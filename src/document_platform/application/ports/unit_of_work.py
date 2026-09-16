@@ -4,6 +4,9 @@ from collections.abc import Callable
 from types import TracebackType
 from typing import Protocol, Self
 
+from document_platform.application.ports.document_ocr_extraction_repository import (
+    DocumentOcrExtractionRepository,
+)
 from document_platform.application.ports.document_repository import DocumentRepository
 from document_platform.application.ports.document_text_extraction_repository import (
     DocumentTextExtractionRepository,
@@ -23,6 +26,9 @@ class UnitOfWork(Protocol):
 
     @property
     def document_text_extractions(self) -> DocumentTextExtractionRepository: ...
+
+    @property
+    def document_ocr_extractions(self) -> DocumentOcrExtractionRepository: ...
 
     @property
     def processing_runs(self) -> ProcessingRunRepository: ...

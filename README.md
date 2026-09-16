@@ -21,12 +21,12 @@ document and processing-run status.
 - FastAPI and PostgreSQL;
 - PyMuPDF for PDF validation and embedded-text extraction;
 - Temporal for durable local workflow execution;
-- a bounded local Tesseract OCR adapter, ready for the later fallback stage;
+- bounded local Tesseract OCR fallback;
 - React and TypeScript for the operator console.
 
 ## Planned Extensions
 
-- Tesseract for OCR and Ollama for local structured extraction;
+- Ollama for local structured extraction;
 - optional S3-compatible storage and external-provider comparison;
 - processing, review and retention workflows.
 
@@ -129,11 +129,11 @@ The worker starts the document and its processing run atomically, then extracts
 embedded text with bounded PyMuPDF processing. Each extraction is immutable and
 keyed by its processing run, so a Temporal activity retry reuses the persisted
 result instead of repeating the work. A deterministic, configurable threshold
-marks low-text documents as `OCR_RECOMMENDED`; it does not silently invoke OCR.
-OCR, classification and structured extraction are later stages.
+marks low-text documents as `OCR_RECOMMENDED`. Only those runs execute bounded
+Tesseract OCR and persist an immutable OCR result; activity retries reuse it.
+Classification and structured extraction are later stages.
 
-The Tesseract adapter is intentionally not invoked until the OCR fallback
-workflow slice. Before enabling that slice, install the `tesseract` executable
+Before starting an OCR-recommended workflow, install the `tesseract` executable
 with the required language data and verify it with `tesseract --list-langs`.
 The default configuration expects the `eng` language and exposes command,
 language, raster DPI and per-page timeout through `.env`.

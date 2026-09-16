@@ -14,6 +14,7 @@ from document_platform.application.commands import (
     RegisterDocumentHandler,
 )
 from document_platform.application.ports import (
+    DocumentOcrExtractionRepository,
     DocumentRepository,
     DocumentTextExtractionRepository,
     ProcessingRunRepository,
@@ -123,6 +124,14 @@ class UnusedDocumentTextExtractionRepository:
         raise AssertionError("not used")
 
 
+class UnusedDocumentOcrExtractionRepository:
+    async def add(self, extraction: object) -> None:
+        raise AssertionError("not used")
+
+    async def get(self, processing_run_id: UUID) -> None:
+        raise AssertionError("not used")
+
+
 class RecordingUnitOfWork:
     def __init__(
         self,
@@ -137,6 +146,7 @@ class RecordingUnitOfWork:
         )
         self._workflow_start_requests = RecordingWorkflowStartRequestRepository()
         self._document_text_extractions = UnusedDocumentTextExtractionRepository()
+        self._document_ocr_extractions = UnusedDocumentOcrExtractionRepository()
         self.commit_count = 0
         self.exit_exception: type[BaseException] | None = None
 
@@ -147,6 +157,10 @@ class RecordingUnitOfWork:
     @property
     def document_text_extractions(self) -> DocumentTextExtractionRepository:
         return self._document_text_extractions  # type: ignore[return-value]
+
+    @property
+    def document_ocr_extractions(self) -> DocumentOcrExtractionRepository:
+        return self._document_ocr_extractions  # type: ignore[return-value]
 
     @property
     def processing_runs(self) -> ProcessingRunRepository:

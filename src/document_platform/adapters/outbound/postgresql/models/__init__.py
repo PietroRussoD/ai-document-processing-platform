@@ -1,6 +1,9 @@
 """PostgreSQL persistence models."""
 
 from document_platform.adapters.outbound.postgresql.metadata import Base
+from document_platform.adapters.outbound.postgresql.models.document_ocr_extraction_record import (
+    DocumentOcrExtractionRecord,
+)
 from document_platform.adapters.outbound.postgresql.models.document_record import (
     DocumentRecord,
 )
@@ -21,6 +24,7 @@ __all__ = [
     "Base",
     "DocumentRecord",
     "DocumentTextExtractionRecord",
+    "DocumentOcrExtractionRecord",
     "ProcessingRunRecord",
     "UploadIdempotencyRecordRow",
     "WorkflowStartRequestRecord",

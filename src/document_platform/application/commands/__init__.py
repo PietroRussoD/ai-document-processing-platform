@@ -23,6 +23,11 @@ from document_platform.application.commands.extract_document_text import (
     TextExtractionDocumentNotFound,
     TextExtractionRunNotFound,
 )
+from document_platform.application.commands.extract_ocr_text import (
+    ExtractOcrText,
+    ExtractOcrTextHandler,
+    OcrTextExtractionResult,
+)
 from document_platform.application.commands.register_document import (
     InconsistentIdempotencyRecord,
     RegisterDocument,
@@ -48,9 +53,12 @@ __all__ = [
     "DocumentTextExtracted",
     "ExtractDocumentText",
     "ExtractDocumentTextHandler",
+    "ExtractOcrText",
+    "ExtractOcrTextHandler",
     "InconsistentIdempotencyRecord",
     "InvalidStagedUpload",
     "InvalidTextExtractionRun",
+    "OcrTextExtractionResult",
     "InvalidProcessingDocumentStart",
     "InvalidProcessingRunStart",
     "InvalidWorkflowStartRequestClaim",

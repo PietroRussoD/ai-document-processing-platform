@@ -6,6 +6,7 @@ from typing import Self
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from document_platform.adapters.outbound.postgresql.repositories import (
+    SqlAlchemyDocumentOcrExtractionRepository,
     SqlAlchemyDocumentRepository,
     SqlAlchemyDocumentTextExtractionRepository,
     SqlAlchemyProcessingRunRepository,
@@ -13,6 +14,7 @@ from document_platform.adapters.outbound.postgresql.repositories import (
     SqlAlchemyWorkflowStartRequestRepository,
 )
 from document_platform.application.ports import (
+    DocumentOcrExtractionRepository,
     DocumentRepository,
     DocumentTextExtractionRepository,
     ProcessingRunRepository,
@@ -26,6 +28,7 @@ class SqlAlchemyUnitOfWork:
         self._sessions = sessions
         self._session: AsyncSession | None = None
         self._documents: DocumentRepository | None = None
+        self._document_ocr_extractions: DocumentOcrExtractionRepository | None = None
         self._document_text_extractions: DocumentTextExtractionRepository | None = None
         self._processing_runs: ProcessingRunRepository | None = None
         self._upload_idempotency: UploadIdempotencyRepository | None = None
@@ -36,6 +39,12 @@ class SqlAlchemyUnitOfWork:
         if self._documents is None:
             raise RuntimeError("unit of work is not active")
         return self._documents
+
+    @property
+    def document_ocr_extractions(self) -> DocumentOcrExtractionRepository:
+        if self._document_ocr_extractions is None:
+            raise RuntimeError("unit of work is not active")
+        return self._document_ocr_extractions
 
     @property
     def document_text_extractions(self) -> DocumentTextExtractionRepository:
@@ -67,6 +76,7 @@ class SqlAlchemyUnitOfWork:
 
         self._session = self._sessions()
         self._documents = SqlAlchemyDocumentRepository(self._session)
+        self._document_ocr_extractions = SqlAlchemyDocumentOcrExtractionRepository(self._session)
         self._document_text_extractions = SqlAlchemyDocumentTextExtractionRepository(self._session)
         self._processing_runs = SqlAlchemyProcessingRunRepository(self._session)
         self._upload_idempotency = SqlAlchemyUploadIdempotencyRepository(self._session)
@@ -86,6 +96,7 @@ class SqlAlchemyUnitOfWork:
             await session.close()
             self._session = None
             self._documents = None
+            self._document_ocr_extractions = None
             self._document_text_extractions = None
             self._processing_runs = None
             self._upload_idempotency = None
