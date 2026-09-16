@@ -28,6 +28,11 @@ from document_platform.domain.processing.embedded_text_quality import (
     EmbeddedTextQuality,
     EmbeddedTextQualityPolicy,
 )
+from document_platform.domain.processing.invoice_extraction import (
+    InvalidInvoiceExtraction,
+    InvoiceExtraction,
+    InvoiceExtractionMethod,
+)
 from document_platform.domain.processing.processing_run import (
     InvalidProcessingRun,
     InvalidProcessingRunTransition,
@@ -56,6 +61,9 @@ __all__ = [
     "InvalidDocumentTextSelection",
     "InvalidDocumentOcrExtraction",
     "InvalidDocumentClassification",
+    "InvalidInvoiceExtraction",
+    "InvoiceExtraction",
+    "InvoiceExtractionMethod",
     "ProcessingRun",
     "ProcessingRunStatus",
     "ProcessingTextSelectionPolicy",
