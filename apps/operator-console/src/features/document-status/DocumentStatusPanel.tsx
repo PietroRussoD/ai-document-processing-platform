@@ -7,6 +7,7 @@ import {
     type DocumentStatus,
 } from "../../api/documentApi";
 import { StatusBadge } from "../../components/ui/StatusBadge";
+import { ProcessingOutputPanel } from "../processing-output/ProcessingOutputPanel";
 import { statusPollInterval } from "./statusPolling";
 
 type StatusApi = Pick<DocumentApi, "getStatus">;
@@ -84,6 +85,9 @@ export function DocumentStatusPanel({
                     technical
                 />
             </dl>
+            <ProcessingOutputPanel
+                output={document.current_run.processing_output}
+            />
         </section>
     );
 }

@@ -6,7 +6,57 @@ from typing import Protocol
 from uuid import UUID
 
 from document_platform.domain.documents import DocumentStatus
-from document_platform.domain.processing import ProcessingRunStatus
+from document_platform.domain.processing import (
+    BusinessDocumentType,
+    DocumentClassificationReason,
+    EmbeddedTextQuality,
+    OcrExtractionMethod,
+    ProcessingRunStatus,
+    ProcessingTextSelectionReason,
+    ProcessingTextSource,
+    TextExtractionMethod,
+)
+
+
+@dataclass(frozen=True, slots=True)
+class TextExtractionMetadataView:
+    method: TextExtractionMethod
+    quality: EmbeddedTextQuality
+    page_count: int
+    character_count: int
+    non_whitespace_character_count: int
+    extracted_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class OcrExtractionMetadataView:
+    method: OcrExtractionMethod
+    page_count: int
+    character_count: int
+    non_whitespace_character_count: int
+    extracted_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class TextSelectionMetadataView:
+    source: ProcessingTextSource
+    reason: ProcessingTextSelectionReason
+    selected_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class ClassificationMetadataView:
+    document_type: BusinessDocumentType
+    reason: DocumentClassificationReason
+    classified_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class ProcessingOutputView:
+    embedded_text: TextExtractionMetadataView | None
+    ocr_text: OcrExtractionMetadataView | None
+    selected_text: TextSelectionMetadataView | None
+    classification: ClassificationMetadataView | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,6 +68,7 @@ class ProcessingRunStatusView:
     status_changed_at: datetime
     finished_at: datetime | None
     attempt_count: int
+    processing_output: ProcessingOutputView | None
 
 
 @dataclass(frozen=True, slots=True)

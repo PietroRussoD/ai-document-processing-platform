@@ -101,6 +101,7 @@ function status(
             status_changed_at: "2026-09-15T08:00:00Z",
             finished_at: null,
             attempt_count: 2,
+            processing_output: null,
         },
     };
 }

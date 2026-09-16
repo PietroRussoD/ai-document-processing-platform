@@ -22,9 +22,14 @@ from document_platform.application.ports.document_repository import (
     DocumentRepository,
 )
 from document_platform.application.ports.document_status_reader import (
+    ClassificationMetadataView,
     DocumentStatusReader,
     DocumentStatusView,
+    OcrExtractionMetadataView,
+    ProcessingOutputView,
     ProcessingRunStatusView,
+    TextExtractionMetadataView,
+    TextSelectionMetadataView,
 )
 from document_platform.application.ports.document_text_extraction_repository import (
     DocumentTextExtractionAlreadyExists,
@@ -77,6 +82,7 @@ __all__ = [
     "BlobStore",
     "BlobTooLarge",
     "Clock",
+    "ClassificationMetadataView",
     "ConcurrentDocumentUpdate",
     "ConcurrentProcessingRunUpdate",
     "ConcurrentWorkflowStartRequestUpdate",
@@ -107,10 +113,14 @@ __all__ = [
     "OcrEngineUnavailable",
     "OcrExtractionFailed",
     "OcrTextLimitExceeded",
+    "OcrExtractionMetadataView",
+    "ProcessingOutputView",
     "ProcessingRunAlreadyExists",
     "ProcessingRunRepository",
     "ProcessingRunStatusView",
     "StoredBlob",
+    "TextExtractionMetadataView",
+    "TextSelectionMetadataView",
     "UnitOfWork",
     "UnitOfWorkFactory",
     "UploadIdempotencyRecordAlreadyExists",

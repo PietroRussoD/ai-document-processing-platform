@@ -18,7 +18,16 @@ from document_platform.application.commands.accept_document_upload import (
 )
 from document_platform.application.queries import GetDocumentStatusHandler
 from document_platform.domain.documents import DocumentStatus
-from document_platform.domain.processing import ProcessingRunStatus
+from document_platform.domain.processing import (
+    BusinessDocumentType,
+    DocumentClassificationReason,
+    EmbeddedTextQuality,
+    OcrExtractionMethod,
+    ProcessingRunStatus,
+    ProcessingTextSelectionReason,
+    ProcessingTextSource,
+    TextExtractionMethod,
+)
 from document_platform.settings import Settings
 
 
@@ -27,6 +36,52 @@ class AcceptedDocumentResponse(BaseModel):
     processing_run_id: UUID
     accepted_at: datetime
     replayed: bool
+
+
+class TextExtractionMetadataResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    method: TextExtractionMethod
+    quality: EmbeddedTextQuality
+    page_count: int
+    character_count: int
+    non_whitespace_character_count: int
+    extracted_at: datetime
+
+
+class OcrExtractionMetadataResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    method: OcrExtractionMethod
+    page_count: int
+    character_count: int
+    non_whitespace_character_count: int
+    extracted_at: datetime
+
+
+class TextSelectionMetadataResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    source: ProcessingTextSource
+    reason: ProcessingTextSelectionReason
+    selected_at: datetime
+
+
+class ClassificationMetadataResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    document_type: BusinessDocumentType
+    reason: DocumentClassificationReason
+    classified_at: datetime
+
+
+class ProcessingOutputResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    embedded_text: TextExtractionMetadataResponse | None
+    ocr_text: OcrExtractionMetadataResponse | None
+    selected_text: TextSelectionMetadataResponse | None
+    classification: ClassificationMetadataResponse | None
 
 
 class ProcessingRunStatusResponse(BaseModel):
@@ -39,6 +94,7 @@ class ProcessingRunStatusResponse(BaseModel):
     status_changed_at: datetime
     finished_at: datetime | None
     attempt_count: int
+    processing_output: ProcessingOutputResponse | None
 
 
 class DocumentStatusResponse(BaseModel):

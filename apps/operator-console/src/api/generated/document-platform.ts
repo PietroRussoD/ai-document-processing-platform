@@ -88,6 +88,26 @@ export interface components {
             document: string;
         };
         /**
+         * BusinessDocumentType
+         * @enum {string}
+         */
+        BusinessDocumentType: "INVOICE" | "PURCHASE_ORDER" | "CREDIT_NOTE" | "UNKNOWN";
+        /** ClassificationMetadataResponse */
+        ClassificationMetadataResponse: {
+            /**
+             * Classified At
+             * Format: date-time
+             */
+            classified_at: string;
+            document_type: components["schemas"]["BusinessDocumentType"];
+            reason: components["schemas"]["DocumentClassificationReason"];
+        };
+        /**
+         * DocumentClassificationReason
+         * @enum {string}
+         */
+        DocumentClassificationReason: "KEYWORD_MATCHED" | "NO_MATCH" | "AMBIGUOUS_MATCH";
+        /**
          * DocumentStatus
          * @enum {string}
          */
@@ -122,6 +142,11 @@ export interface components {
              */
             status_changed_at: string;
         };
+        /**
+         * EmbeddedTextQuality
+         * @enum {string}
+         */
+        EmbeddedTextQuality: "SUFFICIENT" | "OCR_RECOMMENDED";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -135,6 +160,33 @@ export interface components {
              * @constant
              */
             status: "UP";
+        };
+        /** OcrExtractionMetadataResponse */
+        OcrExtractionMetadataResponse: {
+            /** Character Count */
+            character_count: number;
+            /**
+             * Extracted At
+             * Format: date-time
+             */
+            extracted_at: string;
+            method: components["schemas"]["OcrExtractionMethod"];
+            /** Non Whitespace Character Count */
+            non_whitespace_character_count: number;
+            /** Page Count */
+            page_count: number;
+        };
+        /**
+         * OcrExtractionMethod
+         * @enum {string}
+         */
+        OcrExtractionMethod: "TESSERACT";
+        /** ProcessingOutputResponse */
+        ProcessingOutputResponse: {
+            classification: components["schemas"]["ClassificationMetadataResponse"] | null;
+            embedded_text: components["schemas"]["TextExtractionMetadataResponse"] | null;
+            ocr_text: components["schemas"]["OcrExtractionMetadataResponse"] | null;
+            selected_text: components["schemas"]["TextSelectionMetadataResponse"] | null;
         };
         /**
          * ProcessingRunStatus
@@ -152,6 +204,7 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            processing_output: components["schemas"]["ProcessingOutputResponse"] | null;
             /**
              * Queued At
              * Format: date-time
@@ -165,6 +218,47 @@ export interface components {
              * Format: date-time
              */
             status_changed_at: string;
+        };
+        /**
+         * ProcessingTextSelectionReason
+         * @enum {string}
+         */
+        ProcessingTextSelectionReason: "EMBEDDED_SUFFICIENT" | "OCR_HAS_MORE_TEXT" | "EMBEDDED_NOT_WORSE";
+        /**
+         * ProcessingTextSource
+         * @enum {string}
+         */
+        ProcessingTextSource: "EMBEDDED" | "OCR";
+        /** TextExtractionMetadataResponse */
+        TextExtractionMetadataResponse: {
+            /** Character Count */
+            character_count: number;
+            /**
+             * Extracted At
+             * Format: date-time
+             */
+            extracted_at: string;
+            method: components["schemas"]["TextExtractionMethod"];
+            /** Non Whitespace Character Count */
+            non_whitespace_character_count: number;
+            /** Page Count */
+            page_count: number;
+            quality: components["schemas"]["EmbeddedTextQuality"];
+        };
+        /**
+         * TextExtractionMethod
+         * @enum {string}
+         */
+        TextExtractionMethod: "PYMUPDF";
+        /** TextSelectionMetadataResponse */
+        TextSelectionMetadataResponse: {
+            reason: components["schemas"]["ProcessingTextSelectionReason"];
+            /**
+             * Selected At
+             * Format: date-time
+             */
+            selected_at: string;
+            source: components["schemas"]["ProcessingTextSource"];
         };
         /** ValidationError */
         ValidationError: {

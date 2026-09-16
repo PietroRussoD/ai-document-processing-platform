@@ -47,6 +47,47 @@
         "title": "Body_acceptDocumentUpload",
         "type": "object"
       },
+      "BusinessDocumentType": {
+        "enum": [
+          "INVOICE",
+          "PURCHASE_ORDER",
+          "CREDIT_NOTE",
+          "UNKNOWN"
+        ],
+        "title": "BusinessDocumentType",
+        "type": "string"
+      },
+      "ClassificationMetadataResponse": {
+        "properties": {
+          "classified_at": {
+            "format": "date-time",
+            "title": "Classified At",
+            "type": "string"
+          },
+          "document_type": {
+            "$ref": "#/components/schemas/BusinessDocumentType"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/DocumentClassificationReason"
+          }
+        },
+        "required": [
+          "document_type",
+          "reason",
+          "classified_at"
+        ],
+        "title": "ClassificationMetadataResponse",
+        "type": "object"
+      },
+      "DocumentClassificationReason": {
+        "enum": [
+          "KEYWORD_MATCHED",
+          "NO_MATCH",
+          "AMBIGUOUS_MATCH"
+        ],
+        "title": "DocumentClassificationReason",
+        "type": "string"
+      },
       "DocumentStatus": {
         "enum": [
           "UPLOADED",
@@ -117,6 +158,14 @@
         "title": "DocumentStatusResponse",
         "type": "object"
       },
+      "EmbeddedTextQuality": {
+        "enum": [
+          "SUFFICIENT",
+          "OCR_RECOMMENDED"
+        ],
+        "title": "EmbeddedTextQuality",
+        "type": "string"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -140,6 +189,98 @@
           }
         },
         "title": "LivenessResponse",
+        "type": "object"
+      },
+      "OcrExtractionMetadataResponse": {
+        "properties": {
+          "character_count": {
+            "title": "Character Count",
+            "type": "integer"
+          },
+          "extracted_at": {
+            "format": "date-time",
+            "title": "Extracted At",
+            "type": "string"
+          },
+          "method": {
+            "$ref": "#/components/schemas/OcrExtractionMethod"
+          },
+          "non_whitespace_character_count": {
+            "title": "Non Whitespace Character Count",
+            "type": "integer"
+          },
+          "page_count": {
+            "title": "Page Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "method",
+          "page_count",
+          "character_count",
+          "non_whitespace_character_count",
+          "extracted_at"
+        ],
+        "title": "OcrExtractionMetadataResponse",
+        "type": "object"
+      },
+      "OcrExtractionMethod": {
+        "enum": [
+          "TESSERACT"
+        ],
+        "title": "OcrExtractionMethod",
+        "type": "string"
+      },
+      "ProcessingOutputResponse": {
+        "properties": {
+          "classification": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClassificationMetadataResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "embedded_text": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TextExtractionMetadataResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ocr_text": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OcrExtractionMetadataResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "selected_text": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TextSelectionMetadataResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "embedded_text",
+          "ocr_text",
+          "selected_text",
+          "classification"
+        ],
+        "title": "ProcessingOutputResponse",
         "type": "object"
       },
       "ProcessingRunStatus": {
@@ -178,6 +319,16 @@
             "title": "Id",
             "type": "string"
           },
+          "processing_output": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessingOutputResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "queued_at": {
             "format": "date-time",
             "title": "Queued At",
@@ -211,9 +362,93 @@
           "started_at",
           "status_changed_at",
           "finished_at",
-          "attempt_count"
+          "attempt_count",
+          "processing_output"
         ],
         "title": "ProcessingRunStatusResponse",
+        "type": "object"
+      },
+      "ProcessingTextSelectionReason": {
+        "enum": [
+          "EMBEDDED_SUFFICIENT",
+          "OCR_HAS_MORE_TEXT",
+          "EMBEDDED_NOT_WORSE"
+        ],
+        "title": "ProcessingTextSelectionReason",
+        "type": "string"
+      },
+      "ProcessingTextSource": {
+        "enum": [
+          "EMBEDDED",
+          "OCR"
+        ],
+        "title": "ProcessingTextSource",
+        "type": "string"
+      },
+      "TextExtractionMetadataResponse": {
+        "properties": {
+          "character_count": {
+            "title": "Character Count",
+            "type": "integer"
+          },
+          "extracted_at": {
+            "format": "date-time",
+            "title": "Extracted At",
+            "type": "string"
+          },
+          "method": {
+            "$ref": "#/components/schemas/TextExtractionMethod"
+          },
+          "non_whitespace_character_count": {
+            "title": "Non Whitespace Character Count",
+            "type": "integer"
+          },
+          "page_count": {
+            "title": "Page Count",
+            "type": "integer"
+          },
+          "quality": {
+            "$ref": "#/components/schemas/EmbeddedTextQuality"
+          }
+        },
+        "required": [
+          "method",
+          "quality",
+          "page_count",
+          "character_count",
+          "non_whitespace_character_count",
+          "extracted_at"
+        ],
+        "title": "TextExtractionMetadataResponse",
+        "type": "object"
+      },
+      "TextExtractionMethod": {
+        "enum": [
+          "PYMUPDF"
+        ],
+        "title": "TextExtractionMethod",
+        "type": "string"
+      },
+      "TextSelectionMetadataResponse": {
+        "properties": {
+          "reason": {
+            "$ref": "#/components/schemas/ProcessingTextSelectionReason"
+          },
+          "selected_at": {
+            "format": "date-time",
+            "title": "Selected At",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ProcessingTextSource"
+          }
+        },
+        "required": [
+          "source",
+          "reason",
+          "selected_at"
+        ],
+        "title": "TextSelectionMetadataResponse",
         "type": "object"
       },
       "ValidationError": {

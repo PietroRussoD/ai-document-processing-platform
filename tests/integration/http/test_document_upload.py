@@ -116,6 +116,7 @@ async def test_accepts_and_replays_a_pdf_upload(
             "status_changed_at": first["accepted_at"],
             "finished_at": None,
             "attempt_count": 0,
+            "processing_output": None,
         },
     }
     assert "storage_key" not in status_response.json()

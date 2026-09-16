@@ -15,7 +15,9 @@ and atomic PostgreSQL registration.
 A read endpoint exposes the current document and processing-run status. The
 operator console provides tested PDF selection and submission, including
 acceptance identifiers, safe error feedback and polling of the persisted
-document and processing-run status.
+document and processing-run status. Once available, the same status snapshot
+also exposes safe extraction, selection and classification metadata; it never
+returns extracted document text or blob paths.
 
 ## Implemented Technology
 
@@ -157,7 +159,9 @@ the original identifiers with `replayed: true`; reusing the key for different
 content returns `409 Conflict`.
 
 The status endpoint returns public document metadata and the most recently queued
-processing run. Internal storage paths are never exposed by the HTTP contract.
+processing run. Its optional `processing_output` contains only extraction counts,
+quality decisions, canonical-text selection and classification metadata. Internal
+storage paths and extracted text are never exposed by the HTTP contract.
 
 The versioned API contract is stored at
 [`docs/contracts/document-platform.openapi.json`](docs/contracts/document-platform.openapi.json).

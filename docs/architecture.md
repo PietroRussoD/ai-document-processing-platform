@@ -129,12 +129,17 @@ before configurable parallelism is introduced with operational evidence.
 Status queries use a dedicated read-model port. Its PostgreSQL adapter joins the
 document with its most recently queued processing run and returns only the fields
 required by the public API; it does not load aggregates or open a write transaction.
+When processing output is available, the same snapshot includes extraction
+counts, quality decisions, selection and classification metadata. It deliberately
+excludes extracted text, original blobs and internal storage paths.
 
 The React upload feature keeps temporary file selection in local component state
 and delegates the remote mutation lifecycle to TanStack Query. One client-generated
 idempotency key is retained across retries of the same selection and replaced when
 the selected document changes. Transport types come from the versioned OpenAPI
 contract; unexpected technical error details are not rendered to operators.
+The result panel polls the same persisted status snapshot and renders the
+available processing stages without receiving document text.
 
 ```mermaid
 sequenceDiagram
