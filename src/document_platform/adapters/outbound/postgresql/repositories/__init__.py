@@ -11,6 +11,7 @@ from document_platform.adapters.outbound.postgresql.repositories.processing_run_
 )
 
 from . import (
+    document_classification_repository,
     document_ocr_extraction_repository,
     document_text_extraction_repository,
     document_text_selection_repository,
@@ -23,6 +24,9 @@ SqlAlchemyDocumentTextExtractionRepository = (
 SqlAlchemyDocumentOcrExtractionRepository = (
     document_ocr_extraction_repository.SqlAlchemyDocumentOcrExtractionRepository
 )
+SqlAlchemyDocumentClassificationRepository = (
+    document_classification_repository.SqlAlchemyDocumentClassificationRepository
+)
 SqlAlchemyDocumentTextSelectionRepository = (
     document_text_selection_repository.SqlAlchemyDocumentTextSelectionRepository
 )
@@ -30,6 +34,7 @@ SqlAlchemyDocumentTextSelectionRepository = (
 __all__ = [
     "SqlAlchemyDocumentRepository",
     "SqlAlchemyDocumentOcrExtractionRepository",
+    "SqlAlchemyDocumentClassificationRepository",
     "SqlAlchemyDocumentTextExtractionRepository",
     "SqlAlchemyDocumentTextSelectionRepository",
     "SqlAlchemyProcessingRunRepository",

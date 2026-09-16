@@ -6,6 +6,7 @@ from typing import Self
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from document_platform.adapters.outbound.postgresql.repositories import (
+    SqlAlchemyDocumentClassificationRepository,
     SqlAlchemyDocumentOcrExtractionRepository,
     SqlAlchemyDocumentRepository,
     SqlAlchemyDocumentTextExtractionRepository,
@@ -15,6 +16,7 @@ from document_platform.adapters.outbound.postgresql.repositories import (
     SqlAlchemyWorkflowStartRequestRepository,
 )
 from document_platform.application.ports import (
+    DocumentClassificationRepository,
     DocumentOcrExtractionRepository,
     DocumentRepository,
     DocumentTextExtractionRepository,
@@ -31,6 +33,7 @@ class SqlAlchemyUnitOfWork:
         self._session: AsyncSession | None = None
         self._documents: DocumentRepository | None = None
         self._document_ocr_extractions: DocumentOcrExtractionRepository | None = None
+        self._document_classifications: DocumentClassificationRepository | None = None
         self._document_text_extractions: DocumentTextExtractionRepository | None = None
         self._document_text_selections: DocumentTextSelectionRepository | None = None
         self._processing_runs: ProcessingRunRepository | None = None
@@ -48,6 +51,12 @@ class SqlAlchemyUnitOfWork:
         if self._document_ocr_extractions is None:
             raise RuntimeError("unit of work is not active")
         return self._document_ocr_extractions
+
+    @property
+    def document_classifications(self) -> DocumentClassificationRepository:
+        if self._document_classifications is None:
+            raise RuntimeError("unit of work is not active")
+        return self._document_classifications
 
     @property
     def document_text_extractions(self) -> DocumentTextExtractionRepository:
@@ -86,6 +95,7 @@ class SqlAlchemyUnitOfWork:
         self._session = self._sessions()
         self._documents = SqlAlchemyDocumentRepository(self._session)
         self._document_ocr_extractions = SqlAlchemyDocumentOcrExtractionRepository(self._session)
+        self._document_classifications = SqlAlchemyDocumentClassificationRepository(self._session)
         self._document_text_extractions = SqlAlchemyDocumentTextExtractionRepository(self._session)
         self._document_text_selections = SqlAlchemyDocumentTextSelectionRepository(self._session)
         self._processing_runs = SqlAlchemyProcessingRunRepository(self._session)
@@ -107,6 +117,7 @@ class SqlAlchemyUnitOfWork:
             self._session = None
             self._documents = None
             self._document_ocr_extractions = None
+            self._document_classifications = None
             self._document_text_extractions = None
             self._document_text_selections = None
             self._processing_runs = None

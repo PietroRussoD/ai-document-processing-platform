@@ -11,6 +11,13 @@ from document_platform.application.commands.claim_workflow_start_requests import
     ClaimWorkflowStartRequestsHandler,
     InvalidWorkflowStartRequestClaim,
 )
+from document_platform.application.commands.classify_document import (
+    ClassificationRequiresSelectedText,
+    ClassificationRequiresTextSelection,
+    ClassifyDocument,
+    ClassifyDocumentHandler,
+    DocumentClassified,
+)
 from document_platform.application.commands.dispatch_workflow_start_requests import (
     DispatchWorkflowStartRequestsHandler,
     WorkflowStartDispatchResult,
@@ -54,8 +61,13 @@ __all__ = [
     "AcceptDocumentUploadHandler",
     "ClaimWorkflowStartRequests",
     "ClaimWorkflowStartRequestsHandler",
+    "ClassifyDocument",
+    "ClassifyDocumentHandler",
+    "ClassificationRequiresSelectedText",
+    "ClassificationRequiresTextSelection",
     "DispatchWorkflowStartRequestsHandler",
     "DocumentTextExtracted",
+    "DocumentClassified",
     "ExtractDocumentText",
     "ExtractDocumentTextHandler",
     "ExtractOcrText",

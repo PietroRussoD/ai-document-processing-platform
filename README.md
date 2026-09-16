@@ -8,8 +8,10 @@ data from business documents.
 The [`v0.1.0` release](docs/releases/v0.1.0.md) is the first functional
 ingestion milestone. Current `v0.2.0.dev0` work adds a durable Temporal
 handoff, a worker-driven `QUEUED -> RUNNING` transition, and persisted bounded
-embedded-text extraction with PyMuPDF. The API accepts bounded PDF uploads
-through real validation, local blob storage and atomic PostgreSQL registration.
+embedded-text extraction with PyMuPDF. It also includes a bounded local OCR
+fallback, canonical-text selection and deterministic document classification.
+The API accepts bounded PDF uploads through real validation, local blob storage
+and atomic PostgreSQL registration.
 A read endpoint exposes the current document and processing-run status. The
 operator console provides tested PDF selection and submission, including
 acceptance identifiers, safe error feedback and polling of the persisted
@@ -132,8 +134,10 @@ result instead of repeating the work. A deterministic, configurable threshold
 marks low-text documents as `OCR_RECOMMENDED`. Only those runs execute bounded
 Tesseract OCR and persist an immutable OCR result; activity retries reuse it.
 The workflow then persists the selected canonical source and its reason, so
-classification and structured extraction receive a traceable input. Those
-stages are still future work.
+downstream stages receive a traceable input. It classifies that selected text
+using a small deterministic, word-boundary keyword policy. The persisted type
+and reason distinguish a single keyword match from no match or an ambiguous
+match. Structured extraction remains future work.
 
 Before starting an OCR-recommended workflow, install the `tesseract` executable
 with the required language data and verify it with `tesseract --list-langs`.

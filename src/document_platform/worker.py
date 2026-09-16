@@ -8,6 +8,7 @@ from temporalio.client import Client
 from temporalio.worker import Worker
 
 from document_platform.adapters.inbound.temporal import (
+    ClassifyDocumentActivity,
     ExtractDocumentTextActivity,
     ExtractOcrTextActivity,
     SelectProcessingTextActivity,
@@ -19,12 +20,14 @@ from document_platform.adapters.outbound.pdf import PyMuPdfTextExtractor
 from document_platform.adapters.outbound.postgresql import SqlAlchemyUnitOfWork
 from document_platform.adapters.outbound.postgresql.database import create_database
 from document_platform.application.commands import (
+    ClassifyDocumentHandler,
     ExtractDocumentTextHandler,
     ExtractOcrTextHandler,
     SelectProcessingTextHandler,
     StartProcessingRunHandler,
 )
 from document_platform.domain.processing import (
+    DocumentClassificationPolicy,
     EmbeddedTextQualityPolicy,
     ProcessingTextSelectionPolicy,
 )
@@ -91,6 +94,13 @@ async def run_worker(settings: Settings) -> None:
                 clock=lambda: datetime.now(UTC),
             )
         )
+        classification_activity = ClassifyDocumentActivity(
+            ClassifyDocumentHandler(
+                unit_of_work_factory=unit_of_work_factory,
+                classification_policy=DocumentClassificationPolicy(),
+                clock=lambda: datetime.now(UTC),
+            )
+        )
         worker = Worker(
             client,
             task_queue=settings.temporal_task_queue,
@@ -100,6 +110,7 @@ async def run_worker(settings: Settings) -> None:
                 extract_activity.extract_document_text,
                 ocr_activity.extract_ocr_text,
                 selection_activity.select_processing_text,
+                classification_activity.classify_document,
             ],
         )
         await worker.run()

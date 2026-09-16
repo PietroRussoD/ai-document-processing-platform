@@ -2,29 +2,14 @@
 
 ## Purpose
 
-The platform accepts synthetic business documents and will process them
-asynchronously for validation and review. `v0.1` implements the ingestion
-boundary only: it durably accepts eligible PDFs and creates a queued processing
-run. It is designed as a local-first system: a clean default run does not
-require cloud credentials or a paid AI provider.
+The platform accepts synthetic business documents and processes them
+asynchronously for validation and review. `v0.1` implemented the ingestion
+boundary; current `v0.2` development executes bounded text extraction, OCR
+fallback, canonical-text selection and deterministic classification. It is
+designed as a local-first system: a clean default run does not require cloud
+credentials or a paid AI provider.
 
-## Implemented Components (`v0.1`)
-
-```mermaid
-flowchart LR
-    Console[React operator console] --> API[FastAPI HTTP adapter]
-    API --> Application[Application use cases]
-    Application --> Domain[Domain rules]
-    Application --> PostgreSQL[(PostgreSQL)]
-    Application --> Storage[Local filesystem]
-```
-
-PostgreSQL is authoritative for documents, processing runs, upload idempotency
-records and user-facing status projections. Filesystem storage owns uploaded
-document blobs. The current processing run is intentionally left in `QUEUED`
-until a worker is introduced.
-
-## Target Components
+## Implemented Components (`v0.2`)
 
 ```mermaid
 flowchart LR
@@ -36,16 +21,25 @@ flowchart LR
     Application --> Temporal[Temporal]
     Temporal --> Worker[Workflow activities]
     Worker --> Text[PyMuPDF and Tesseract]
-    Worker --> Model[Extraction provider port]
+```
+
+PostgreSQL is authoritative for documents, processing runs, upload idempotency
+records, immutable processing outputs and user-facing status projections.
+Filesystem storage owns uploaded document blobs. Temporal owns durable workflow
+execution history while PostgreSQL remains authoritative for business state.
+
+## Planned Extensions
+
+```mermaid
+flowchart LR
+    Worker[Existing workflow activities] --> Model[Extraction provider port]
     Model --> Fake[Deterministic fake]
     Model --> Ollama[Local Ollama]
     Model -. optional .-> OpenAI[External provider]
 ```
 
-OCR, structured extraction and review components are planned extensions.
-PostgreSQL remains authoritative for business state, Temporal owns durable
-workflow execution history, and a model provider will never be an authority for
-business state.
+Structured extraction and review components are planned extensions. A model
+provider will never be an authority for business state.
 
 ## Dependency Direction
 
@@ -94,10 +88,11 @@ sequenceDiagram
     Worker->>Worker: OCR only when quality recommends it
     Worker->>DB: Persist immutable OCR extraction per run
     Worker->>DB: Persist canonical text source and selection reason
+    Worker->>DB: Persist deterministic document type and classification reason
 ```
 
 `v0.2` currently implements durable request claiming, application dispatch and
-two Temporal activities. The Temporal adapter starts the stable workflow ID
+five Temporal activities. The Temporal adapter starts the stable workflow ID
 with an existing-running workflow treated as the same successful handoff. A
 separate dispatcher process owns the Temporal connection and polling loop; it
 is deliberately independent from the HTTP API so network I/O never occurs
@@ -117,6 +112,13 @@ is selected directly. Otherwise, the policy selects OCR only when it contains
 strictly more non-whitespace characters; ties and lower-quality OCR remain on
 the embedded source. The persisted source and reason make this decision
 auditable and stable across retries.
+
+The final `classify-document` activity reads only the selected persisted text.
+Its initial local policy uses versioned keyword sets and word-boundary matching
+for invoice, purchase-order and credit-note terms. Exactly one category match
+is persisted as that type; no match and multiple matches persist `UNKNOWN` with
+distinct reasons. This is a deterministic baseline for later model evaluation,
+not a claim of AI accuracy.
 
 The local OCR adapter rasterizes pages with PyMuPDF and invokes the configured
 Tesseract executable one page at a time. It applies the accepted page limit,
@@ -157,8 +159,8 @@ background. The feature stops polling when the processing run reaches
 
 ## Domain Lifecycles
 
-The domain model reserves the following document lifecycle for future processing
-and review. `v0.1` currently persists `UPLOADED` only:
+The domain model reserves the following document lifecycle for processing and
+review. Current worker execution transitions `UPLOADED` to `PROCESSING`:
 
 ```mermaid
 stateDiagram-v2
@@ -171,8 +173,8 @@ stateDiagram-v2
 ```
 
 Processing-run status describes one durable technical execution. Failures and
-retries belong here rather than in the document lifecycle. `v0.1` currently
-creates a `QUEUED` run only:
+retries belong here rather than in the document lifecycle. Current worker
+execution transitions a `QUEUED` run to `RUNNING`:
 
 ```mermaid
 stateDiagram-v2
@@ -308,6 +310,7 @@ erDiagram
     PROCESSING_RUNS ||--o| DOCUMENT_TEXT_EXTRACTIONS : produces
     PROCESSING_RUNS ||--o| DOCUMENT_OCR_EXTRACTIONS : produces
     PROCESSING_RUNS ||--o| DOCUMENT_TEXT_SELECTIONS : selects
+    PROCESSING_RUNS ||--o| DOCUMENT_CLASSIFICATIONS : classifies
     UPLOAD_IDEMPOTENCY_RECORDS {
         string idempotency_key PK
         string request_fingerprint
@@ -339,6 +342,12 @@ erDiagram
         string reason
         timestamp selected_at
     }
+    DOCUMENT_CLASSIFICATIONS {
+        uuid processing_run_id PK, FK
+        string document_type
+        string reason
+        timestamp classified_at
+    }
 ```
 
 ## Repository Structure
@@ -355,11 +364,12 @@ tests/e2e/           API and browser journeys
 
 ## Current Boundaries
 
-| Boundary | `v0.1` implementation | Planned extension |
+| Boundary | Current implementation | Planned extension |
 | --- | --- | --- |
 | Object storage | Local filesystem | S3-compatible adapter |
 | Structured extraction | Not implemented | Deterministic fake; Ollama; policy-gated OpenAI comparison |
 | Text extraction | Embedded/OCR extraction and persisted canonical source selection | OCR quality calibration and language policy |
+| Document classification | Deterministic canonical-text keyword policy | Evaluated local model policy |
 | Workflow execution | Temporal development server with local worker | Managed/self-hosted Temporal later |
 
 ## Related Decisions

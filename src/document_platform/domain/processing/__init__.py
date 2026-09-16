@@ -1,5 +1,12 @@
 """Document-processing lifecycle domain model."""
 
+from document_platform.domain.processing.document_classification import (
+    BusinessDocumentType,
+    DocumentClassification,
+    DocumentClassificationPolicy,
+    DocumentClassificationReason,
+    InvalidDocumentClassification,
+)
 from document_platform.domain.processing.document_ocr_extraction import (
     DocumentOcrExtraction,
     InvalidDocumentOcrExtraction,
@@ -39,11 +46,16 @@ __all__ = [
     "DocumentTextExtraction",
     "DocumentTextSelection",
     "DocumentOcrExtraction",
+    "BusinessDocumentType",
+    "DocumentClassification",
+    "DocumentClassificationPolicy",
+    "DocumentClassificationReason",
     "EmbeddedTextQuality",
     "EmbeddedTextQualityPolicy",
     "InvalidDocumentTextExtraction",
     "InvalidDocumentTextSelection",
     "InvalidDocumentOcrExtraction",
+    "InvalidDocumentClassification",
     "ProcessingRun",
     "ProcessingRunStatus",
     "ProcessingTextSelectionPolicy",

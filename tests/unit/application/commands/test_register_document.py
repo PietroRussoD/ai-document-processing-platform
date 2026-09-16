@@ -14,6 +14,7 @@ from document_platform.application.commands import (
     RegisterDocumentHandler,
 )
 from document_platform.application.ports import (
+    DocumentClassificationRepository,
     DocumentOcrExtractionRepository,
     DocumentRepository,
     DocumentTextExtractionRepository,
@@ -141,6 +142,14 @@ class UnusedDocumentTextSelectionRepository:
         raise AssertionError("not used")
 
 
+class UnusedDocumentClassificationRepository:
+    async def add(self, classification: object) -> None:
+        raise AssertionError("not used")
+
+    async def get(self, processing_run_id: UUID) -> None:
+        raise AssertionError("not used")
+
+
 class RecordingUnitOfWork:
     def __init__(
         self,
@@ -157,6 +166,7 @@ class RecordingUnitOfWork:
         self._document_text_extractions = UnusedDocumentTextExtractionRepository()
         self._document_ocr_extractions = UnusedDocumentOcrExtractionRepository()
         self._document_text_selections = UnusedDocumentTextSelectionRepository()
+        self._document_classifications = UnusedDocumentClassificationRepository()
         self.commit_count = 0
         self.exit_exception: type[BaseException] | None = None
 
@@ -175,6 +185,10 @@ class RecordingUnitOfWork:
     @property
     def document_text_selections(self) -> DocumentTextSelectionRepository:
         return self._document_text_selections  # type: ignore[return-value]
+
+    @property
+    def document_classifications(self) -> DocumentClassificationRepository:
+        return self._document_classifications  # type: ignore[return-value]
 
     @property
     def processing_runs(self) -> ProcessingRunRepository:

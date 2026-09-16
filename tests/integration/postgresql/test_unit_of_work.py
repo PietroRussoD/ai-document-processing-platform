@@ -139,6 +139,9 @@ async def test_rejects_operations_outside_the_context(migrated_postgres_url: str
             _ = unit_of_work.documents
 
         with pytest.raises(RuntimeError, match="unit of work is not active"):
+            _ = unit_of_work.document_classifications
+
+        with pytest.raises(RuntimeError, match="unit of work is not active"):
             _ = unit_of_work.upload_idempotency
 
         with pytest.raises(RuntimeError, match="unit of work is not active"):

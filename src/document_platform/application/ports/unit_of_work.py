@@ -4,6 +4,9 @@ from collections.abc import Callable
 from types import TracebackType
 from typing import Protocol, Self
 
+from document_platform.application.ports.document_classification_repository import (
+    DocumentClassificationRepository,
+)
 from document_platform.application.ports.document_ocr_extraction_repository import (
     DocumentOcrExtractionRepository,
 )
@@ -35,6 +38,9 @@ class UnitOfWork(Protocol):
 
     @property
     def document_ocr_extractions(self) -> DocumentOcrExtractionRepository: ...
+
+    @property
+    def document_classifications(self) -> DocumentClassificationRepository: ...
 
     @property
     def processing_runs(self) -> ProcessingRunRepository: ...
