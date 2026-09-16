@@ -127,6 +127,12 @@ the technical run from `RUNNING` to `COMPLETED`. The document itself remains
 review decision. The terminal run state stops console polling and provides clear
 feedback that the current processing scope produced observable results.
 
+The operator console derives its processing timeline from the same persisted
+metadata exposed by the status endpoint. It does not query Temporal directly,
+and it does not receive document text or blob paths. A stage is shown as
+completed only after its immutable output is persisted; the next stages remain
+in progress or pending until their own metadata appears.
+
 The local OCR adapter rasterizes pages with PyMuPDF and invokes the configured
 Tesseract executable one page at a time. It applies the accepted page limit,
 the same bounded text limit, a configurable DPI and a per-page timeout. Serial

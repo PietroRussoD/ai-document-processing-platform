@@ -10,6 +10,8 @@ ingestion milestone. Current `v0.2.0.dev0` work adds a durable Temporal
 handoff, a worker-driven `QUEUED -> RUNNING` transition, and persisted bounded
 embedded-text extraction with PyMuPDF. It also includes a bounded local OCR
 fallback, canonical-text selection and deterministic document classification.
+The console derives a safe processing timeline from persisted metadata; it
+never renders extracted document text.
 The API accepts bounded PDF uploads through real validation, local blob storage
 and atomic PostgreSQL registration.
 A read endpoint exposes the current document and processing-run status. The
