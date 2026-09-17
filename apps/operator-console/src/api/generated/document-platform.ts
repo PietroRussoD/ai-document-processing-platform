@@ -176,6 +176,27 @@ export interface components {
          * @enum {string}
          */
         InvoiceExtractionMethod: "DETERMINISTIC_RULES" | "OLLAMA";
+        /**
+         * InvoiceValidationDecision
+         * @enum {string}
+         */
+        InvoiceValidationDecision: "AUTO_APPROVE" | "REVIEW_REQUIRED";
+        /**
+         * InvoiceValidationIssue
+         * @enum {string}
+         */
+        InvoiceValidationIssue: "MISSING_INVOICE_NUMBER" | "MISSING_ISSUE_DATE" | "MISSING_SUPPLIER_NAME" | "MISSING_CURRENCY" | "MISSING_TOTAL_AMOUNT" | "NON_POSITIVE_TOTAL_AMOUNT";
+        /** InvoiceValidationMetadataResponse */
+        InvoiceValidationMetadataResponse: {
+            decision: components["schemas"]["InvoiceValidationDecision"];
+            /** Issues */
+            issues: components["schemas"]["InvoiceValidationIssue"][];
+            /**
+             * Validated At
+             * Format: date-time
+             */
+            validated_at: string;
+        };
         /** LivenessResponse */
         LivenessResponse: {
             /**
@@ -210,6 +231,7 @@ export interface components {
             classification: components["schemas"]["ClassificationMetadataResponse"] | null;
             embedded_text: components["schemas"]["TextExtractionMetadataResponse"] | null;
             invoice_extraction: components["schemas"]["InvoiceExtractionMetadataResponse"] | null;
+            invoice_validation: components["schemas"]["InvoiceValidationMetadataResponse"] | null;
             ocr_text: components["schemas"]["OcrExtractionMetadataResponse"] | null;
             selected_text: components["schemas"]["TextSelectionMetadataResponse"] | null;
         };

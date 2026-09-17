@@ -50,6 +50,11 @@ test("shows safe processing metadata without extracted text", () => {
                     total_amount: "12.50",
                     extracted_at: "2026-09-16T12:00:04Z",
                 },
+                invoice_validation: {
+                    decision: "AUTO_APPROVE",
+                    issues: [],
+                    validated_at: "2026-09-16T12:00:05Z",
+                },
             }}
         />,
     );
@@ -60,7 +65,67 @@ test("shows safe processing metadata without extracted text", () => {
     expect(screen.getByText("Invoice")).toBeVisible();
     expect(screen.getByText("INV-42")).toBeVisible();
     expect(screen.getByText("EUR 12.50")).toBeVisible();
+    expect(screen.getByText("Auto Approve")).toBeVisible();
+    expect(screen.getByText("No review required")).toBeVisible();
     expect(
         screen.queryByText("Invoice 42 Total 12.50"),
     ).not.toBeInTheDocument();
+});
+
+test("shows invoice review reasons without exposing source text", () => {
+    render(
+        <ProcessingOutputPanel
+            output={{
+                embedded_text: null,
+                ocr_text: null,
+                selected_text: null,
+                classification: {
+                    document_type: "INVOICE",
+                    reason: "KEYWORD_MATCHED",
+                    classified_at: "2026-09-16T12:00:03Z",
+                },
+                invoice_extraction: {
+                    method: "DETERMINISTIC_RULES",
+                    invoice_number: "INV-42",
+                    issue_date: null,
+                    supplier_name: "Acme Ltd",
+                    currency: null,
+                    total_amount: null,
+                    extracted_at: "2026-09-16T12:00:04Z",
+                },
+                invoice_validation: {
+                    decision: "REVIEW_REQUIRED",
+                    issues: ["MISSING_ISSUE_DATE", "MISSING_TOTAL_AMOUNT"],
+                    validated_at: "2026-09-16T12:00:05Z",
+                },
+            }}
+        />,
+    );
+
+    expect(screen.getByText("Review Required")).toBeVisible();
+    expect(
+        screen.getByText("Missing Issue Date, Missing Total Amount"),
+    ).toBeVisible();
+    expect(screen.getAllByText("Not found")).toHaveLength(2);
+});
+
+test("marks invoice-only output as not applicable for other document types", () => {
+    render(
+        <ProcessingOutputPanel
+            output={{
+                embedded_text: null,
+                ocr_text: null,
+                selected_text: null,
+                classification: {
+                    document_type: "PURCHASE_ORDER",
+                    reason: "KEYWORD_MATCHED",
+                    classified_at: "2026-09-16T12:00:03Z",
+                },
+                invoice_extraction: null,
+                invoice_validation: null,
+            }}
+        />,
+    );
+
+    expect(screen.getAllByText("Not applicable")).toHaveLength(2);
 });

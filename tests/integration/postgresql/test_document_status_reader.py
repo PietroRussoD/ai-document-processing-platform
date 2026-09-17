@@ -16,6 +16,7 @@ from document_platform.adapters.outbound.postgresql.repositories import (
     SqlAlchemyDocumentTextExtractionRepository,
     SqlAlchemyDocumentTextSelectionRepository,
     SqlAlchemyInvoiceExtractionRepository,
+    SqlAlchemyInvoiceValidationRepository,
     SqlAlchemyProcessingRunRepository,
 )
 from document_platform.domain.documents import Document
@@ -29,6 +30,8 @@ from document_platform.domain.processing import (
     EmbeddedTextQuality,
     InvoiceExtraction,
     InvoiceExtractionMethod,
+    InvoiceValidation,
+    InvoiceValidationDecision,
     OcrExtractionMethod,
     ProcessingRun,
     ProcessingTextSelectionReason,
@@ -152,6 +155,12 @@ async def test_returns_processing_output_metadata_without_document_text(
         total_amount=Decimal("12.50"),
         extracted_at=ACCEPTED_AT,
     )
+    invoice_validation = InvoiceValidation(
+        processing_run_id=run_id,
+        decision=InvoiceValidationDecision.AUTO_APPROVE,
+        issues=(),
+        validated_at=ACCEPTED_AT,
+    )
 
     try:
         async with database.sessions.begin() as session:
@@ -162,6 +171,7 @@ async def test_returns_processing_output_metadata_without_document_text(
             await SqlAlchemyDocumentTextSelectionRepository(session).add(selection)
             await SqlAlchemyDocumentClassificationRepository(session).add(classification)
             await SqlAlchemyInvoiceExtractionRepository(session).add(invoice_extraction)
+            await SqlAlchemyInvoiceValidationRepository(session).add(invoice_validation)
 
         result = await SqlAlchemyDocumentStatusReader(database.sessions).get(document_id)
     finally:
@@ -181,4 +191,7 @@ async def test_returns_processing_output_metadata_without_document_text(
     assert output.invoice_extraction is not None
     assert output.invoice_extraction.invoice_number == "INV-42"
     assert output.invoice_extraction.total_amount == Decimal("12.50")
+    assert output.invoice_validation is not None
+    assert output.invoice_validation.decision is InvoiceValidationDecision.AUTO_APPROVE
+    assert output.invoice_validation.issues == ()
     assert not hasattr(output.embedded_text, "text")

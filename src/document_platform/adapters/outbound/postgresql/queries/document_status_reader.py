@@ -12,12 +12,14 @@ from document_platform.adapters.outbound.postgresql.models import (
     DocumentTextExtractionRecord,
     DocumentTextSelectionRecord,
     InvoiceExtractionRecord,
+    InvoiceValidationRecord,
     ProcessingRunRecord,
 )
 from document_platform.application.ports import (
     ClassificationMetadataView,
     DocumentStatusView,
     InvoiceExtractionMetadataView,
+    InvoiceValidationMetadataView,
     OcrExtractionMetadataView,
     ProcessingOutputView,
     ProcessingRunStatusView,
@@ -30,6 +32,8 @@ from document_platform.domain.processing import (
     DocumentClassificationReason,
     EmbeddedTextQuality,
     InvoiceExtractionMethod,
+    InvoiceValidationDecision,
+    InvoiceValidationIssue,
     OcrExtractionMethod,
     ProcessingRunStatus,
     ProcessingTextSelectionReason,
@@ -52,6 +56,7 @@ class SqlAlchemyDocumentStatusReader:
                 DocumentTextSelectionRecord,
                 DocumentClassificationRecord,
                 InvoiceExtractionRecord,
+                InvoiceValidationRecord,
             )
             .join(ProcessingRunRecord, ProcessingRunRecord.document_id == DocumentRecord.id)
             .outerjoin(
@@ -74,6 +79,10 @@ class SqlAlchemyDocumentStatusReader:
                 InvoiceExtractionRecord,
                 InvoiceExtractionRecord.processing_run_id == ProcessingRunRecord.id,
             )
+            .outerjoin(
+                InvoiceValidationRecord,
+                InvoiceValidationRecord.processing_run_id == ProcessingRunRecord.id,
+            )
             .where(DocumentRecord.id == document_id)
             .order_by(ProcessingRunRecord.queued_at.desc(), ProcessingRunRecord.id.desc())
             .limit(1)
@@ -91,6 +100,7 @@ class SqlAlchemyDocumentStatusReader:
         selected_text = row[4]
         classification = row[5]
         invoice_extraction = row[6]
+        invoice_validation = row[7]
         return DocumentStatusView(
             id=document.id,
             original_filename=document.original_filename,
@@ -115,6 +125,7 @@ class SqlAlchemyDocumentStatusReader:
                     selected_text=selected_text,
                     classification=classification,
                     invoice_extraction=invoice_extraction,
+                    invoice_validation=invoice_validation,
                 ),
             ),
         )
@@ -127,10 +138,18 @@ def _to_processing_output(
     selected_text: DocumentTextSelectionRecord | None,
     classification: DocumentClassificationRecord | None,
     invoice_extraction: InvoiceExtractionRecord | None,
+    invoice_validation: InvoiceValidationRecord | None,
 ) -> ProcessingOutputView | None:
     if all(
         value is None
-        for value in (embedded_text, ocr_text, selected_text, classification, invoice_extraction)
+        for value in (
+            embedded_text,
+            ocr_text,
+            selected_text,
+            classification,
+            invoice_extraction,
+            invoice_validation,
+        )
     ):
         return None
     return ProcessingOutputView(
@@ -186,6 +205,15 @@ def _to_processing_output(
                 extracted_at=invoice_extraction.extracted_at,
             )
             if invoice_extraction is not None
+            else None
+        ),
+        invoice_validation=(
+            InvoiceValidationMetadataView(
+                decision=InvoiceValidationDecision(invoice_validation.decision),
+                issues=tuple(InvoiceValidationIssue(issue) for issue in invoice_validation.issues),
+                validated_at=invoice_validation.validated_at,
+            )
+            if invoice_validation is not None
             else None
         ),
     )

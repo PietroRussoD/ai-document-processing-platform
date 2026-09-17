@@ -1,9 +1,10 @@
 import {
     ReceiptText,
-    type LucideIcon,
+    ShieldCheck,
     ScanText,
     Tags,
     Waypoints,
+    type LucideIcon,
 } from "lucide-react";
 import { type ReactNode } from "react";
 
@@ -49,7 +50,7 @@ export function ProcessingOutputPanel({ output }: ProcessingOutputPanelProps) {
             >
                 Processing results
             </h3>
-            <div className="mt-4 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-4 grid gap-5 md:grid-cols-2 xl:grid-cols-5">
                 <ResultGroup icon={ScanText} title="Text extraction">
                     <ResultValue
                         label="Embedded text"
@@ -151,6 +152,41 @@ export function ProcessingOutputPanel({ output }: ProcessingOutputPanelProps) {
                         </>
                     )}
                 </ResultGroup>
+                <ResultGroup icon={ShieldCheck} title="Invoice validation">
+                    {output.invoice_validation === null ? (
+                        <ResultValue
+                            label="Decision"
+                            value={invoiceValidationStatus(output)}
+                        />
+                    ) : (
+                        <>
+                            <div>
+                                <dt className="text-xs font-medium text-app-muted">
+                                    Decision
+                                </dt>
+                                <dd className="mt-1.5">
+                                    <StatusBadge
+                                        label={formatLabel(
+                                            output.invoice_validation.decision,
+                                        )}
+                                        tone={
+                                            output.invoice_validation
+                                                .decision === "AUTO_APPROVE"
+                                                ? "success"
+                                                : "warning"
+                                        }
+                                    />
+                                </dd>
+                            </div>
+                            <ResultValue
+                                label="Review reasons"
+                                value={formatValidationIssues(
+                                    output.invoice_validation.issues,
+                                )}
+                            />
+                        </>
+                    )}
+                </ResultGroup>
             </div>
         </section>
     );
@@ -163,6 +199,21 @@ function invoiceExtractionStatus(output: ProcessingOutput): string {
     return output.classification.document_type === "INVOICE"
         ? "Pending"
         : "Not applicable";
+}
+
+function invoiceValidationStatus(output: ProcessingOutput): string {
+    if (output.classification === null) {
+        return "Pending";
+    }
+    return output.classification.document_type === "INVOICE"
+        ? "Pending"
+        : "Not applicable";
+}
+
+function formatValidationIssues(issues: string[]): string {
+    return issues.length === 0
+        ? "No review required"
+        : issues.map(formatLabel).join(", ");
 }
 
 function formatTotal(

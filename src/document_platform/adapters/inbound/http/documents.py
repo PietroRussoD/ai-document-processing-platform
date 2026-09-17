@@ -23,6 +23,8 @@ from document_platform.domain.processing import (
     DocumentClassificationReason,
     EmbeddedTextQuality,
     InvoiceExtractionMethod,
+    InvoiceValidationDecision,
+    InvoiceValidationIssue,
     OcrExtractionMethod,
     ProcessingRunStatus,
     ProcessingTextSelectionReason,
@@ -88,6 +90,14 @@ class InvoiceExtractionMetadataResponse(BaseModel):
     extracted_at: datetime
 
 
+class InvoiceValidationMetadataResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    decision: InvoiceValidationDecision
+    issues: tuple[InvoiceValidationIssue, ...]
+    validated_at: datetime
+
+
 class ProcessingOutputResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -96,6 +106,7 @@ class ProcessingOutputResponse(BaseModel):
     selected_text: TextSelectionMetadataResponse | None
     classification: ClassificationMetadataResponse | None
     invoice_extraction: InvoiceExtractionMetadataResponse | None
+    invoice_validation: InvoiceValidationMetadataResponse | None
 
 
 class ProcessingRunStatusResponse(BaseModel):

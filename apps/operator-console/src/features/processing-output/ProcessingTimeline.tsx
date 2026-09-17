@@ -83,40 +83,135 @@ function StageIcon({ state }: { state: TimelineState }) {
 
 function buildTimelineStages(run: ProcessingRun): TimelineStage[] {
     const output = run.processing_output;
-    const terminal = ["COMPLETED", "FAILED", "CANCELLED"].includes(run.status);
+    const automationFinished = [
+        "COMPLETED",
+        "FAILED",
+        "CANCELLED",
+        "REVIEW_REQUIRED",
+    ].includes(run.status);
 
     return [
         stage(
             "Text extraction",
             output?.embedded_text !== null &&
                 output?.embedded_text !== undefined,
-            terminal,
+            automationFinished,
             "Extracting readable PDF text.",
         ),
-        ocrStage(output, terminal),
+        ocrStage(output, automationFinished),
         stage(
             "Canonical text selection",
             output?.selected_text !== null &&
                 output?.selected_text !== undefined,
-            terminal,
+            automationFinished,
             "Selecting the source used by downstream stages.",
         ),
         stage(
             "Document classification",
             output?.classification !== null &&
                 output?.classification !== undefined,
-            terminal,
+            automationFinished,
             "Classifying the selected document text.",
         ),
-        {
-            label: "Processing completion",
-            state: run.status === "COMPLETED" ? "completed" : "pending",
-            detail:
-                run.status === "COMPLETED"
-                    ? "All implemented stages finished."
-                    : "Waiting for all processing stages to finish.",
-        },
+        invoiceExtractionStage(output, automationFinished),
+        invoiceValidationStage(output, automationFinished),
+        completionStage(run),
     ];
+}
+
+function invoiceExtractionStage(
+    output: ProcessingOutput | null,
+    automationFinished: boolean,
+): TimelineStage {
+    if (
+        output?.classification === null ||
+        output?.classification === undefined
+    ) {
+        return stage(
+            "Invoice extraction",
+            false,
+            automationFinished,
+            "Waiting for document classification.",
+        );
+    }
+    if (output.classification.document_type !== "INVOICE") {
+        return {
+            label: "Invoice extraction",
+            state: "completed",
+            detail: "Not applicable to this document type.",
+        };
+    }
+    return stage(
+        "Invoice extraction",
+        output.invoice_extraction !== null,
+        automationFinished,
+        "Extracting structured invoice fields.",
+    );
+}
+
+function invoiceValidationStage(
+    output: ProcessingOutput | null,
+    automationFinished: boolean,
+): TimelineStage {
+    if (
+        output?.classification === null ||
+        output?.classification === undefined
+    ) {
+        return stage(
+            "Invoice validation",
+            false,
+            automationFinished,
+            "Waiting for document classification.",
+        );
+    }
+    if (output.classification.document_type !== "INVOICE") {
+        return {
+            label: "Invoice validation",
+            state: "completed",
+            detail: "Not applicable to this document type.",
+        };
+    }
+    if (
+        output?.invoice_validation !== null &&
+        output?.invoice_validation !== undefined
+    ) {
+        return {
+            label: "Invoice validation",
+            state: "completed",
+            detail:
+                output.invoice_validation.decision === "AUTO_APPROVE"
+                    ? "Invoice approved automatically."
+                    : "Invoice requires an operator review.",
+        };
+    }
+    return stage(
+        "Invoice validation",
+        false,
+        automationFinished,
+        "Checking extracted invoice fields.",
+    );
+}
+
+function completionStage(run: ProcessingRun): TimelineStage {
+    if (run.status === "COMPLETED") {
+        return {
+            label: "Processing completion",
+            state: "completed",
+            detail: "All implemented stages finished.",
+        };
+    }
+    if (run.status === "REVIEW_REQUIRED") {
+        return {
+            label: "Review handoff",
+            state: "completed",
+            detail: "Automated processing paused for operator review.",
+        };
+    }
+    return {
+        label: "Processing completion",
+        state: "pending",
+        detail: "Waiting for all processing stages to finish.",
+    };
 }
 
 function ocrStage(

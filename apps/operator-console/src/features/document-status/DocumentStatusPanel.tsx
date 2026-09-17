@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2, RefreshCw } from "lucide-react";
+import { CheckCircle2, CircleAlert, RefreshCw } from "lucide-react";
 
 import {
     createDocumentApi,
@@ -75,6 +75,15 @@ export function DocumentStatusPanel({
                 >
                     <CheckCircle2 aria-hidden="true" size={18} />
                     <p>Processing results are ready.</p>
+                </div>
+            ) : null}
+            {document.current_run.status === "REVIEW_REQUIRED" ? (
+                <div
+                    role="status"
+                    className="mt-4 flex items-center gap-2 border-l-2 border-app-warning pl-3 text-sm text-app-warning"
+                >
+                    <CircleAlert aria-hidden="true" size={18} />
+                    <p>Processing requires an operator review.</p>
                 </div>
             ) : null}
             <dl className="mt-4 grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2">

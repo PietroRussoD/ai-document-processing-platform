@@ -90,6 +90,26 @@ test("confirms when processing results are ready", async () => {
     ).toBeVisible();
 });
 
+test("explains when processing requires an operator review", async () => {
+    const getStatus = vi
+        .fn<
+            (
+                documentId: string,
+                signal?: AbortSignal,
+            ) => Promise<DocumentStatus>
+        >()
+        .mockResolvedValue(status("REVIEW_REQUIRED", "REVIEW_REQUIRED"));
+
+    render(
+        <DocumentStatusPanel api={{ getStatus }} documentId={DOCUMENT_ID} />,
+        { wrapper: QueryWrapper },
+    );
+
+    expect(
+        await screen.findByText("Processing requires an operator review."),
+    ).toBeVisible();
+});
+
 test("polls active states and stops for every terminal run state", () => {
     expect(statusPollInterval(undefined)).toBe(2_000);
     expect(statusPollInterval("QUEUED")).toBe(2_000);
@@ -97,6 +117,7 @@ test("polls active states and stops for every terminal run state", () => {
     expect(statusPollInterval("COMPLETED")).toBe(false);
     expect(statusPollInterval("FAILED")).toBe(false);
     expect(statusPollInterval("CANCELLED")).toBe(false);
+    expect(statusPollInterval("REVIEW_REQUIRED")).toBe(false);
 });
 
 function status(

@@ -5,6 +5,7 @@ const terminalRunStatuses = new Set<DocumentStatus["current_run"]["status"]>([
     "COMPLETED",
     "FAILED",
     "CANCELLED",
+    "REVIEW_REQUIRED",
 ]);
 
 export function statusPollInterval(

@@ -266,6 +266,52 @@
         "title": "InvoiceExtractionMethod",
         "type": "string"
       },
+      "InvoiceValidationDecision": {
+        "enum": [
+          "AUTO_APPROVE",
+          "REVIEW_REQUIRED"
+        ],
+        "title": "InvoiceValidationDecision",
+        "type": "string"
+      },
+      "InvoiceValidationIssue": {
+        "enum": [
+          "MISSING_INVOICE_NUMBER",
+          "MISSING_ISSUE_DATE",
+          "MISSING_SUPPLIER_NAME",
+          "MISSING_CURRENCY",
+          "MISSING_TOTAL_AMOUNT",
+          "NON_POSITIVE_TOTAL_AMOUNT"
+        ],
+        "title": "InvoiceValidationIssue",
+        "type": "string"
+      },
+      "InvoiceValidationMetadataResponse": {
+        "properties": {
+          "decision": {
+            "$ref": "#/components/schemas/InvoiceValidationDecision"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/InvoiceValidationIssue"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "validated_at": {
+            "format": "date-time",
+            "title": "Validated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision",
+          "issues",
+          "validated_at"
+        ],
+        "title": "InvoiceValidationMetadataResponse",
+        "type": "object"
+      },
       "LivenessResponse": {
         "properties": {
           "status": {
@@ -350,6 +396,16 @@
               }
             ]
           },
+          "invoice_validation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InvoiceValidationMetadataResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "ocr_text": {
             "anyOf": [
               {
@@ -376,7 +432,8 @@
           "ocr_text",
           "selected_text",
           "classification",
-          "invoice_extraction"
+          "invoice_extraction",
+          "invoice_validation"
         ],
         "title": "ProcessingOutputResponse",
         "type": "object"

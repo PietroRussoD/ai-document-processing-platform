@@ -12,6 +12,8 @@ from document_platform.domain.processing import (
     DocumentClassificationReason,
     EmbeddedTextQuality,
     InvoiceExtractionMethod,
+    InvoiceValidationDecision,
+    InvoiceValidationIssue,
     OcrExtractionMethod,
     ProcessingRunStatus,
     ProcessingTextSelectionReason,
@@ -65,12 +67,20 @@ class InvoiceExtractionMetadataView:
 
 
 @dataclass(frozen=True, slots=True)
+class InvoiceValidationMetadataView:
+    decision: InvoiceValidationDecision
+    issues: tuple[InvoiceValidationIssue, ...]
+    validated_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
 class ProcessingOutputView:
     embedded_text: TextExtractionMetadataView | None
     ocr_text: OcrExtractionMetadataView | None
     selected_text: TextSelectionMetadataView | None
     classification: ClassificationMetadataView | None
     invoice_extraction: InvoiceExtractionMetadataView | None
+    invoice_validation: InvoiceValidationMetadataView | None
 
 
 @dataclass(frozen=True, slots=True)
