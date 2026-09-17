@@ -13,5 +13,6 @@ class ClassifyDocumentActivity:
         self._classify_document = classify_document
 
     @activity.defn(name=CLASSIFY_DOCUMENT_ACTIVITY)
-    async def classify_document(self, processing_run_id: str) -> None:
-        await self._classify_document(ClassifyDocument(UUID(processing_run_id)))
+    async def classify_document(self, processing_run_id: str) -> str:
+        result = await self._classify_document(ClassifyDocument(UUID(processing_run_id)))
+        return result.document_type.value

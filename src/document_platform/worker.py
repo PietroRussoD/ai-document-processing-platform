@@ -11,6 +11,7 @@ from document_platform.adapters.inbound.temporal import (
     ClassifyDocumentActivity,
     CompleteProcessingRunActivity,
     ExtractDocumentTextActivity,
+    ExtractInvoiceActivity,
     ExtractOcrTextActivity,
     SelectProcessingTextActivity,
     StartProcessingRunActivity,
@@ -24,11 +25,13 @@ from document_platform.application.commands import (
     ClassifyDocumentHandler,
     CompleteProcessingRunHandler,
     ExtractDocumentTextHandler,
+    ExtractInvoiceHandler,
     ExtractOcrTextHandler,
     SelectProcessingTextHandler,
     StartProcessingRunHandler,
 )
 from document_platform.domain.processing import (
+    DeterministicInvoiceExtractionPolicy,
     DocumentClassificationPolicy,
     EmbeddedTextQualityPolicy,
     ProcessingTextSelectionPolicy,
@@ -103,6 +106,13 @@ async def run_worker(settings: Settings) -> None:
                 clock=lambda: datetime.now(UTC),
             )
         )
+        invoice_extraction_activity = ExtractInvoiceActivity(
+            ExtractInvoiceHandler(
+                unit_of_work_factory=unit_of_work_factory,
+                extraction_policy=DeterministicInvoiceExtractionPolicy(),
+                clock=lambda: datetime.now(UTC),
+            )
+        )
         completion_activity = CompleteProcessingRunActivity(
             CompleteProcessingRunHandler(
                 unit_of_work_factory=unit_of_work_factory,
@@ -119,6 +129,7 @@ async def run_worker(settings: Settings) -> None:
                 ocr_activity.extract_ocr_text,
                 selection_activity.select_processing_text,
                 classification_activity.classify_document,
+                invoice_extraction_activity.extract_invoice,
                 completion_activity.complete_processing_run,
             ],
         )

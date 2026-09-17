@@ -101,7 +101,11 @@ async def test_classifies_and_persists_the_selected_text() -> None:
 
     result = await handler(unit_of_work)(ClassifyDocument(RUN_ID))
 
-    assert result == DocumentClassified(RUN_ID, replayed=False)
+    assert result == DocumentClassified(
+        RUN_ID,
+        replayed=False,
+        document_type=BusinessDocumentType.INVOICE,
+    )
     classification = cast(DocumentClassification, unit_of_work.document_classifications.added[0])
     assert classification.document_type is BusinessDocumentType.INVOICE
     assert unit_of_work.commit_count == 1
@@ -115,7 +119,11 @@ async def test_replay_reuses_the_persisted_classification() -> None:
     await handler(unit_of_work)(command)
     replay = await handler(unit_of_work)(command)
 
-    assert replay == DocumentClassified(RUN_ID, replayed=True)
+    assert replay == DocumentClassified(
+        RUN_ID,
+        replayed=True,
+        document_type=BusinessDocumentType.INVOICE,
+    )
     assert unit_of_work.commit_count == 1
 
 

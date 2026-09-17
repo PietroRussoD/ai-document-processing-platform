@@ -9,6 +9,7 @@ from document_platform.application.ports import (
     UnitOfWorkFactory,
 )
 from document_platform.domain.processing import (
+    BusinessDocumentType,
     DocumentClassificationPolicy,
     ProcessingTextSource,
 )
@@ -23,6 +24,7 @@ class ClassifyDocument:
 class DocumentClassified:
     processing_run_id: UUID
     replayed: bool
+    document_type: BusinessDocumentType
 
 
 class ClassificationRequiresTextSelection(RuntimeError):
@@ -51,7 +53,11 @@ class ClassifyDocumentHandler:
         async with self._unit_of_work_factory() as unit_of_work:
             existing = await unit_of_work.document_classifications.get(command.processing_run_id)
             if existing is not None:
-                return DocumentClassified(command.processing_run_id, replayed=True)
+                return DocumentClassified(
+                    command.processing_run_id,
+                    replayed=True,
+                    document_type=existing.document_type,
+                )
             selection = await unit_of_work.document_text_selections.get(command.processing_run_id)
             if selection is None:
                 raise ClassificationRequiresTextSelection(command.processing_run_id)
@@ -76,5 +82,18 @@ class ClassifyDocumentHandler:
                 await unit_of_work.document_classifications.add(classification)
                 await unit_of_work.commit()
             except DocumentClassificationAlreadyExists:
-                return DocumentClassified(command.processing_run_id, replayed=True)
-            return DocumentClassified(command.processing_run_id, replayed=False)
+                persisted = await unit_of_work.document_classifications.get(
+                    command.processing_run_id
+                )
+                if persisted is None:
+                    raise
+                return DocumentClassified(
+                    command.processing_run_id,
+                    replayed=True,
+                    document_type=persisted.document_type,
+                )
+            return DocumentClassified(
+                command.processing_run_id,
+                replayed=False,
+                document_type=classification.document_type,
+            )

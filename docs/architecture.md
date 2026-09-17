@@ -89,6 +89,9 @@ sequenceDiagram
     Worker->>DB: Persist immutable OCR extraction per run
     Worker->>DB: Persist canonical text source and selection reason
     Worker->>DB: Persist deterministic document type and classification reason
+    alt Classified as invoice
+        Worker->>DB: Persist deterministic structured invoice extraction
+    end
     Worker->>DB: Mark technical processing run COMPLETED
 ```
 
@@ -120,6 +123,13 @@ for invoice, purchase-order and credit-note terms. Exactly one category match
 is persisted as that type; no match and multiple matches persist `UNKNOWN` with
 distinct reasons. This is a deterministic baseline for later model evaluation,
 not a claim of AI accuracy.
+
+For an `INVOICE` classification only, the workflow invokes a deterministic
+structured extraction activity. It reads the selected canonical text and
+persists only explicitly labelled invoice fields. `PURCHASE_ORDER`,
+`CREDIT_NOTE` and `UNKNOWN` classifications skip that activity. The extraction
+record is immutable and keyed by the processing run, which makes activity
+retries safe. The status API does not expose this result yet.
 
 After those implemented stages succeed, `complete-processing-run` transitions
 the technical run from `RUNNING` to `COMPLETED`. The document itself remains
