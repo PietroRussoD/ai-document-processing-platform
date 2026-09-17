@@ -18,6 +18,10 @@ class ReviewResolutionRecord(Base):
         ),
         CheckConstraint("decision IN ('APPROVE', 'REJECT')", name="decision_valid"),
         CheckConstraint(
+            "length(btrim(reviewer_id)) BETWEEN 1 AND 200",
+            name="reviewer_id_valid",
+        ),
+        CheckConstraint(
             "review_note IS NULL OR length(btrim(review_note)) BETWEEN 1 AND 2000",
             name="review_note_valid",
         ),
@@ -33,5 +37,6 @@ class ReviewResolutionRecord(Base):
         primary_key=True,
     )
     decision: Mapped[str] = mapped_column(String(16))
+    reviewer_id: Mapped[str] = mapped_column(String(200))
     review_note: Mapped[str | None] = mapped_column(Text())
     resolved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

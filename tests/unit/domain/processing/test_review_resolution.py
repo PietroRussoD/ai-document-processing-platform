@@ -10,7 +10,10 @@ from document_platform.domain.processing import (
     ReviewResolution,
     ReviewResolutionDecision,
 )
-from document_platform.domain.processing.review_resolution import MAX_REVIEW_NOTE_LENGTH
+from document_platform.domain.processing.review_resolution import (
+    MAX_REVIEW_NOTE_LENGTH,
+    MAX_REVIEWER_ID_LENGTH,
+)
 
 RUN_ID = UUID("b8b8b8b8-b8b8-48b8-88b8-b8b8b8b8b8b8")
 AT = datetime(2026, 9, 17, 14, 0, tzinfo=UTC)
@@ -20,6 +23,7 @@ def resolution(**overrides: object) -> ReviewResolution:
     values: dict[str, object] = {
         "processing_run_id": RUN_ID,
         "decision": ReviewResolutionDecision.APPROVE,
+        "reviewer_id": "operator-42",
         "review_note": None,
         "resolved_at": AT,
     }
@@ -31,6 +35,8 @@ def resolution(**overrides: object) -> ReviewResolution:
     ("field", "value"),
     [
         ("processing_run_id", UUID(int=0)),
+        ("reviewer_id", "   "),
+        ("reviewer_id", "a" * (MAX_REVIEWER_ID_LENGTH + 1)),
         ("review_note", "   "),
         ("review_note", "a" * (MAX_REVIEW_NOTE_LENGTH + 1)),
         ("resolved_at", datetime(2026, 9, 17, 14, 0)),

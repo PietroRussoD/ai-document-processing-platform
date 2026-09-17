@@ -47,6 +47,7 @@ async def test_adds_and_loads_an_immutable_review_resolution(
     resolution = ReviewResolution(
         processing_run_id=RUN_ID,
         decision=ReviewResolutionDecision.APPROVE,
+        reviewer_id="operator-42",
         review_note="Validated against the supplier record.",
         resolved_at=AT,
     )

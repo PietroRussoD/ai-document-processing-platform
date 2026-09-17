@@ -6,6 +6,7 @@ from enum import StrEnum
 from uuid import UUID
 
 MAX_REVIEW_NOTE_LENGTH = 2_000
+MAX_REVIEWER_ID_LENGTH = 200
 
 
 class ReviewResolutionDecision(StrEnum):
@@ -21,12 +22,19 @@ class InvalidReviewResolution(ValueError):
 class ReviewResolution:
     processing_run_id: UUID
     decision: ReviewResolutionDecision
+    reviewer_id: str
     review_note: str | None
     resolved_at: datetime
 
     def __post_init__(self) -> None:
         if self.processing_run_id.int == 0:
             raise InvalidReviewResolution("processing_run_id must not be the nil UUID")
+        if not self.reviewer_id.strip():
+            raise InvalidReviewResolution("reviewer_id must not be blank")
+        if len(self.reviewer_id) > MAX_REVIEWER_ID_LENGTH:
+            raise InvalidReviewResolution(
+                f"reviewer_id must not exceed {MAX_REVIEWER_ID_LENGTH} characters"
+            )
         if self.review_note is not None:
             if not self.review_note.strip():
                 raise InvalidReviewResolution("review_note must not be blank when provided")

@@ -33,6 +33,7 @@ def _to_record(resolution: ReviewResolution) -> ReviewResolutionRecord:
     return ReviewResolutionRecord(
         processing_run_id=resolution.processing_run_id,
         decision=resolution.decision.value,
+        reviewer_id=resolution.reviewer_id,
         review_note=resolution.review_note,
         resolved_at=resolution.resolved_at,
     )
@@ -42,6 +43,7 @@ def _to_domain(record: ReviewResolutionRecord) -> ReviewResolution:
     return ReviewResolution(
         processing_run_id=record.processing_run_id,
         decision=ReviewResolutionDecision(record.decision),
+        reviewer_id=record.reviewer_id,
         review_note=record.review_note,
         resolved_at=record.resolved_at,
     )
