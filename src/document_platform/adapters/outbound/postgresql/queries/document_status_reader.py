@@ -11,11 +11,13 @@ from document_platform.adapters.outbound.postgresql.models import (
     DocumentRecord,
     DocumentTextExtractionRecord,
     DocumentTextSelectionRecord,
+    InvoiceExtractionRecord,
     ProcessingRunRecord,
 )
 from document_platform.application.ports import (
     ClassificationMetadataView,
     DocumentStatusView,
+    InvoiceExtractionMetadataView,
     OcrExtractionMetadataView,
     ProcessingOutputView,
     ProcessingRunStatusView,
@@ -27,6 +29,7 @@ from document_platform.domain.processing import (
     BusinessDocumentType,
     DocumentClassificationReason,
     EmbeddedTextQuality,
+    InvoiceExtractionMethod,
     OcrExtractionMethod,
     ProcessingRunStatus,
     ProcessingTextSelectionReason,
@@ -48,6 +51,7 @@ class SqlAlchemyDocumentStatusReader:
                 DocumentOcrExtractionRecord,
                 DocumentTextSelectionRecord,
                 DocumentClassificationRecord,
+                InvoiceExtractionRecord,
             )
             .join(ProcessingRunRecord, ProcessingRunRecord.document_id == DocumentRecord.id)
             .outerjoin(
@@ -66,6 +70,10 @@ class SqlAlchemyDocumentStatusReader:
                 DocumentClassificationRecord,
                 DocumentClassificationRecord.processing_run_id == ProcessingRunRecord.id,
             )
+            .outerjoin(
+                InvoiceExtractionRecord,
+                InvoiceExtractionRecord.processing_run_id == ProcessingRunRecord.id,
+            )
             .where(DocumentRecord.id == document_id)
             .order_by(ProcessingRunRecord.queued_at.desc(), ProcessingRunRecord.id.desc())
             .limit(1)
@@ -82,6 +90,7 @@ class SqlAlchemyDocumentStatusReader:
         ocr_text = row[3]
         selected_text = row[4]
         classification = row[5]
+        invoice_extraction = row[6]
         return DocumentStatusView(
             id=document.id,
             original_filename=document.original_filename,
@@ -105,6 +114,7 @@ class SqlAlchemyDocumentStatusReader:
                     ocr_text=ocr_text,
                     selected_text=selected_text,
                     classification=classification,
+                    invoice_extraction=invoice_extraction,
                 ),
             ),
         )
@@ -116,8 +126,12 @@ def _to_processing_output(
     ocr_text: DocumentOcrExtractionRecord | None,
     selected_text: DocumentTextSelectionRecord | None,
     classification: DocumentClassificationRecord | None,
+    invoice_extraction: InvoiceExtractionRecord | None,
 ) -> ProcessingOutputView | None:
-    if all(value is None for value in (embedded_text, ocr_text, selected_text, classification)):
+    if all(
+        value is None
+        for value in (embedded_text, ocr_text, selected_text, classification, invoice_extraction)
+    ):
         return None
     return ProcessingOutputView(
         embedded_text=(
@@ -159,6 +173,19 @@ def _to_processing_output(
                 classified_at=classification.classified_at,
             )
             if classification is not None
+            else None
+        ),
+        invoice_extraction=(
+            InvoiceExtractionMetadataView(
+                method=InvoiceExtractionMethod(invoice_extraction.method),
+                invoice_number=invoice_extraction.invoice_number,
+                issue_date=invoice_extraction.issue_date,
+                supplier_name=invoice_extraction.supplier_name,
+                currency=invoice_extraction.currency,
+                total_amount=invoice_extraction.total_amount,
+                extracted_at=invoice_extraction.extracted_at,
+            )
+            if invoice_extraction is not None
             else None
         ),
     )

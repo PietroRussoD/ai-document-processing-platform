@@ -41,6 +41,15 @@ test("shows safe processing metadata without extracted text", () => {
                     reason: "KEYWORD_MATCHED",
                     classified_at: "2026-09-16T12:00:03Z",
                 },
+                invoice_extraction: {
+                    method: "DETERMINISTIC_RULES",
+                    invoice_number: "INV-42",
+                    issue_date: "2026-09-16",
+                    supplier_name: "Acme Ltd",
+                    currency: "EUR",
+                    total_amount: "12.50",
+                    extracted_at: "2026-09-16T12:00:04Z",
+                },
             }}
         />,
     );
@@ -49,6 +58,8 @@ test("shows safe processing metadata without extracted text", () => {
     expect(screen.getByText("Tesseract · 22 characters")).toBeVisible();
     expect(screen.getByText("OCR has more text")).toBeVisible();
     expect(screen.getByText("Invoice")).toBeVisible();
+    expect(screen.getByText("INV-42")).toBeVisible();
+    expect(screen.getByText("EUR 12.50")).toBeVisible();
     expect(
         screen.queryByText("Invoice 42 Total 12.50"),
     ).not.toBeInTheDocument();

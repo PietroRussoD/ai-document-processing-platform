@@ -129,7 +129,8 @@ structured extraction activity. It reads the selected canonical text and
 persists only explicitly labelled invoice fields. `PURCHASE_ORDER`,
 `CREDIT_NOTE` and `UNKNOWN` classifications skip that activity. The extraction
 record is immutable and keyed by the processing run, which makes activity
-retries safe. The status API does not expose this result yet.
+retries safe. The status API and console expose the structured values but not
+the source document text or storage paths.
 
 After those implemented stages succeed, `complete-processing-run` transitions
 the technical run from `RUNNING` to `COMPLETED`. The document itself remains

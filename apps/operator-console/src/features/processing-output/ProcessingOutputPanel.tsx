@@ -1,4 +1,10 @@
-import { type LucideIcon, ScanText, Tags, Waypoints } from "lucide-react";
+import {
+    ReceiptText,
+    type LucideIcon,
+    ScanText,
+    Tags,
+    Waypoints,
+} from "lucide-react";
 import { type ReactNode } from "react";
 
 import { type DocumentStatus } from "../../api/documentApi";
@@ -43,7 +49,7 @@ export function ProcessingOutputPanel({ output }: ProcessingOutputPanelProps) {
             >
                 Processing results
             </h3>
-            <div className="mt-4 grid gap-5 lg:grid-cols-3">
+            <div className="mt-4 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
                 <ResultGroup icon={ScanText} title="Text extraction">
                     <ResultValue
                         label="Embedded text"
@@ -109,9 +115,65 @@ export function ProcessingOutputPanel({ output }: ProcessingOutputPanelProps) {
                         </>
                     )}
                 </ResultGroup>
+                <ResultGroup icon={ReceiptText} title="Invoice extraction">
+                    {output.invoice_extraction === null ? (
+                        <ResultValue
+                            label="Extraction"
+                            value={invoiceExtractionStatus(output)}
+                        />
+                    ) : (
+                        <>
+                            <ResultValue
+                                label="Invoice number"
+                                value={
+                                    output.invoice_extraction.invoice_number ??
+                                    "Not found"
+                                }
+                            />
+                            <ResultValue
+                                label="Issue date"
+                                value={
+                                    output.invoice_extraction.issue_date ??
+                                    "Not found"
+                                }
+                            />
+                            <ResultValue
+                                label="Supplier"
+                                value={
+                                    output.invoice_extraction.supplier_name ??
+                                    "Not found"
+                                }
+                            />
+                            <ResultValue
+                                label="Total"
+                                value={formatTotal(output.invoice_extraction)}
+                            />
+                        </>
+                    )}
+                </ResultGroup>
             </div>
         </section>
     );
+}
+
+function invoiceExtractionStatus(output: ProcessingOutput): string {
+    if (output.classification === null) {
+        return "Pending";
+    }
+    return output.classification.document_type === "INVOICE"
+        ? "Pending"
+        : "Not applicable";
+}
+
+function formatTotal(
+    extraction: NonNullable<ProcessingOutput["invoice_extraction"]>,
+): string {
+    if (extraction.total_amount === null) {
+        return "Not found";
+    }
+    return extraction.currency === null
+        ? extraction.total_amount
+        : `${extraction.currency} ${extraction.total_amount}`;
 }
 
 function ResultGroup({

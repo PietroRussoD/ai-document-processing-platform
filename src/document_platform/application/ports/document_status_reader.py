@@ -1,7 +1,8 @@
 """Document-status read model contract."""
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 from typing import Protocol
 from uuid import UUID
 
@@ -10,6 +11,7 @@ from document_platform.domain.processing import (
     BusinessDocumentType,
     DocumentClassificationReason,
     EmbeddedTextQuality,
+    InvoiceExtractionMethod,
     OcrExtractionMethod,
     ProcessingRunStatus,
     ProcessingTextSelectionReason,
@@ -52,11 +54,23 @@ class ClassificationMetadataView:
 
 
 @dataclass(frozen=True, slots=True)
+class InvoiceExtractionMetadataView:
+    method: InvoiceExtractionMethod
+    invoice_number: str | None
+    issue_date: date | None
+    supplier_name: str | None
+    currency: str | None
+    total_amount: Decimal | None
+    extracted_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
 class ProcessingOutputView:
     embedded_text: TextExtractionMetadataView | None
     ocr_text: OcrExtractionMetadataView | None
     selected_text: TextSelectionMetadataView | None
     classification: ClassificationMetadataView | None
+    invoice_extraction: InvoiceExtractionMetadataView | None
 
 
 @dataclass(frozen=True, slots=True)

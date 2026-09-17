@@ -179,6 +179,93 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "InvoiceExtractionMetadataResponse": {
+        "properties": {
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "extracted_at": {
+            "format": "date-time",
+            "title": "Extracted At",
+            "type": "string"
+          },
+          "invoice_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invoice Number"
+          },
+          "issue_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issue Date"
+          },
+          "method": {
+            "$ref": "#/components/schemas/InvoiceExtractionMethod"
+          },
+          "supplier_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supplier Name"
+          },
+          "total_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Amount"
+          }
+        },
+        "required": [
+          "method",
+          "invoice_number",
+          "issue_date",
+          "supplier_name",
+          "currency",
+          "total_amount",
+          "extracted_at"
+        ],
+        "title": "InvoiceExtractionMetadataResponse",
+        "type": "object"
+      },
+      "InvoiceExtractionMethod": {
+        "enum": [
+          "DETERMINISTIC_RULES",
+          "OLLAMA"
+        ],
+        "title": "InvoiceExtractionMethod",
+        "type": "string"
+      },
       "LivenessResponse": {
         "properties": {
           "status": {
@@ -253,6 +340,16 @@
               }
             ]
           },
+          "invoice_extraction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InvoiceExtractionMetadataResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "ocr_text": {
             "anyOf": [
               {
@@ -278,7 +375,8 @@
           "embedded_text",
           "ocr_text",
           "selected_text",
-          "classification"
+          "classification",
+          "invoice_extraction"
         ],
         "title": "ProcessingOutputResponse",
         "type": "object"

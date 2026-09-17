@@ -1,6 +1,6 @@
 """Document-ingestion HTTP endpoints."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Any, cast
 from uuid import UUID
 
@@ -22,6 +22,7 @@ from document_platform.domain.processing import (
     BusinessDocumentType,
     DocumentClassificationReason,
     EmbeddedTextQuality,
+    InvoiceExtractionMethod,
     OcrExtractionMethod,
     ProcessingRunStatus,
     ProcessingTextSelectionReason,
@@ -75,6 +76,18 @@ class ClassificationMetadataResponse(BaseModel):
     classified_at: datetime
 
 
+class InvoiceExtractionMetadataResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    method: InvoiceExtractionMethod
+    invoice_number: str | None
+    issue_date: date | None
+    supplier_name: str | None
+    currency: str | None
+    total_amount: str | None
+    extracted_at: datetime
+
+
 class ProcessingOutputResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -82,6 +95,7 @@ class ProcessingOutputResponse(BaseModel):
     ocr_text: OcrExtractionMetadataResponse | None
     selected_text: TextSelectionMetadataResponse | None
     classification: ClassificationMetadataResponse | None
+    invoice_extraction: InvoiceExtractionMetadataResponse | None
 
 
 class ProcessingRunStatusResponse(BaseModel):

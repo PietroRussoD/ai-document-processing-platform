@@ -152,6 +152,30 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** InvoiceExtractionMetadataResponse */
+        InvoiceExtractionMetadataResponse: {
+            /** Currency */
+            currency: string | null;
+            /**
+             * Extracted At
+             * Format: date-time
+             */
+            extracted_at: string;
+            /** Invoice Number */
+            invoice_number: string | null;
+            /** Issue Date */
+            issue_date: string | null;
+            method: components["schemas"]["InvoiceExtractionMethod"];
+            /** Supplier Name */
+            supplier_name: string | null;
+            /** Total Amount */
+            total_amount: string | null;
+        };
+        /**
+         * InvoiceExtractionMethod
+         * @enum {string}
+         */
+        InvoiceExtractionMethod: "DETERMINISTIC_RULES" | "OLLAMA";
         /** LivenessResponse */
         LivenessResponse: {
             /**
@@ -185,6 +209,7 @@ export interface components {
         ProcessingOutputResponse: {
             classification: components["schemas"]["ClassificationMetadataResponse"] | null;
             embedded_text: components["schemas"]["TextExtractionMetadataResponse"] | null;
+            invoice_extraction: components["schemas"]["InvoiceExtractionMetadataResponse"] | null;
             ocr_text: components["schemas"]["OcrExtractionMetadataResponse"] | null;
             selected_text: components["schemas"]["TextSelectionMetadataResponse"] | null;
         };

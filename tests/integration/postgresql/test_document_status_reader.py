@@ -1,6 +1,7 @@
 """PostgreSQL document-status read-model integration tests."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from uuid import uuid4
 
 import pytest
@@ -14,6 +15,7 @@ from document_platform.adapters.outbound.postgresql.repositories import (
     SqlAlchemyDocumentRepository,
     SqlAlchemyDocumentTextExtractionRepository,
     SqlAlchemyDocumentTextSelectionRepository,
+    SqlAlchemyInvoiceExtractionRepository,
     SqlAlchemyProcessingRunRepository,
 )
 from document_platform.domain.documents import Document
@@ -25,6 +27,8 @@ from document_platform.domain.processing import (
     DocumentTextExtraction,
     DocumentTextSelection,
     EmbeddedTextQuality,
+    InvoiceExtraction,
+    InvoiceExtractionMethod,
     OcrExtractionMethod,
     ProcessingRun,
     ProcessingTextSelectionReason,
@@ -138,6 +142,16 @@ async def test_returns_processing_output_metadata_without_document_text(
         reason=DocumentClassificationReason.KEYWORD_MATCHED,
         classified_at=ACCEPTED_AT,
     )
+    invoice_extraction = InvoiceExtraction(
+        processing_run_id=run_id,
+        method=InvoiceExtractionMethod.DETERMINISTIC_RULES,
+        invoice_number="INV-42",
+        issue_date=date(2026, 9, 14),
+        supplier_name="Acme Ltd",
+        currency="EUR",
+        total_amount=Decimal("12.50"),
+        extracted_at=ACCEPTED_AT,
+    )
 
     try:
         async with database.sessions.begin() as session:
@@ -147,6 +161,7 @@ async def test_returns_processing_output_metadata_without_document_text(
             await SqlAlchemyDocumentOcrExtractionRepository(session).add(ocr)
             await SqlAlchemyDocumentTextSelectionRepository(session).add(selection)
             await SqlAlchemyDocumentClassificationRepository(session).add(classification)
+            await SqlAlchemyInvoiceExtractionRepository(session).add(invoice_extraction)
 
         result = await SqlAlchemyDocumentStatusReader(database.sessions).get(document_id)
     finally:
@@ -163,4 +178,7 @@ async def test_returns_processing_output_metadata_without_document_text(
     assert output.selected_text.source is ProcessingTextSource.OCR
     assert output.classification is not None
     assert output.classification.document_type is BusinessDocumentType.INVOICE
+    assert output.invoice_extraction is not None
+    assert output.invoice_extraction.invoice_number == "INV-42"
+    assert output.invoice_extraction.total_amount == Decimal("12.50")
     assert not hasattr(output.embedded_text, "text")

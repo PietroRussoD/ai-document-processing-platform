@@ -13,8 +13,8 @@ fallback, canonical-text selection and deterministic document classification.
 The console derives a safe processing timeline from persisted metadata; it
 never renders extracted document text.
 When classification identifies an invoice, the worker persists a conservative
-structured extraction from explicitly labelled fields. That extraction is not
-yet exposed by the status API or console.
+structured extraction from explicitly labelled fields. The status API and
+console expose those structured fields, but never the source document text.
 The API accepts bounded PDF uploads through real validation, local blob storage
 and atomic PostgreSQL registration.
 A read endpoint exposes the current document and processing-run status. The
