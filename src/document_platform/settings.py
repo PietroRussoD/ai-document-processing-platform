@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Annotated, Literal
 
-from pydantic import Field, PostgresDsn
+from pydantic import Field, PostgresDsn, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 type Environment = Literal["local", "test", "production"]
@@ -42,3 +42,19 @@ class Settings(BaseSettings):
     dispatcher_batch_size: Annotated[int, Field(ge=1, le=100)] = 10
     dispatcher_lease_seconds: Annotated[float, Field(gt=0, le=300)] = 30.0
     dispatcher_poll_seconds: Annotated[float, Field(gt=0, le=60)] = 2.0
+    review_operator_token: SecretStr | None = None
+    review_operator_id: Annotated[str, Field(min_length=1, max_length=200)] = "local-reviewer"
+
+    @field_validator("review_operator_token")
+    @classmethod
+    def validate_review_operator_token(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is not None and len(value.get_secret_value()) < 32:
+            raise ValueError("review_operator_token must contain at least 32 characters")
+        return value
+
+    @field_validator("review_operator_id")
+    @classmethod
+    def validate_review_operator_id(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("review_operator_id must not be blank")
+        return value

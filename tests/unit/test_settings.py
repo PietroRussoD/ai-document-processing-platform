@@ -35,6 +35,8 @@ def test_uses_safe_local_defaults(
     assert settings.dispatcher_batch_size == 10
     assert settings.dispatcher_lease_seconds == 30.0
     assert settings.dispatcher_poll_seconds == 2.0
+    assert settings.review_operator_token is None
+    assert settings.review_operator_id == "local-reviewer"
 
 
 def test_rejects_an_unknown_environment(monkeypatch: pytest.MonkeyPatch) -> None:
