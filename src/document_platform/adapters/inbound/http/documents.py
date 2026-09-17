@@ -1,11 +1,12 @@
 """Document-ingestion HTTP endpoints."""
 
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Annotated, Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, File, Header, Request, UploadFile, status
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from document_platform.adapters.inbound.http.problems import ProblemDetails
 from document_platform.adapters.inbound.http.upload_staging import stage_upload
@@ -88,6 +89,11 @@ class InvoiceExtractionMetadataResponse(BaseModel):
     currency: str | None
     total_amount: str | None
     extracted_at: datetime
+
+    @field_validator("total_amount", mode="before")
+    @classmethod
+    def stringify_total_amount(cls, value: Decimal | str | None) -> str | None:
+        return str(value) if value is not None else None
 
 
 class InvoiceValidationMetadataResponse(BaseModel):
