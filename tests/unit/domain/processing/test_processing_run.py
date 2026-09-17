@@ -93,6 +93,21 @@ def test_resumes_after_review_without_counting_a_retry() -> None:
     assert resumed.attempt_count == 1
 
 
+def test_completes_a_resolved_review_without_resuming_processing() -> None:
+    review_required = (
+        queued_run()
+        .start(at=QUEUED_AT + timedelta(seconds=1))
+        .require_review(at=QUEUED_AT + timedelta(seconds=2))
+    )
+
+    completed = review_required.complete_after_review(at=QUEUED_AT + timedelta(seconds=3))
+
+    assert completed.status is ProcessingRunStatus.COMPLETED
+    assert completed.finished_at == QUEUED_AT + timedelta(seconds=3)
+    assert completed.attempt_count == 1
+    assert completed.version == review_required.version + 1
+
+
 @pytest.mark.parametrize(
     "run",
     [

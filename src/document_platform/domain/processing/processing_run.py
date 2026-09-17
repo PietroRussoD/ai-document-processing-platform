@@ -57,7 +57,9 @@ _ALLOWED_TRANSITIONS: dict[ProcessingRunStatus, frozenset[ProcessingRunStatus]] 
     ProcessingRunStatus.WAITING_RETRY: frozenset(
         {ProcessingRunStatus.RUNNING, ProcessingRunStatus.CANCELLED}
     ),
-    ProcessingRunStatus.REVIEW_REQUIRED: frozenset({ProcessingRunStatus.RUNNING}),
+    ProcessingRunStatus.REVIEW_REQUIRED: frozenset(
+        {ProcessingRunStatus.RUNNING, ProcessingRunStatus.COMPLETED}
+    ),
     ProcessingRunStatus.COMPLETED: frozenset(),
     ProcessingRunStatus.FAILED: frozenset(),
     ProcessingRunStatus.CANCELLED: frozenset(),
@@ -160,6 +162,10 @@ class ProcessingRun:
     def resume_after_review(self, *, at: datetime) -> Self:
         self._require_status(ProcessingRunStatus.REVIEW_REQUIRED, operation="resume review")
         return self._transition_to(ProcessingRunStatus.RUNNING, at=at)
+
+    def complete_after_review(self, *, at: datetime) -> Self:
+        self._require_status(ProcessingRunStatus.REVIEW_REQUIRED, operation="complete review")
+        return self._transition_to(ProcessingRunStatus.COMPLETED, at=at, mark_finished=True)
 
     def complete(self, *, at: datetime) -> Self:
         return self._transition_to(ProcessingRunStatus.COMPLETED, at=at, mark_finished=True)
