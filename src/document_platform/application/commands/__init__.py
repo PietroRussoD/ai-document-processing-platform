@@ -71,6 +71,12 @@ from document_platform.application.commands.start_processing_run import (
     StartProcessingRun,
     StartProcessingRunHandler,
 )
+from document_platform.application.commands.validate_invoice import (
+    InvoiceValidated,
+    InvoiceValidationRequiresExtraction,
+    ValidateInvoice,
+    ValidateInvoiceHandler,
+)
 
 __all__ = [
     "AcceptDocumentUpload",
@@ -100,6 +106,8 @@ __all__ = [
     "InvoiceExtractionRequiresClassification",
     "InvoiceExtractionRequiresSelectedText",
     "InvoiceExtractionRequiresTextSelection",
+    "InvoiceValidated",
+    "InvoiceValidationRequiresExtraction",
     "OcrTextExtractionResult",
     "InvalidProcessingDocumentStart",
     "InvalidProcessingRunStart",
@@ -121,5 +129,7 @@ __all__ = [
     "TextExtractionDocumentNotFound",
     "TextExtractionRunNotFound",
     "UnsupportedDocumentMediaType",
+    "ValidateInvoice",
+    "ValidateInvoiceHandler",
     "WorkflowStartDispatchResult",
 ]
