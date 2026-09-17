@@ -5,14 +5,13 @@ data from business documents.
 
 ## Status
 
-The [`v0.1.0` release](docs/releases/v0.1.0.md) is the first functional
-ingestion milestone. Current `v0.2.0.dev0` work adds a durable Temporal
-handoff, bounded embedded-text extraction, a local OCR fallback, canonical-text
-selection and deterministic document classification. For invoices, the worker
-persists explicitly labelled fields and an immutable validation decision. A
-complete invoice is automatically approved; an incomplete one is handed off to
-review. The console derives a safe timeline from persisted metadata and never
-renders extracted document text.
+The [`v0.2.0` release](docs/releases/v0.2.0.md) adds durable document
+processing to the `v0.1.0` ingestion milestone: bounded embedded-text
+extraction, a local OCR fallback, canonical-text selection and deterministic
+document classification. For invoices, the worker persists explicitly labelled
+fields and an immutable validation decision. A complete invoice is automatically
+approved; an incomplete one is handed off to review. The console derives a safe
+timeline from persisted metadata and never renders extracted document text.
 The API accepts bounded PDF uploads through real validation, local blob storage
 and atomic PostgreSQL registration.
 A read endpoint exposes the current document and processing-run status. The
