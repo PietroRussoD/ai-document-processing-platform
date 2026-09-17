@@ -73,6 +73,10 @@ from document_platform.application.ports.processing_run_repository import (
     ProcessingRunAlreadyExists,
     ProcessingRunRepository,
 )
+from document_platform.application.ports.review_resolution_repository import (
+    ReviewResolutionAlreadyExists,
+    ReviewResolutionRepository,
+)
 from document_platform.application.ports.runtime import Clock, IdGenerator
 from document_platform.application.ports.unit_of_work import UnitOfWork, UnitOfWorkFactory
 from document_platform.application.ports.upload_idempotency_repository import (
@@ -134,6 +138,8 @@ __all__ = [
     "ProcessingRunAlreadyExists",
     "ProcessingRunRepository",
     "ProcessingRunStatusView",
+    "ReviewResolutionAlreadyExists",
+    "ReviewResolutionRepository",
     "StoredBlob",
     "TextExtractionMetadataView",
     "TextSelectionMetadataView",

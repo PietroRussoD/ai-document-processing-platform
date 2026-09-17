@@ -49,6 +49,11 @@ from document_platform.domain.processing.processing_run import (
     ProcessingRun,
     ProcessingRunStatus,
 )
+from document_platform.domain.processing.review_resolution import (
+    InvalidReviewResolution,
+    ReviewResolution,
+    ReviewResolutionDecision,
+)
 from document_platform.domain.processing.workflow_start_request import (
     InvalidWorkflowStartRequest,
     WorkflowStartRequest,
@@ -82,6 +87,9 @@ __all__ = [
     "InvoiceValidationPolicy",
     "ProcessingRun",
     "ProcessingRunStatus",
+    "InvalidReviewResolution",
+    "ReviewResolution",
+    "ReviewResolutionDecision",
     "ProcessingTextSelectionPolicy",
     "ProcessingTextSelectionReason",
     "ProcessingTextSource",

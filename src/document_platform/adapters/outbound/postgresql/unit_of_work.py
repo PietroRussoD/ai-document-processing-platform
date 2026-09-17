@@ -14,6 +14,7 @@ from document_platform.adapters.outbound.postgresql.repositories import (
     SqlAlchemyInvoiceExtractionRepository,
     SqlAlchemyInvoiceValidationRepository,
     SqlAlchemyProcessingRunRepository,
+    SqlAlchemyReviewResolutionRepository,
     SqlAlchemyUploadIdempotencyRepository,
     SqlAlchemyWorkflowStartRequestRepository,
 )
@@ -26,6 +27,7 @@ from document_platform.application.ports import (
     InvoiceExtractionRepository,
     InvoiceValidationRepository,
     ProcessingRunRepository,
+    ReviewResolutionRepository,
     UploadIdempotencyRepository,
     WorkflowStartRequestRepository,
 )
@@ -43,6 +45,7 @@ class SqlAlchemyUnitOfWork:
         self._invoice_extractions: InvoiceExtractionRepository | None = None
         self._invoice_validations: InvoiceValidationRepository | None = None
         self._processing_runs: ProcessingRunRepository | None = None
+        self._review_resolutions: ReviewResolutionRepository | None = None
         self._upload_idempotency: UploadIdempotencyRepository | None = None
         self._workflow_start_requests: WorkflowStartRequestRepository | None = None
 
@@ -95,6 +98,12 @@ class SqlAlchemyUnitOfWork:
         return self._processing_runs
 
     @property
+    def review_resolutions(self) -> ReviewResolutionRepository:
+        if self._review_resolutions is None:
+            raise RuntimeError("unit of work is not active")
+        return self._review_resolutions
+
+    @property
     def upload_idempotency(self) -> UploadIdempotencyRepository:
         if self._upload_idempotency is None:
             raise RuntimeError("unit of work is not active")
@@ -119,6 +128,7 @@ class SqlAlchemyUnitOfWork:
         self._invoice_extractions = SqlAlchemyInvoiceExtractionRepository(self._session)
         self._invoice_validations = SqlAlchemyInvoiceValidationRepository(self._session)
         self._processing_runs = SqlAlchemyProcessingRunRepository(self._session)
+        self._review_resolutions = SqlAlchemyReviewResolutionRepository(self._session)
         self._upload_idempotency = SqlAlchemyUploadIdempotencyRepository(self._session)
         self._workflow_start_requests = SqlAlchemyWorkflowStartRequestRepository(self._session)
         return self
@@ -143,6 +153,7 @@ class SqlAlchemyUnitOfWork:
             self._invoice_extractions = None
             self._invoice_validations = None
             self._processing_runs = None
+            self._review_resolutions = None
             self._upload_idempotency = None
             self._workflow_start_requests = None
 

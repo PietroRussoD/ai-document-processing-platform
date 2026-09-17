@@ -24,6 +24,9 @@ from document_platform.application.ports.invoice_validation_repository import (
     InvoiceValidationRepository,
 )
 from document_platform.application.ports.processing_run_repository import ProcessingRunRepository
+from document_platform.application.ports.review_resolution_repository import (
+    ReviewResolutionRepository,
+)
 from document_platform.application.ports.upload_idempotency_repository import (
     UploadIdempotencyRepository,
 )
@@ -53,6 +56,9 @@ class UnitOfWork(Protocol):
 
     @property
     def invoice_validations(self) -> InvoiceValidationRepository: ...
+
+    @property
+    def review_resolutions(self) -> ReviewResolutionRepository: ...
 
     @property
     def processing_runs(self) -> ProcessingRunRepository: ...

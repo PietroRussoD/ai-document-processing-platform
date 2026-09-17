@@ -25,6 +25,9 @@ from document_platform.adapters.outbound.postgresql.models.invoice_validation_re
 from document_platform.adapters.outbound.postgresql.models.processing_run_record import (
     ProcessingRunRecord,
 )
+from document_platform.adapters.outbound.postgresql.models.review_resolution_record import (
+    ReviewResolutionRecord,
+)
 from document_platform.adapters.outbound.postgresql.models.upload_idempotency_record import (
     UploadIdempotencyRecordRow,
 )
@@ -42,6 +45,7 @@ __all__ = [
     "InvoiceExtractionRecord",
     "InvoiceValidationRecord",
     "ProcessingRunRecord",
+    "ReviewResolutionRecord",
     "UploadIdempotencyRecordRow",
     "WorkflowStartRequestRecord",
 ]
