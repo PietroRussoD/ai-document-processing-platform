@@ -7,14 +7,12 @@ data from business documents.
 
 The [`v0.1.0` release](docs/releases/v0.1.0.md) is the first functional
 ingestion milestone. Current `v0.2.0.dev0` work adds a durable Temporal
-handoff, a worker-driven `QUEUED -> RUNNING` transition, and persisted bounded
-embedded-text extraction with PyMuPDF. It also includes a bounded local OCR
-fallback, canonical-text selection and deterministic document classification.
-The console derives a safe processing timeline from persisted metadata; it
-never renders extracted document text.
-When classification identifies an invoice, the worker persists a conservative
-structured extraction from explicitly labelled fields. The status API and
-console expose those structured fields, but never the source document text.
+handoff, bounded embedded-text extraction, a local OCR fallback, canonical-text
+selection and deterministic document classification. For invoices, the worker
+persists explicitly labelled fields and an immutable validation decision. A
+complete invoice is automatically approved; an incomplete one is handed off to
+review. The console derives a safe timeline from persisted metadata and never
+renders extracted document text.
 The API accepts bounded PDF uploads through real validation, local blob storage
 and atomic PostgreSQL registration.
 A read endpoint exposes the current document and processing-run status. The
@@ -35,9 +33,9 @@ returns extracted document text or blob paths.
 
 ## Planned Extensions
 
-- Ollama for local structured extraction;
+- Ollama for local structured extraction comparison;
 - optional S3-compatible storage and external-provider comparison;
-- processing, review and retention workflows.
+- human-review resolution, notifications and retention workflows.
 
 ## Architecture
 
@@ -53,7 +51,7 @@ HTTP / React -> application use cases -> domain rules
 
 See [architecture documentation](docs/architecture.md) and
 [architectural decisions](docs/decisions/). The repeatable release checks are
-documented in the [v0.1 verification runbook](docs/runbooks/v0.1-verification.md).
+documented in the [v0.2 verification runbook](docs/runbooks/v0.2-verification.md).
 
 ## Repository Layout
 
@@ -142,12 +140,11 @@ marks low-text documents as `OCR_RECOMMENDED`. Only those runs execute bounded
 Tesseract OCR and persist an immutable OCR result; activity retries reuse it.
 The workflow then persists the selected canonical source and its reason, so
 downstream stages receive a traceable input. It classifies that selected text
-using a small deterministic, word-boundary keyword policy. The persisted type
-and reason distinguish a single keyword match from no match or an ambiguous
-match. It then marks the technical processing run `COMPLETED`, which stops
-console polling. The document remains `PROCESSING` until a future structured
-validation or review decision changes its business lifecycle. Structured
-extraction remains future work.
+using a small deterministic, word-boundary keyword policy. For invoices, it
+extracts explicitly labelled fields, validates their completeness and persists
+the decision. `AUTO_APPROVE` atomically transitions the document to `APPROVED`
+and the run to `COMPLETED`; `REVIEW_REQUIRED` transitions both to review. The
+console stops polling after either automated outcome.
 
 Before starting an OCR-recommended workflow, install the `tesseract` executable
 with the required language data and verify it with `tesseract --list-langs`.
@@ -168,8 +165,9 @@ content returns `409 Conflict`.
 
 The status endpoint returns public document metadata and the most recently queued
 processing run. Its optional `processing_output` contains only extraction counts,
-quality decisions, canonical-text selection and classification metadata. Internal
-storage paths and extracted text are never exposed by the HTTP contract.
+quality decisions, canonical-text selection, classification, invoice fields and
+validation reason codes. Internal storage paths and extracted text are never
+exposed by the HTTP contract.
 
 The versioned API contract is stored at
 [`docs/contracts/document-platform.openapi.json`](docs/contracts/document-platform.openapi.json).

@@ -5,9 +5,9 @@
 The platform accepts synthetic business documents and processes them
 asynchronously for validation and review. `v0.1` implemented the ingestion
 boundary; current `v0.2` development executes bounded text extraction, OCR
-fallback, canonical-text selection and deterministic classification. It is
-designed as a local-first system: a clean default run does not require cloud
-credentials or a paid AI provider.
+fallback, canonical-text selection, deterministic classification, invoice
+extraction and invoice validation. It is designed as a local-first system: a
+clean default run does not require cloud credentials or a paid AI provider.
 
 ## Implemented Components (`v0.2`)
 
@@ -38,8 +38,8 @@ flowchart LR
     Model -. optional .-> OpenAI[External provider]
 ```
 
-Structured extraction and review components are planned extensions. A model
-provider will never be an authority for business state.
+The local model comparison and human-review resolution are planned extensions.
+A model provider will never be an authority for business state.
 
 ## Dependency Direction
 
@@ -90,13 +90,20 @@ sequenceDiagram
     Worker->>DB: Persist canonical text source and selection reason
     Worker->>DB: Persist deterministic document type and classification reason
     alt Classified as invoice
-        Worker->>DB: Persist deterministic structured invoice extraction
+        Worker->>DB: Persist deterministic invoice extraction and validation
+        alt Validation auto-approves
+            Worker->>DB: Mark document APPROVED and run COMPLETED
+        else Validation requires review
+            Worker->>DB: Mark document and run REVIEW_REQUIRED
+        end
+    else Other document type
+        Worker->>DB: Mark technical processing run COMPLETED
     end
-    Worker->>DB: Mark technical processing run COMPLETED
 ```
 
 `v0.2` currently implements durable request claiming, application dispatch and
-five Temporal activities. The Temporal adapter starts the stable workflow ID
+the Temporal activity set for text extraction, OCR, selection, classification,
+invoice extraction, validation and lifecycle application. The Temporal adapter starts the stable workflow ID
 with an existing-running workflow treated as the same successful handoff. A
 separate dispatcher process owns the Temporal connection and polling loop; it
 is deliberately independent from the HTTP API so network I/O never occurs
@@ -117,26 +124,24 @@ strictly more non-whitespace characters; ties and lower-quality OCR remain on
 the embedded source. The persisted source and reason make this decision
 auditable and stable across retries.
 
-The final `classify-document` activity reads only the selected persisted text.
+The `classify-document` activity reads only the selected persisted text.
 Its initial local policy uses versioned keyword sets and word-boundary matching
 for invoice, purchase-order and credit-note terms. Exactly one category match
 is persisted as that type; no match and multiple matches persist `UNKNOWN` with
 distinct reasons. This is a deterministic baseline for later model evaluation,
 not a claim of AI accuracy.
 
-For an `INVOICE` classification only, the workflow invokes a deterministic
-structured extraction activity. It reads the selected canonical text and
-persists only explicitly labelled invoice fields. `PURCHASE_ORDER`,
-`CREDIT_NOTE` and `UNKNOWN` classifications skip that activity. The extraction
-record is immutable and keyed by the processing run, which makes activity
-retries safe. The status API and console expose the structured values but not
-the source document text or storage paths.
-
-After those implemented stages succeed, `complete-processing-run` transitions
-the technical run from `RUNNING` to `COMPLETED`. The document itself remains
-`PROCESSING`: it has not yet passed the future structured validation or human
-review decision. The terminal run state stops console polling and provides clear
-feedback that the current processing scope produced observable results.
+For an `INVOICE` classification only, the workflow invokes deterministic
+extraction and validation activities. Extraction reads the selected canonical
+text and persists only explicitly labelled fields. Validation checks required
+fields and positive totals, then persists an immutable `AUTO_APPROVE` or
+`REVIEW_REQUIRED` decision. Applying that decision updates the document and run
+in one transaction: auto-approval yields `APPROVED` and `COMPLETED`; incomplete
+data yields `REVIEW_REQUIRED` for both. `PURCHASE_ORDER`, `CREDIT_NOTE` and
+`UNKNOWN` classifications skip invoice stages and use `complete-processing-run`.
+All activity outputs are immutable and keyed by processing run, which makes
+retries safe. The status API and console expose safe structured values and
+reason codes, never source text or storage paths.
 
 The operator console derives its processing timeline from the same persisted
 metadata exposed by the status endpoint. It does not query Temporal directly,
@@ -154,8 +159,9 @@ Status queries use a dedicated read-model port. Its PostgreSQL adapter joins the
 document with its most recently queued processing run and returns only the fields
 required by the public API; it does not load aggregates or open a write transaction.
 When processing output is available, the same snapshot includes extraction
-counts, quality decisions, selection and classification metadata. It deliberately
-excludes extracted text, original blobs and internal storage paths.
+counts, quality decisions, selection, classification, structured invoice fields
+and validation reason codes. It deliberately excludes extracted text, original
+blobs and internal storage paths.
 
 The React upload feature keeps temporary file selection in local component state
 and delegates the remote mutation lifecycle to TanStack Query. One client-generated
@@ -183,8 +189,9 @@ sequenceDiagram
 ```
 
 TanStack Query pauses ordinary interval refetching when the page is in the
-background. The feature stops polling when the processing run reaches
-`COMPLETED`, `FAILED` or `CANCELLED`; review and retry states remain observable.
+background. The feature stops polling when automated processing reaches
+`COMPLETED`, `FAILED`, `CANCELLED` or `REVIEW_REQUIRED`; retry states remain
+observable.
 
 ## Domain Lifecycles
 
@@ -340,6 +347,8 @@ erDiagram
     PROCESSING_RUNS ||--o| DOCUMENT_OCR_EXTRACTIONS : produces
     PROCESSING_RUNS ||--o| DOCUMENT_TEXT_SELECTIONS : selects
     PROCESSING_RUNS ||--o| DOCUMENT_CLASSIFICATIONS : classifies
+    PROCESSING_RUNS ||--o| INVOICE_EXTRACTIONS : extracts
+    PROCESSING_RUNS ||--o| INVOICE_VALIDATIONS : validates
     UPLOAD_IDEMPOTENCY_RECORDS {
         string idempotency_key PK
         string request_fingerprint
@@ -377,6 +386,22 @@ erDiagram
         string reason
         timestamp classified_at
     }
+    INVOICE_EXTRACTIONS {
+        uuid processing_run_id PK, FK
+        string method
+        string invoice_number
+        date issue_date
+        string supplier_name
+        string currency
+        decimal total_amount
+        timestamp extracted_at
+    }
+    INVOICE_VALIDATIONS {
+        uuid processing_run_id PK, FK
+        string decision
+        jsonb issues
+        timestamp validated_at
+    }
 ```
 
 ## Repository Structure
@@ -396,7 +421,7 @@ tests/e2e/           API and browser journeys
 | Boundary | Current implementation | Planned extension |
 | --- | --- | --- |
 | Object storage | Local filesystem | S3-compatible adapter |
-| Structured extraction | Not implemented | Deterministic fake; Ollama; policy-gated OpenAI comparison |
+| Invoice extraction | Deterministic labelled-field extraction and validation | Ollama comparison behind policy gates |
 | Text extraction | Embedded/OCR extraction and persisted canonical source selection | OCR quality calibration and language policy |
 | Document classification | Deterministic canonical-text keyword policy | Evaluated local model policy |
 | Workflow execution | Temporal development server with local worker | Managed/self-hosted Temporal later |
