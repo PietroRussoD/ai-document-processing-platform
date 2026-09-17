@@ -16,6 +16,7 @@ from . import (
     document_text_extraction_repository,
     document_text_selection_repository,
     invoice_extraction_repository,
+    invoice_validation_repository,
 )
 from .workflow_start_request_repository import SqlAlchemyWorkflowStartRequestRepository
 
@@ -34,6 +35,9 @@ SqlAlchemyDocumentTextSelectionRepository = (
 SqlAlchemyInvoiceExtractionRepository = (
     invoice_extraction_repository.SqlAlchemyInvoiceExtractionRepository
 )
+SqlAlchemyInvoiceValidationRepository = (
+    invoice_validation_repository.SqlAlchemyInvoiceValidationRepository
+)
 
 __all__ = [
     "SqlAlchemyDocumentRepository",
@@ -42,6 +46,7 @@ __all__ = [
     "SqlAlchemyDocumentTextExtractionRepository",
     "SqlAlchemyDocumentTextSelectionRepository",
     "SqlAlchemyInvoiceExtractionRepository",
+    "SqlAlchemyInvoiceValidationRepository",
     "SqlAlchemyProcessingRunRepository",
     "SqlAlchemyUploadIdempotencyRepository",
     "SqlAlchemyWorkflowStartRequestRepository",

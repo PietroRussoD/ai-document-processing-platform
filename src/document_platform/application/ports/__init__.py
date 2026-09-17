@@ -44,6 +44,10 @@ from document_platform.application.ports.invoice_extraction_repository import (
     InvoiceExtractionAlreadyExists,
     InvoiceExtractionRepository,
 )
+from document_platform.application.ports.invoice_validation_repository import (
+    InvoiceValidationAlreadyExists,
+    InvoiceValidationRepository,
+)
 from document_platform.application.ports.pdf_inspector import (
     EncryptedPdf,
     InvalidPdf,
@@ -109,6 +113,8 @@ __all__ = [
     "InvoiceExtractionAlreadyExists",
     "InvoiceExtractionMetadataView",
     "InvoiceExtractionRepository",
+    "InvoiceValidationAlreadyExists",
+    "InvoiceValidationRepository",
     "InvalidPdf",
     "ExtractedPdfText",
     "ExtractedOcrText",

@@ -20,6 +20,7 @@ from document_platform.application.ports import (
     DocumentTextExtractionRepository,
     DocumentTextSelectionRepository,
     InvoiceExtractionRepository,
+    InvoiceValidationRepository,
     ProcessingRunRepository,
     UploadIdempotencyRecordAlreadyExists,
     UploadIdempotencyRepository,
@@ -159,6 +160,14 @@ class UnusedInvoiceExtractionRepository:
         raise AssertionError("not used")
 
 
+class UnusedInvoiceValidationRepository:
+    async def add(self, validation: object) -> None:
+        raise AssertionError("not used")
+
+    async def get(self, processing_run_id: UUID) -> None:
+        raise AssertionError("not used")
+
+
 class RecordingUnitOfWork:
     def __init__(
         self,
@@ -177,6 +186,7 @@ class RecordingUnitOfWork:
         self._document_text_selections = UnusedDocumentTextSelectionRepository()
         self._document_classifications = UnusedDocumentClassificationRepository()
         self._invoice_extractions = UnusedInvoiceExtractionRepository()
+        self._invoice_validations = UnusedInvoiceValidationRepository()
         self.commit_count = 0
         self.exit_exception: type[BaseException] | None = None
 
@@ -203,6 +213,10 @@ class RecordingUnitOfWork:
     @property
     def invoice_extractions(self) -> InvoiceExtractionRepository:
         return self._invoice_extractions  # type: ignore[return-value]
+
+    @property
+    def invoice_validations(self) -> InvoiceValidationRepository:
+        return self._invoice_validations  # type: ignore[return-value]
 
     @property
     def processing_runs(self) -> ProcessingRunRepository:

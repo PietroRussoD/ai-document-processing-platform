@@ -12,6 +12,7 @@ from document_platform.adapters.outbound.postgresql.repositories import (
     SqlAlchemyDocumentTextExtractionRepository,
     SqlAlchemyDocumentTextSelectionRepository,
     SqlAlchemyInvoiceExtractionRepository,
+    SqlAlchemyInvoiceValidationRepository,
     SqlAlchemyProcessingRunRepository,
     SqlAlchemyUploadIdempotencyRepository,
     SqlAlchemyWorkflowStartRequestRepository,
@@ -23,6 +24,7 @@ from document_platform.application.ports import (
     DocumentTextExtractionRepository,
     DocumentTextSelectionRepository,
     InvoiceExtractionRepository,
+    InvoiceValidationRepository,
     ProcessingRunRepository,
     UploadIdempotencyRepository,
     WorkflowStartRequestRepository,
@@ -39,6 +41,7 @@ class SqlAlchemyUnitOfWork:
         self._document_text_extractions: DocumentTextExtractionRepository | None = None
         self._document_text_selections: DocumentTextSelectionRepository | None = None
         self._invoice_extractions: InvoiceExtractionRepository | None = None
+        self._invoice_validations: InvoiceValidationRepository | None = None
         self._processing_runs: ProcessingRunRepository | None = None
         self._upload_idempotency: UploadIdempotencyRepository | None = None
         self._workflow_start_requests: WorkflowStartRequestRepository | None = None
@@ -80,6 +83,12 @@ class SqlAlchemyUnitOfWork:
         return self._invoice_extractions
 
     @property
+    def invoice_validations(self) -> InvoiceValidationRepository:
+        if self._invoice_validations is None:
+            raise RuntimeError("unit of work is not active")
+        return self._invoice_validations
+
+    @property
     def processing_runs(self) -> ProcessingRunRepository:
         if self._processing_runs is None:
             raise RuntimeError("unit of work is not active")
@@ -108,6 +117,7 @@ class SqlAlchemyUnitOfWork:
         self._document_text_extractions = SqlAlchemyDocumentTextExtractionRepository(self._session)
         self._document_text_selections = SqlAlchemyDocumentTextSelectionRepository(self._session)
         self._invoice_extractions = SqlAlchemyInvoiceExtractionRepository(self._session)
+        self._invoice_validations = SqlAlchemyInvoiceValidationRepository(self._session)
         self._processing_runs = SqlAlchemyProcessingRunRepository(self._session)
         self._upload_idempotency = SqlAlchemyUploadIdempotencyRepository(self._session)
         self._workflow_start_requests = SqlAlchemyWorkflowStartRequestRepository(self._session)
@@ -131,6 +141,7 @@ class SqlAlchemyUnitOfWork:
             self._document_text_extractions = None
             self._document_text_selections = None
             self._invoice_extractions = None
+            self._invoice_validations = None
             self._processing_runs = None
             self._upload_idempotency = None
             self._workflow_start_requests = None

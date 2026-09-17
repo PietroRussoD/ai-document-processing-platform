@@ -20,6 +20,9 @@ from document_platform.application.ports.document_text_selection_repository impo
 from document_platform.application.ports.invoice_extraction_repository import (
     InvoiceExtractionRepository,
 )
+from document_platform.application.ports.invoice_validation_repository import (
+    InvoiceValidationRepository,
+)
 from document_platform.application.ports.processing_run_repository import ProcessingRunRepository
 from document_platform.application.ports.upload_idempotency_repository import (
     UploadIdempotencyRepository,
@@ -47,6 +50,9 @@ class UnitOfWork(Protocol):
 
     @property
     def invoice_extractions(self) -> InvoiceExtractionRepository: ...
+
+    @property
+    def invoice_validations(self) -> InvoiceValidationRepository: ...
 
     @property
     def processing_runs(self) -> ProcessingRunRepository: ...
