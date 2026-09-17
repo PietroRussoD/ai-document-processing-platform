@@ -19,6 +19,7 @@ from document_platform.adapters.outbound.postgresql.queries import SqlAlchemyDoc
 from document_platform.application.commands import (
     AcceptDocumentUploadHandler,
     RegisterDocumentHandler,
+    ResolveDocumentReviewHandler,
 )
 from document_platform.application.queries import GetDocumentStatusHandler
 from document_platform.settings import Settings
@@ -47,6 +48,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     get_document_status = GetDocumentStatusHandler(
         SqlAlchemyDocumentStatusReader(database.sessions)
     )
+    resolve_document_review = ResolveDocumentReviewHandler(
+        unit_of_work_factory=lambda: SqlAlchemyUnitOfWork(database.sessions),
+        clock=lambda: datetime.now(UTC),
+    )
 
     @asynccontextmanager
     async def lifespan(_application: FastAPI) -> AsyncGenerator[None]:
@@ -63,6 +68,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.state.database = database
     application.state.accept_document_upload = accept_document_upload
     application.state.get_document_status = get_document_status
+    application.state.resolve_document_review = resolve_document_review
     install_problem_handlers(application)
     application.include_router(health_router)
     application.include_router(documents_router)

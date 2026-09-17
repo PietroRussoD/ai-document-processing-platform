@@ -6,13 +6,19 @@ from typing import Annotated, Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, File, Header, Request, UploadFile, status
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from document_platform.adapters.inbound.http.problems import ProblemDetails
+from document_platform.adapters.inbound.http.review_authentication import (
+    authenticate_review_operator,
+)
 from document_platform.adapters.inbound.http.upload_staging import stage_upload
 from document_platform.application.commands import (
     AcceptDocumentUpload,
     AcceptDocumentUploadHandler,
+    DocumentReviewResolved,
+    ResolveDocumentReview,
+    ResolveDocumentReviewHandler,
 )
 from document_platform.application.commands.accept_document_upload import (
     validate_upload_metadata,
@@ -30,6 +36,7 @@ from document_platform.domain.processing import (
     ProcessingRunStatus,
     ProcessingTextSelectionReason,
     ProcessingTextSource,
+    ReviewResolutionDecision,
     TextExtractionMethod,
 )
 from document_platform.settings import Settings
@@ -143,6 +150,19 @@ class DocumentStatusResponse(BaseModel):
     current_run: ProcessingRunStatusResponse
 
 
+class ResolveDocumentReviewRequest(BaseModel):
+    decision: ReviewResolutionDecision
+    review_note: str | None = Field(default=None, max_length=2_000)
+
+
+class ReviewResolutionResponse(BaseModel):
+    processing_run_id: UUID
+    decision: ReviewResolutionDecision
+    reviewer_id: str
+    resolved_at: datetime
+    replayed: bool
+
+
 router = APIRouter(prefix="/api/v1/documents", tags=["Documents"])
 
 
@@ -170,6 +190,40 @@ async def get_document_status(
     handler = cast(GetDocumentStatusHandler, request.app.state.get_document_status)
     document = await handler(document_id)
     return DocumentStatusResponse.model_validate(document)
+
+
+@router.post(
+    "/{document_id}/review-resolution",
+    operation_id="resolveDocumentReview",
+    summary="Approve or reject a document requiring review",
+    responses={
+        401: _problem_response("Unauthorized"),
+        404: _problem_response("Not Found"),
+        409: _problem_response("Conflict"),
+        422: _problem_response("Unprocessable Content"),
+        503: _problem_response("Service Unavailable"),
+    },
+)
+async def resolve_document_review(
+    document_id: UUID,
+    resolution: ResolveDocumentReviewRequest,
+    request: Request,
+    authorization: Annotated[str | None, Header()] = None,
+) -> ReviewResolutionResponse:
+    settings = cast(Settings, request.app.state.settings)
+    operator = authenticate_review_operator(authorization=authorization, settings=settings)
+    get_status = cast(GetDocumentStatusHandler, request.app.state.get_document_status)
+    document = await get_status(document_id)
+    handler = cast(ResolveDocumentReviewHandler, request.app.state.resolve_document_review)
+    resolved = await handler(
+        ResolveDocumentReview(
+            processing_run_id=document.current_run.id,
+            decision=resolution.decision,
+            reviewer_id=operator.reviewer_id,
+            review_note=resolution.review_note,
+        )
+    )
+    return _review_resolution_response(resolved)
 
 
 @router.post(
@@ -219,4 +273,14 @@ async def accept_document_upload(
         processing_run_id=accepted.processing_run_id,
         accepted_at=accepted.accepted_at,
         replayed=accepted.replayed,
+    )
+
+
+def _review_resolution_response(resolved: DocumentReviewResolved) -> ReviewResolutionResponse:
+    return ReviewResolutionResponse(
+        processing_run_id=resolved.processing_run_id,
+        decision=resolved.decision,
+        reviewer_id=resolved.reviewer_id,
+        resolved_at=resolved.resolved_at,
+        replayed=resolved.replayed,
     )

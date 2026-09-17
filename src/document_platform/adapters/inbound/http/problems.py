@@ -7,8 +7,16 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from document_platform.adapters.inbound.http.review_authentication import (
+    ReviewAuthenticationRejected,
+    ReviewAuthenticationUnavailable,
+)
 from document_platform.application.commands import (
+    ConflictingReviewResolution,
+    InvalidReviewResolutionApplication,
     InvalidStagedUpload,
+    ReviewResolutionDocumentNotFound,
+    ReviewResolutionRunNotFound,
     UnsupportedDocumentMediaType,
 )
 from document_platform.application.ports import (
@@ -17,6 +25,7 @@ from document_platform.application.ports import (
     EncryptedPdf,
     InvalidPdf,
     PdfPageLimitExceeded,
+    ReviewResolutionAlreadyExists,
 )
 from document_platform.application.queries import DocumentNotFound
 from document_platform.application.upload_idempotency import (
@@ -24,6 +33,7 @@ from document_platform.application.upload_idempotency import (
     InvalidIdempotencyKey,
 )
 from document_platform.domain.documents import InvalidDocument
+from document_platform.domain.processing import InvalidReviewResolution
 
 
 class ProblemDetails(BaseModel):
@@ -38,12 +48,56 @@ class ProblemDefinition:
     type: str
     title: str
     status: int
+    headers: dict[str, str] | None = None
 
 
 PROBLEM_DEFINITIONS: tuple[tuple[type[Exception], ProblemDefinition], ...] = (
     (
         DocumentNotFound,
         ProblemDefinition("urn:problem:document-not-found", "Document not found", 404),
+    ),
+    (
+        ReviewAuthenticationRejected,
+        ProblemDefinition(
+            "urn:problem:review-authentication-rejected",
+            "Review authentication rejected",
+            401,
+            headers={"WWW-Authenticate": "Bearer"},
+        ),
+    ),
+    (
+        ReviewAuthenticationUnavailable,
+        ProblemDefinition(
+            "urn:problem:review-authentication-unavailable",
+            "Review authentication unavailable",
+            503,
+        ),
+    ),
+    (
+        ReviewResolutionRunNotFound,
+        ProblemDefinition("urn:problem:processing-run-not-found", "Processing run not found", 404),
+    ),
+    (
+        ReviewResolutionDocumentNotFound,
+        ProblemDefinition("urn:problem:document-not-found", "Document not found", 404),
+    ),
+    (
+        InvalidReviewResolutionApplication,
+        ProblemDefinition(
+            "urn:problem:review-resolution-conflict", "Review cannot be resolved", 409
+        ),
+    ),
+    (
+        ConflictingReviewResolution,
+        ProblemDefinition(
+            "urn:problem:review-resolution-conflict", "Review cannot be resolved", 409
+        ),
+    ),
+    (
+        ReviewResolutionAlreadyExists,
+        ProblemDefinition(
+            "urn:problem:review-resolution-conflict", "Review cannot be resolved", 409
+        ),
     ),
     (
         InvalidIdempotencyKey,
@@ -84,6 +138,12 @@ PROBLEM_DEFINITIONS: tuple[tuple[type[Exception], ProblemDefinition], ...] = (
     (
         InvalidDocument,
         ProblemDefinition("urn:problem:invalid-document", "Invalid document", 422),
+    ),
+    (
+        InvalidReviewResolution,
+        ProblemDefinition(
+            "urn:problem:invalid-review-resolution", "Invalid review resolution", 422
+        ),
     ),
 )
 
@@ -128,4 +188,5 @@ def _response(definition: ProblemDefinition, *, detail: str) -> JSONResponse:
         status_code=definition.status,
         content=problem.model_dump(),
         media_type="application/problem+json",
+        headers=definition.headers,
     )
