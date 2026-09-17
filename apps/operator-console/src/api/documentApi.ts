@@ -2,11 +2,17 @@ import type { paths } from "./generated/document-platform";
 
 type UploadOperation = paths["/api/v1/documents"]["post"];
 type StatusOperation = paths["/api/v1/documents/{document_id}"]["get"];
+type ReviewResolutionOperation =
+    paths["/api/v1/documents/{document_id}/review-resolution"]["post"];
 
 export type AcceptedDocument =
     UploadOperation["responses"][202]["content"]["application/json"];
 export type DocumentStatus =
     StatusOperation["responses"][200]["content"]["application/json"];
+export type ReviewResolutionRequest =
+    ReviewResolutionOperation["requestBody"]["content"]["application/json"];
+export type ReviewResolution =
+    ReviewResolutionOperation["responses"][200]["content"]["application/json"];
 export type ProblemDetails =
     StatusOperation["responses"][404]["content"]["application/problem+json"];
 
@@ -44,6 +50,25 @@ export function createDocumentApi(fetcher: typeof fetch = globalThis.fetch) {
                 { signal },
             );
             return readResponse<DocumentStatus>(response);
+        },
+
+        async resolveReview(
+            documentId: string,
+            resolution: ReviewResolutionRequest,
+            operatorToken: string,
+        ): Promise<ReviewResolution> {
+            const response = await fetcher(
+                `/api/v1/documents/${encodeURIComponent(documentId)}/review-resolution`,
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${operatorToken}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(resolution),
+                },
+            );
+            return readResponse<ReviewResolution>(response);
         },
     };
 }

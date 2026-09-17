@@ -52,6 +52,7 @@ test("retrieves document status and forwards cancellation", async () => {
             finished_at: null,
             attempt_count: 0,
             processing_output: null,
+            review_resolution: null,
         },
     } as const;
     const fetcher = vi
@@ -68,6 +69,44 @@ test("retrieves document status and forwards cancellation", async () => {
     expect(fetcher).toHaveBeenCalledWith(
         `/api/v1/documents/${acceptedDocument.document_id}`,
         { signal: controller.signal },
+    );
+});
+
+test("resolves a review with the configured bearer token", async () => {
+    const resolution = {
+        processing_run_id: acceptedDocument.processing_run_id,
+        decision: "APPROVE",
+        reviewer_id: "operator-42",
+        resolved_at: "2026-09-17T18:00:00Z",
+        replayed: false,
+    } as const;
+    const fetcher = vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(jsonResponse(resolution));
+
+    const result = await createDocumentApi(fetcher).resolveReview(
+        acceptedDocument.document_id,
+        {
+            decision: "APPROVE",
+            review_note: "Matched the supplier statement.",
+        },
+        "operator-token",
+    );
+
+    expect(result).toEqual(resolution);
+    expect(fetcher).toHaveBeenCalledWith(
+        `/api/v1/documents/${acceptedDocument.document_id}/review-resolution`,
+        {
+            method: "POST",
+            headers: {
+                Authorization: "Bearer operator-token",
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                decision: "APPROVE",
+                review_note: "Matched the supplier statement.",
+            }),
+        },
     );
 });
 

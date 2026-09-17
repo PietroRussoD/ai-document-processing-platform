@@ -10,8 +10,10 @@ import {
 import { DocumentStatusPanel } from "../document-status/DocumentStatusPanel";
 import { DocumentFilePicker } from "./DocumentFilePicker";
 
+type UploadApi = Pick<DocumentApi, "upload" | "getStatus">;
+
 type DocumentUploadPanelProps = {
-    api?: DocumentApi;
+    api?: UploadApi;
     idGenerator?: () => string;
 };
 
