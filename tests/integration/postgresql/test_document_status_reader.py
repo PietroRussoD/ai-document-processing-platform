@@ -18,6 +18,7 @@ from document_platform.adapters.outbound.postgresql.repositories import (
     SqlAlchemyInvoiceExtractionRepository,
     SqlAlchemyInvoiceValidationRepository,
     SqlAlchemyProcessingRunRepository,
+    SqlAlchemyReviewResolutionRepository,
 )
 from document_platform.domain.documents import Document
 from document_platform.domain.processing import (
@@ -36,6 +37,8 @@ from document_platform.domain.processing import (
     ProcessingRun,
     ProcessingTextSelectionReason,
     ProcessingTextSource,
+    ReviewResolution,
+    ReviewResolutionDecision,
     TextExtractionMethod,
 )
 from document_platform.settings import Settings
@@ -195,3 +198,58 @@ async def test_returns_processing_output_metadata_without_document_text(
     assert output.invoice_validation.decision is InvoiceValidationDecision.AUTO_APPROVE
     assert output.invoice_validation.issues == ()
     assert not hasattr(output.embedded_text, "text")
+
+
+@pytest.mark.anyio
+async def test_returns_safe_review_resolution_metadata(
+    migrated_postgres_url: str,
+) -> None:
+    database = create_database(
+        Settings(environment="test", database_url=PostgresDsn(migrated_postgres_url))
+    )
+    document_id = uuid4()
+    run_id = uuid4()
+    document = (
+        Document.accept_pdf(
+            document_id=document_id,
+            original_filename="review.pdf",
+            size_bytes=42_000,
+            page_count=2,
+            content_sha256="d" * 64,
+            storage_key="blobs/sha256/dd/" + "d" * 64,
+            accepted_at=ACCEPTED_AT,
+        )
+        .start_processing(at=ACCEPTED_AT)
+        .require_review(at=ACCEPTED_AT)
+        .approve(at=ACCEPTED_AT)
+    )
+    run = (
+        ProcessingRun.queue(run_id=run_id, document_id=document_id, queued_at=ACCEPTED_AT)
+        .start(at=ACCEPTED_AT)
+        .require_review(at=ACCEPTED_AT)
+        .complete_after_review(at=ACCEPTED_AT)
+    )
+    resolution = ReviewResolution(
+        processing_run_id=run_id,
+        decision=ReviewResolutionDecision.APPROVE,
+        reviewer_id="operator-42",
+        review_note="Matched the supplier statement.",
+        resolved_at=ACCEPTED_AT,
+    )
+
+    try:
+        async with database.sessions.begin() as session:
+            await SqlAlchemyDocumentRepository(session).add(document)
+            await SqlAlchemyProcessingRunRepository(session).add(run)
+            await SqlAlchemyReviewResolutionRepository(session).add(resolution)
+
+        result = await SqlAlchemyDocumentStatusReader(database.sessions).get(document_id)
+    finally:
+        await database.dispose()
+
+    assert result is not None
+    review = result.current_run.review_resolution
+    assert review is not None
+    assert review.decision is ReviewResolutionDecision.APPROVE
+    assert review.reviewer_id == "operator-42"
+    assert review.review_note == "Matched the supplier statement."

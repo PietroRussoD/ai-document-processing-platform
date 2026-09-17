@@ -274,6 +274,7 @@ export interface components {
              * Format: date-time
              */
             queued_at: string;
+            review_resolution: components["schemas"]["ReviewResolutionMetadataResponse"] | null;
             /** Started At */
             started_at: string | null;
             status: components["schemas"]["ProcessingRunStatus"];
@@ -304,6 +305,19 @@ export interface components {
          * @enum {string}
          */
         ReviewResolutionDecision: "APPROVE" | "REJECT";
+        /** ReviewResolutionMetadataResponse */
+        ReviewResolutionMetadataResponse: {
+            decision: components["schemas"]["ReviewResolutionDecision"];
+            /**
+             * Resolved At
+             * Format: date-time
+             */
+            resolved_at: string;
+            /** Review Note */
+            review_note: string | null;
+            /** Reviewer Id */
+            reviewer_id: string;
+        };
         /** ReviewResolutionResponse */
         ReviewResolutionResponse: {
             decision: components["schemas"]["ReviewResolutionDecision"];

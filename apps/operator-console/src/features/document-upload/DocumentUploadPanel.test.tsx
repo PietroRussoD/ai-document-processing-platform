@@ -36,6 +36,7 @@ const persistedStatus: DocumentStatus = {
         finished_at: null,
         attempt_count: 0,
         processing_output: null,
+        review_resolution: null,
     },
 };
 

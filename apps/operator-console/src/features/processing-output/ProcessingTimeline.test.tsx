@@ -15,6 +15,7 @@ test("shows active processing before output is persisted", () => {
                 finished_at: null,
                 attempt_count: 1,
                 processing_output: null,
+                review_resolution: null,
             }}
         />,
     );
@@ -70,6 +71,7 @@ test("shows completed and skipped stages after a successful run", () => {
                         validated_at: "2026-09-16T12:00:06Z",
                     },
                 },
+                review_resolution: null,
             }}
         />,
     );
@@ -128,6 +130,7 @@ test("shows the review handoff after an incomplete invoice", () => {
                         validated_at: "2026-09-16T12:00:06Z",
                     },
                 },
+                review_resolution: null,
             }}
         />,
     );

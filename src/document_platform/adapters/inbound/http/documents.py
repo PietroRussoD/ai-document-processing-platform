@@ -122,6 +122,15 @@ class ProcessingOutputResponse(BaseModel):
     invoice_validation: InvoiceValidationMetadataResponse | None
 
 
+class ReviewResolutionMetadataResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    decision: ReviewResolutionDecision
+    reviewer_id: str
+    review_note: str | None
+    resolved_at: datetime
+
+
 class ProcessingRunStatusResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -133,6 +142,7 @@ class ProcessingRunStatusResponse(BaseModel):
     finished_at: datetime | None
     attempt_count: int
     processing_output: ProcessingOutputResponse | None
+    review_resolution: ReviewResolutionMetadataResponse | None
 
 
 class DocumentStatusResponse(BaseModel):

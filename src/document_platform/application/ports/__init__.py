@@ -30,6 +30,7 @@ from document_platform.application.ports.document_status_reader import (
     OcrExtractionMetadataView,
     ProcessingOutputView,
     ProcessingRunStatusView,
+    ReviewResolutionMetadataView,
     TextExtractionMetadataView,
     TextSelectionMetadataView,
 )
@@ -139,6 +140,7 @@ __all__ = [
     "ProcessingRunRepository",
     "ProcessingRunStatusView",
     "ReviewResolutionAlreadyExists",
+    "ReviewResolutionMetadataView",
     "ReviewResolutionRepository",
     "StoredBlob",
     "TextExtractionMetadataView",

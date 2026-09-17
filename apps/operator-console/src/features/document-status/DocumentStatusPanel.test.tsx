@@ -143,6 +143,7 @@ function status(
             finished_at: null,
             attempt_count: 2,
             processing_output: null,
+            review_resolution: null,
         },
     };
 }

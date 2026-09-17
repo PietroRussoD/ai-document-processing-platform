@@ -18,6 +18,7 @@ from document_platform.domain.processing import (
     ProcessingRunStatus,
     ProcessingTextSelectionReason,
     ProcessingTextSource,
+    ReviewResolutionDecision,
     TextExtractionMethod,
 )
 
@@ -84,6 +85,14 @@ class ProcessingOutputView:
 
 
 @dataclass(frozen=True, slots=True)
+class ReviewResolutionMetadataView:
+    decision: ReviewResolutionDecision
+    reviewer_id: str
+    review_note: str | None
+    resolved_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
 class ProcessingRunStatusView:
     id: UUID
     status: ProcessingRunStatus
@@ -93,6 +102,7 @@ class ProcessingRunStatusView:
     finished_at: datetime | None
     attempt_count: int
     processing_output: ProcessingOutputView | None
+    review_resolution: ReviewResolutionMetadataView | None
 
 
 @dataclass(frozen=True, slots=True)

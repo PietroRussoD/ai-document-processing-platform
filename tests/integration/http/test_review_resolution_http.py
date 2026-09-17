@@ -98,6 +98,12 @@ async def test_approves_a_review_required_document_with_authenticated_operator(
     assert response.json()["replayed"] is False
     assert status_response.json()["status"] == "APPROVED"
     assert status_response.json()["current_run"]["status"] == "COMPLETED"
+    assert status_response.json()["current_run"]["review_resolution"] == {
+        "decision": "APPROVE",
+        "reviewer_id": "operator-42",
+        "review_note": "Matched the supplier statement.",
+        "resolved_at": response.json()["resolved_at"],
+    }
 
 
 @pytest.mark.anyio

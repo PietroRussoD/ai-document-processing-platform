@@ -19,8 +19,8 @@ A read endpoint exposes the current document and processing-run status. The
 operator console provides tested PDF selection and submission, including
 acceptance identifiers, safe error feedback and polling of the persisted
 document and processing-run status. Once available, the same status snapshot
-also exposes safe extraction, selection and classification metadata; it never
-returns extracted document text or blob paths.
+also exposes safe extraction, selection, classification and review-resolution
+metadata; it never returns extracted document text or blob paths.
 
 Current `v0.3.0.dev0` work turns the durable `REVIEW_REQUIRED` handoff into an
 authenticated operator action with an immutable resolution record and focused

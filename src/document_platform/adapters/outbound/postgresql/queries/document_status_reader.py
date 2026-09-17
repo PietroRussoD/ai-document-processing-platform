@@ -14,6 +14,7 @@ from document_platform.adapters.outbound.postgresql.models import (
     InvoiceExtractionRecord,
     InvoiceValidationRecord,
     ProcessingRunRecord,
+    ReviewResolutionRecord,
 )
 from document_platform.application.ports import (
     ClassificationMetadataView,
@@ -23,6 +24,7 @@ from document_platform.application.ports import (
     OcrExtractionMetadataView,
     ProcessingOutputView,
     ProcessingRunStatusView,
+    ReviewResolutionMetadataView,
     TextExtractionMetadataView,
     TextSelectionMetadataView,
 )
@@ -38,6 +40,7 @@ from document_platform.domain.processing import (
     ProcessingRunStatus,
     ProcessingTextSelectionReason,
     ProcessingTextSource,
+    ReviewResolutionDecision,
     TextExtractionMethod,
 )
 
@@ -57,6 +60,7 @@ class SqlAlchemyDocumentStatusReader:
                 DocumentClassificationRecord,
                 InvoiceExtractionRecord,
                 InvoiceValidationRecord,
+                ReviewResolutionRecord,
             )
             .join(ProcessingRunRecord, ProcessingRunRecord.document_id == DocumentRecord.id)
             .outerjoin(
@@ -83,6 +87,10 @@ class SqlAlchemyDocumentStatusReader:
                 InvoiceValidationRecord,
                 InvoiceValidationRecord.processing_run_id == ProcessingRunRecord.id,
             )
+            .outerjoin(
+                ReviewResolutionRecord,
+                ReviewResolutionRecord.processing_run_id == ProcessingRunRecord.id,
+            )
             .where(DocumentRecord.id == document_id)
             .order_by(ProcessingRunRecord.queued_at.desc(), ProcessingRunRecord.id.desc())
             .limit(1)
@@ -101,6 +109,7 @@ class SqlAlchemyDocumentStatusReader:
         classification = row[5]
         invoice_extraction = row[6]
         invoice_validation = row[7]
+        review_resolution = row[8]
         return DocumentStatusView(
             id=document.id,
             original_filename=document.original_filename,
@@ -126,6 +135,16 @@ class SqlAlchemyDocumentStatusReader:
                     classification=classification,
                     invoice_extraction=invoice_extraction,
                     invoice_validation=invoice_validation,
+                ),
+                review_resolution=(
+                    ReviewResolutionMetadataView(
+                        decision=ReviewResolutionDecision(review_resolution.decision),
+                        reviewer_id=review_resolution.reviewer_id,
+                        review_note=review_resolution.review_note,
+                        resolved_at=review_resolution.resolved_at,
+                    )
+                    if review_resolution is not None
+                    else None
                 ),
             ),
         )

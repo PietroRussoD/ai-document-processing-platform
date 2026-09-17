@@ -489,6 +489,16 @@
             "title": "Queued At",
             "type": "string"
           },
+          "review_resolution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewResolutionMetadataResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "started_at": {
             "anyOf": [
               {
@@ -518,7 +528,8 @@
           "status_changed_at",
           "finished_at",
           "attempt_count",
-          "processing_output"
+          "processing_output",
+          "review_resolution"
         ],
         "title": "ProcessingRunStatusResponse",
         "type": "object"
@@ -571,6 +582,41 @@
         ],
         "title": "ReviewResolutionDecision",
         "type": "string"
+      },
+      "ReviewResolutionMetadataResponse": {
+        "properties": {
+          "decision": {
+            "$ref": "#/components/schemas/ReviewResolutionDecision"
+          },
+          "resolved_at": {
+            "format": "date-time",
+            "title": "Resolved At",
+            "type": "string"
+          },
+          "review_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Note"
+          },
+          "reviewer_id": {
+            "title": "Reviewer Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision",
+          "reviewer_id",
+          "review_note",
+          "resolved_at"
+        ],
+        "title": "ReviewResolutionMetadataResponse",
+        "type": "object"
       },
       "ReviewResolutionResponse": {
         "properties": {
