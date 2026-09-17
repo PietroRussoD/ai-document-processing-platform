@@ -93,14 +93,19 @@ export function ReviewResolutionPanel({
                         autoComplete="off"
                         className="mt-1.5 h-10 w-full rounded border border-app-border-strong bg-app-surface px-3 font-mono text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
                         disabled={resolutionMutation.isPending}
-                        onChange={(event) => setOperatorToken(event.target.value)}
+                        onChange={(event) =>
+                            setOperatorToken(event.target.value)
+                        }
                         spellCheck={false}
                         type="password"
                         value={operatorToken}
                     />
                 </label>
                 <label className="block text-sm font-medium text-app-foreground">
-                    Review note <span className="font-normal text-app-muted">(optional)</span>
+                    Review note{" "}
+                    <span className="font-normal text-app-muted">
+                        (optional)
+                    </span>
                     <textarea
                         className="mt-1.5 min-h-20 w-full resize-y rounded border border-app-border-strong bg-app-surface px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
                         disabled={resolutionMutation.isPending}
@@ -181,7 +186,10 @@ function ResolvedReview({
                         size={20}
                     />
                 )}
-                <h3 id="review-outcome-heading" className="text-sm font-semibold">
+                <h3
+                    id="review-outcome-heading"
+                    className="text-sm font-semibold"
+                >
                     Review resolved
                 </h3>
                 <StatusBadge
@@ -191,7 +199,11 @@ function ResolvedReview({
             </div>
             <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2">
                 <ReviewValue label="Reviewer" value={resolution.reviewer_id} />
-                <ReviewValue label="Resolved at" value={resolution.resolved_at} technical />
+                <ReviewValue
+                    label="Resolved at"
+                    value={resolution.resolved_at}
+                    technical
+                />
                 <ReviewValue
                     label="Review note"
                     value={resolution.review_note ?? "No note provided"}
@@ -213,7 +225,9 @@ function ReviewValue({
     return (
         <div className="min-w-0">
             <dt className="text-xs font-medium text-app-muted">{label}</dt>
-            <dd className={`mt-1 break-words ${technical ? "font-mono text-xs" : ""}`}>
+            <dd
+                className={`mt-1 break-words ${technical ? "font-mono text-xs" : ""}`}
+            >
                 {value}
             </dd>
         </div>

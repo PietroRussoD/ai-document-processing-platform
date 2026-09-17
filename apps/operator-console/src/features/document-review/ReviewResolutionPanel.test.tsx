@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { type PropsWithChildren } from "react";
 import { expect, test, vi } from "vitest";
 
@@ -7,21 +7,20 @@ import {
     type DocumentApi,
     DocumentApiProblem,
     type DocumentStatus,
+    type ReviewResolution,
 } from "../../api/documentApi";
 import { ReviewResolutionPanel } from "./ReviewResolutionPanel";
 
 const DOCUMENT_ID = "11111111-1111-4111-8111-111111111111";
 
 test("submits an approval with the token and optional note", async () => {
+    let completeReview!: (resolution: ReviewResolution) => void;
+    const reviewCompletion = new Promise<ReviewResolution>((resolve) => {
+        completeReview = resolve;
+    });
     const resolveReview = vi
         .fn<DocumentApi["resolveReview"]>()
-        .mockResolvedValue({
-            processing_run_id: "22222222-2222-4222-8222-222222222222",
-            decision: "APPROVE",
-            reviewer_id: "operator-42",
-            resolved_at: "2026-09-17T18:00:00Z",
-            replayed: false,
-        });
+        .mockReturnValue(reviewCompletion);
 
     render(
         <ReviewResolutionPanel
@@ -40,7 +39,9 @@ test("submits an approval with the token and optional note", async () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Approve document" }));
 
-    expect(await screen.findByRole("status")).toHaveTextContent("Saving review decision");
+    expect(await screen.findByRole("status")).toHaveTextContent(
+        "Saving review decision",
+    );
     expect(resolveReview).toHaveBeenCalledWith(
         DOCUMENT_ID,
         {
@@ -49,6 +50,16 @@ test("submits an approval with the token and optional note", async () => {
         },
         "operator-token",
     );
+    completeReview({
+        processing_run_id: "22222222-2222-4222-8222-222222222222",
+        decision: "APPROVE",
+        reviewer_id: "operator-42",
+        resolved_at: "2026-09-17T18:00:00Z",
+        replayed: false,
+    });
+    await waitFor(() => {
+        expect(screen.getByLabelText("Operator token")).toHaveValue("");
+    });
 });
 
 test("shows a safe review failure message", async () => {
@@ -120,7 +131,12 @@ function reviewRequiredRun(): DocumentStatus["current_run"] {
 
 function QueryWrapper({ children }: PropsWithChildren) {
     const client = new QueryClient({
-        defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+        defaultOptions: {
+            queries: { retry: false },
+            mutations: { retry: false },
+        },
     });
-    return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+    return (
+        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
 }
