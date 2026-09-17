@@ -22,6 +22,10 @@ document and processing-run status. Once available, the same status snapshot
 also exposes safe extraction, selection and classification metadata; it never
 returns extracted document text or blob paths.
 
+Current `v0.3.0.dev0` work turns the durable `REVIEW_REQUIRED` handoff into an
+authenticated operator action with an immutable resolution record and focused
+reviewer feedback.
+
 ## Implemented Technology
 
 - Python 3.13 and `uv`;
