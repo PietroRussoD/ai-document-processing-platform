@@ -66,6 +66,15 @@ from document_platform.application.commands.register_document import (
     RegisterDocumentHandler,
     RegisteredDocument,
 )
+from document_platform.application.commands.resolve_document_review import (
+    ConflictingReviewResolution,
+    DocumentReviewResolved,
+    InvalidReviewResolutionApplication,
+    ResolveDocumentReview,
+    ResolveDocumentReviewHandler,
+    ReviewResolutionDocumentNotFound,
+    ReviewResolutionRunNotFound,
+)
 from document_platform.application.commands.select_processing_text import (
     ProcessingTextSelected,
     SelectProcessingText,
@@ -132,6 +141,13 @@ __all__ = [
     "RegisterDocument",
     "RegisterDocumentHandler",
     "RegisteredDocument",
+    "ResolveDocumentReview",
+    "ResolveDocumentReviewHandler",
+    "DocumentReviewResolved",
+    "ConflictingReviewResolution",
+    "InvalidReviewResolutionApplication",
+    "ReviewResolutionDocumentNotFound",
+    "ReviewResolutionRunNotFound",
     "ProcessingRunDocumentNotFound",
     "ProcessingRunCompleted",
     "ProcessingRunCompletionNotFound",
