@@ -5,7 +5,8 @@ data from business documents.
 
 ## Status
 
-The [`v0.2.0` release](docs/releases/v0.2.0.md) adds durable document
+The [`v0.2.0` tagged release](https://github.com/PietroRussoD/ai-document-processing-platform/tree/v0.2.0),
+documented in the [release notes](docs/releases/v0.2.0.md), adds durable document
 processing to the `v0.1.0` ingestion milestone: bounded embedded-text
 extraction, a local OCR fallback, canonical-text selection and deterministic
 document classification. For invoices, the worker persists explicitly labelled
