@@ -8,6 +8,7 @@ from temporalio.client import Client
 from temporalio.worker import Worker
 
 from document_platform.adapters.inbound.temporal import (
+    ApplyInvoiceValidationActivity,
     ClassifyDocumentActivity,
     CompleteProcessingRunActivity,
     ExtractDocumentTextActivity,
@@ -15,6 +16,7 @@ from document_platform.adapters.inbound.temporal import (
     ExtractOcrTextActivity,
     SelectProcessingTextActivity,
     StartProcessingRunActivity,
+    ValidateInvoiceActivity,
 )
 from document_platform.adapters.outbound.filesystem import LocalBlobStore
 from document_platform.adapters.outbound.ocr import TesseractPdfOcrExtractor
@@ -22,6 +24,7 @@ from document_platform.adapters.outbound.pdf import PyMuPdfTextExtractor
 from document_platform.adapters.outbound.postgresql import SqlAlchemyUnitOfWork
 from document_platform.adapters.outbound.postgresql.database import create_database
 from document_platform.application.commands import (
+    ApplyInvoiceValidationHandler,
     ClassifyDocumentHandler,
     CompleteProcessingRunHandler,
     ExtractDocumentTextHandler,
@@ -29,11 +32,13 @@ from document_platform.application.commands import (
     ExtractOcrTextHandler,
     SelectProcessingTextHandler,
     StartProcessingRunHandler,
+    ValidateInvoiceHandler,
 )
 from document_platform.domain.processing import (
     DeterministicInvoiceExtractionPolicy,
     DocumentClassificationPolicy,
     EmbeddedTextQualityPolicy,
+    InvoiceValidationPolicy,
     ProcessingTextSelectionPolicy,
 )
 from document_platform.settings import Settings
@@ -113,6 +118,19 @@ async def run_worker(settings: Settings) -> None:
                 clock=lambda: datetime.now(UTC),
             )
         )
+        invoice_validation_activity = ValidateInvoiceActivity(
+            ValidateInvoiceHandler(
+                unit_of_work_factory=unit_of_work_factory,
+                validation_policy=InvoiceValidationPolicy(),
+                clock=lambda: datetime.now(UTC),
+            )
+        )
+        invoice_validation_application_activity = ApplyInvoiceValidationActivity(
+            ApplyInvoiceValidationHandler(
+                unit_of_work_factory=unit_of_work_factory,
+                clock=lambda: datetime.now(UTC),
+            )
+        )
         completion_activity = CompleteProcessingRunActivity(
             CompleteProcessingRunHandler(
                 unit_of_work_factory=unit_of_work_factory,
@@ -130,6 +148,8 @@ async def run_worker(settings: Settings) -> None:
                 selection_activity.select_processing_text,
                 classification_activity.classify_document,
                 invoice_extraction_activity.extract_invoice,
+                invoice_validation_activity.validate_invoice,
+                invoice_validation_application_activity.apply_invoice_validation,
                 completion_activity.complete_processing_run,
             ],
         )

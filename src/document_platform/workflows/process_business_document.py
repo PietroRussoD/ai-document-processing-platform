@@ -6,6 +6,7 @@ from temporalio import workflow
 from temporalio.common import RetryPolicy
 
 from document_platform.application.temporal_contracts import (
+    APPLY_INVOICE_VALIDATION_ACTIVITY,
     CLASSIFY_DOCUMENT_ACTIVITY,
     COMPLETE_PROCESSING_RUN_ACTIVITY,
     EXTRACT_DOCUMENT_TEXT_ACTIVITY,
@@ -14,6 +15,7 @@ from document_platform.application.temporal_contracts import (
     PROCESS_BUSINESS_DOCUMENT_WORKFLOW,
     SELECT_PROCESSING_TEXT_ACTIVITY,
     START_PROCESSING_RUN_ACTIVITY,
+    VALIDATE_INVOICE_ACTIVITY,
 )
 
 
@@ -58,9 +60,22 @@ class ProcessBusinessDocumentWorkflow:
                 start_to_close_timeout=timedelta(seconds=30),
                 retry_policy=RetryPolicy(maximum_attempts=3),
             )
-        await workflow.execute_activity(
-            COMPLETE_PROCESSING_RUN_ACTIVITY,
-            processing_run_id,
-            start_to_close_timeout=timedelta(seconds=30),
-            retry_policy=RetryPolicy(maximum_attempts=3),
-        )
+            await workflow.execute_activity(
+                VALIDATE_INVOICE_ACTIVITY,
+                processing_run_id,
+                start_to_close_timeout=timedelta(seconds=30),
+                retry_policy=RetryPolicy(maximum_attempts=3),
+            )
+            await workflow.execute_activity(
+                APPLY_INVOICE_VALIDATION_ACTIVITY,
+                processing_run_id,
+                start_to_close_timeout=timedelta(seconds=30),
+                retry_policy=RetryPolicy(maximum_attempts=3),
+            )
+        else:
+            await workflow.execute_activity(
+                COMPLETE_PROCESSING_RUN_ACTIVITY,
+                processing_run_id,
+                start_to_close_timeout=timedelta(seconds=30),
+                retry_policy=RetryPolicy(maximum_attempts=3),
+            )

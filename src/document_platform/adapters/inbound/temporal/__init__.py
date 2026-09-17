@@ -1,5 +1,8 @@
 """Temporal activity adapters."""
 
+from document_platform.adapters.inbound.temporal.apply_invoice_validation_activity import (
+    ApplyInvoiceValidationActivity,
+)
 from document_platform.adapters.inbound.temporal.classify_document_activity import (
     ClassifyDocumentActivity,
 )
@@ -21,13 +24,18 @@ from document_platform.adapters.inbound.temporal.select_processing_text_activity
 from document_platform.adapters.inbound.temporal.start_processing_run_activity import (
     StartProcessingRunActivity,
 )
+from document_platform.adapters.inbound.temporal.validate_invoice_activity import (
+    ValidateInvoiceActivity,
+)
 
 __all__ = [
     "ExtractDocumentTextActivity",
     "ExtractInvoiceActivity",
+    "ApplyInvoiceValidationActivity",
     "ClassifyDocumentActivity",
     "CompleteProcessingRunActivity",
     "ExtractOcrTextActivity",
     "SelectProcessingTextActivity",
     "StartProcessingRunActivity",
+    "ValidateInvoiceActivity",
 ]
