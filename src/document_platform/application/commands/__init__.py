@@ -6,6 +6,15 @@ from document_platform.application.commands.accept_document_upload import (
     InvalidStagedUpload,
     UnsupportedDocumentMediaType,
 )
+from document_platform.application.commands.apply_invoice_validation import (
+    ApplyInvoiceValidation,
+    ApplyInvoiceValidationHandler,
+    InvalidInvoiceValidationApplication,
+    InvoiceValidationApplicationDocumentNotFound,
+    InvoiceValidationApplicationRequiresValidation,
+    InvoiceValidationApplicationRunNotFound,
+    InvoiceValidationApplied,
+)
 from document_platform.application.commands.claim_workflow_start_requests import (
     ClaimWorkflowStartRequests,
     ClaimWorkflowStartRequestsHandler,
@@ -81,6 +90,8 @@ from document_platform.application.commands.validate_invoice import (
 __all__ = [
     "AcceptDocumentUpload",
     "AcceptDocumentUploadHandler",
+    "ApplyInvoiceValidation",
+    "ApplyInvoiceValidationHandler",
     "ClaimWorkflowStartRequests",
     "ClaimWorkflowStartRequestsHandler",
     "ClassifyDocument",
@@ -107,11 +118,16 @@ __all__ = [
     "InvoiceExtractionRequiresSelectedText",
     "InvoiceExtractionRequiresTextSelection",
     "InvoiceValidated",
+    "InvoiceValidationApplied",
+    "InvoiceValidationApplicationDocumentNotFound",
+    "InvoiceValidationApplicationRequiresValidation",
+    "InvoiceValidationApplicationRunNotFound",
     "InvoiceValidationRequiresExtraction",
     "OcrTextExtractionResult",
     "InvalidProcessingDocumentStart",
     "InvalidProcessingRunStart",
     "InvalidProcessingRunCompletion",
+    "InvalidInvoiceValidationApplication",
     "InvalidWorkflowStartRequestClaim",
     "RegisterDocument",
     "RegisterDocumentHandler",
