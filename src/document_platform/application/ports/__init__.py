@@ -46,6 +46,10 @@ from document_platform.application.ports.invoice_extraction_repository import (
     InvoiceExtractionAlreadyExists,
     InvoiceExtractionRepository,
 )
+from document_platform.application.ports.invoice_review_correction_repository import (
+    InvoiceReviewCorrectionAlreadyExists,
+    InvoiceReviewCorrectionRepository,
+)
 from document_platform.application.ports.invoice_validation_repository import (
     InvoiceValidationAlreadyExists,
     InvoiceValidationRepository,
@@ -120,6 +124,8 @@ __all__ = [
     "InvoiceExtractionMetadataView",
     "InvoiceValidationMetadataView",
     "InvoiceExtractionRepository",
+    "InvoiceReviewCorrectionAlreadyExists",
+    "InvoiceReviewCorrectionRepository",
     "InvoiceValidationAlreadyExists",
     "InvoiceValidationRepository",
     "InvalidPdf",

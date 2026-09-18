@@ -20,6 +20,7 @@ from document_platform.application.ports import (
     DocumentTextExtractionRepository,
     DocumentTextSelectionRepository,
     InvoiceExtractionRepository,
+    InvoiceReviewCorrectionRepository,
     InvoiceValidationRepository,
     ProcessingRunRepository,
     ReviewResolutionRepository,
@@ -169,6 +170,14 @@ class UnusedInvoiceValidationRepository:
         raise AssertionError("not used")
 
 
+class UnusedInvoiceReviewCorrectionRepository:
+    async def add(self, correction: object) -> None:
+        raise AssertionError("not used")
+
+    async def get(self, processing_run_id: UUID) -> None:
+        raise AssertionError("not used")
+
+
 class UnusedReviewResolutionRepository:
     async def add(self, resolution: object) -> None:
         raise AssertionError("not used")
@@ -195,6 +204,7 @@ class RecordingUnitOfWork:
         self._document_text_selections = UnusedDocumentTextSelectionRepository()
         self._document_classifications = UnusedDocumentClassificationRepository()
         self._invoice_extractions = UnusedInvoiceExtractionRepository()
+        self._invoice_review_corrections = UnusedInvoiceReviewCorrectionRepository()
         self._invoice_validations = UnusedInvoiceValidationRepository()
         self._review_resolutions = UnusedReviewResolutionRepository()
         self.commit_count = 0
@@ -223,6 +233,10 @@ class RecordingUnitOfWork:
     @property
     def invoice_extractions(self) -> InvoiceExtractionRepository:
         return self._invoice_extractions  # type: ignore[return-value]
+
+    @property
+    def invoice_review_corrections(self) -> InvoiceReviewCorrectionRepository:
+        return self._invoice_review_corrections  # type: ignore[return-value]
 
     @property
     def invoice_validations(self) -> InvoiceValidationRepository:
