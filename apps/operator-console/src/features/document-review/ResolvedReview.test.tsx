@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { expect, test } from "vitest";
 
+import { axe } from "../../test/accessibility";
 import { ResolvedReview } from "./ResolvedReview";
 
 test("renders an approved review outcome", () => {
@@ -35,4 +36,19 @@ test("renders a rejected outcome without a review note", () => {
 
     expect(screen.getByText("Rejected")).toBeVisible();
     expect(screen.getByText("No note provided")).toBeVisible();
+});
+
+test("has no detectable accessibility violations", async () => {
+    const { container } = render(
+        <ResolvedReview
+            resolution={{
+                decision: "APPROVE",
+                reviewer_id: "operator-42",
+                review_note: "Supplier evidence verified.",
+                resolved_at: "2026-09-17T18:00:00Z",
+            }}
+        />,
+    );
+
+    expect((await axe(container)).violations).toEqual([]);
 });

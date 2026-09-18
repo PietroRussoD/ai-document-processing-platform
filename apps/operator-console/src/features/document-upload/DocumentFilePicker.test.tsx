@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { expect, test } from "vitest";
 
+import { axe } from "../../test/accessibility";
 import { DocumentFilePicker } from "./DocumentFilePicker";
 
 test("shows and clears a selected PDF", () => {
@@ -67,6 +68,12 @@ test("rejects files larger than the client limit", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
         "must not exceed 20 MiB",
     );
+});
+
+test("has no detectable accessibility violations", async () => {
+    const { container } = renderFilePicker();
+
+    expect((await axe(container)).violations).toEqual([]);
 });
 
 function renderFilePicker() {

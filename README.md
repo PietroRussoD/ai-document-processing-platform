@@ -215,7 +215,9 @@ pnpm check
 The operator console also has a local Storybook catalogue for reusable visual
 components. Run it with `pnpm storybook`; build the static catalogue with
 `pnpm build-storybook`. The Storybook a11y addon is enabled for interactive
-inspection, but WCAG conformance is verified separately through focused tests.
+inspection. Component tests also run axe semantic checks. Browser-based
+contrast and keyboard-flow verification remains separate; this project does
+not claim formal WCAG conformance.
 
 Tests enforce branch coverage of at least 85%. The same command writes a local
 HTML report to `htmlcov/index.html` and a machine-readable report to

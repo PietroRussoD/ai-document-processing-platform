@@ -9,6 +9,7 @@ import {
     type DocumentStatus,
     type ReviewResolution,
 } from "../../api/documentApi";
+import { axe } from "../../test/accessibility";
 import { ReviewResolutionPanel } from "./ReviewResolutionPanel";
 
 const DOCUMENT_ID = "11111111-1111-4111-8111-111111111111";
@@ -113,6 +114,18 @@ test("shows the immutable outcome after a refresh", () => {
     expect(screen.getByText("operator-42")).toBeVisible();
     expect(screen.getByText("Missing supplier evidence.")).toBeVisible();
     expect(screen.queryByLabelText("Operator token")).not.toBeInTheDocument();
+});
+
+test("has no detectable accessibility violations while a review is required", async () => {
+    const { container } = render(
+        <ReviewResolutionPanel
+            documentId={DOCUMENT_ID}
+            run={reviewRequiredRun()}
+        />,
+        { wrapper: QueryWrapper },
+    );
+
+    expect((await axe(container)).violations).toEqual([]);
 });
 
 function reviewRequiredRun(): DocumentStatus["current_run"] {
