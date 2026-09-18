@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { type PropsWithChildren } from "react";
 import { expect, test, vi } from "vitest";
 
@@ -88,7 +89,39 @@ test("shows a safe review failure message", async () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Reject document" }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(problem.detail);
+    const errorMessage = await screen.findByRole("alert");
+    expect(errorMessage).toHaveTextContent(problem.detail);
+    expect(errorMessage).toHaveFocus();
+    expect(screen.getByLabelText("Operator token")).toHaveAttribute(
+        "aria-describedby",
+        "review-resolution-error",
+    );
+});
+
+test("keeps the review controls reachable in a logical keyboard order", async () => {
+    const user = userEvent.setup();
+
+    render(
+        <ReviewResolutionPanel
+            documentId={DOCUMENT_ID}
+            run={reviewRequiredRun()}
+        />,
+        { wrapper: QueryWrapper },
+    );
+
+    await user.tab();
+    expect(screen.getByLabelText("Operator token")).toHaveFocus();
+    await user.type(screen.getByLabelText("Operator token"), "operator-token");
+    await user.tab();
+    expect(screen.getByLabelText(/Review note/)).toHaveFocus();
+    await user.tab();
+    expect(
+        screen.getByRole("button", { name: "Approve document" }),
+    ).toHaveFocus();
+    await user.tab();
+    expect(
+        screen.getByRole("button", { name: "Reject document" }),
+    ).toHaveFocus();
 });
 
 test("shows the immutable outcome after a refresh", () => {

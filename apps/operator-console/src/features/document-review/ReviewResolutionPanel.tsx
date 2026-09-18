@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, CircleAlert, LoaderCircle, XCircle } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
     createDocumentApi,
@@ -20,6 +20,7 @@ type ReviewResolutionPanelProps = {
 };
 
 const defaultApi = createDocumentApi();
+const reviewResolutionErrorId = "review-resolution-error";
 
 export function ReviewResolutionPanel({
     api = defaultApi,
@@ -27,6 +28,7 @@ export function ReviewResolutionPanel({
     run,
 }: ReviewResolutionPanelProps) {
     const queryClient = useQueryClient();
+    const errorMessageRef = useRef<HTMLParagraphElement>(null);
     const [operatorToken, setOperatorToken] = useState("");
     const [reviewNote, setReviewNote] = useState("");
     const resolutionMutation = useMutation({
@@ -47,6 +49,12 @@ export function ReviewResolutionPanel({
             });
         },
     });
+
+    useEffect(() => {
+        if (resolutionMutation.isError) {
+            errorMessageRef.current?.focus();
+        }
+    }, [resolutionMutation.isError]);
 
     if (run.review_resolution !== null) {
         return <ResolvedReview resolution={run.review_resolution} />;
@@ -90,6 +98,11 @@ export function ReviewResolutionPanel({
                     Operator token
                     <input
                         required
+                        aria-describedby={
+                            resolutionMutation.isError
+                                ? reviewResolutionErrorId
+                                : undefined
+                        }
                         autoComplete="off"
                         className="mt-1.5 h-10 w-full rounded border border-app-border-strong bg-app-surface px-3 font-mono text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
                         disabled={resolutionMutation.isPending}
@@ -152,7 +165,13 @@ export function ReviewResolutionPanel({
                     </p>
                 ) : null}
                 {resolutionMutation.isError ? (
-                    <p role="alert" className="mt-4 text-sm text-app-danger">
+                    <p
+                        ref={errorMessageRef}
+                        id={reviewResolutionErrorId}
+                        role="alert"
+                        tabIndex={-1}
+                        className="mt-4 text-sm text-app-danger"
+                    >
                         {failureMessage}
                     </p>
                 ) : null}

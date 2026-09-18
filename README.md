@@ -219,6 +219,10 @@ inspection. Component tests also run axe semantic checks. Browser-based
 contrast and keyboard-flow verification remains separate; this project does
 not claim formal WCAG conformance.
 
+The review panel keeps native controls in a tested keyboard order. When a
+review decision is rejected by the API, focus moves to the associated alert and
+the operator-token field references that error message.
+
 Tests enforce branch coverage of at least 85%. The same command writes a local
 HTML report to `htmlcov/index.html` and a machine-readable report to
 `coverage.xml`. CI retains both as the `backend-coverage` artifact for 14 days.
