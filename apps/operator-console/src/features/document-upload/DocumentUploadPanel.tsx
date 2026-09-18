@@ -7,6 +7,7 @@ import {
     type DocumentApi,
     DocumentApiProblem,
 } from "../../api/documentApi";
+import { Button } from "../../components/ui/Button";
 import { FeedbackMessage } from "../../components/ui/FeedbackMessage";
 import { DocumentStatusPanel } from "../document-status/DocumentStatusPanel";
 import { DocumentFilePicker } from "./DocumentFilePicker";
@@ -58,14 +59,15 @@ export function DocumentUploadPanel({
             />
 
             <div className="mt-4 flex justify-end">
-                <button
+                <Button
                     type="submit"
                     disabled={
                         selectedFile === null ||
                         upload.isPending ||
                         upload.isSuccess
                     }
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded bg-app-accent px-5 text-sm font-semibold text-white transition-colors hover:bg-app-accent-hover disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                    size="lg"
+                    variant="primary"
                 >
                     {upload.isPending ? (
                         <LoaderCircle
@@ -77,7 +79,7 @@ export function DocumentUploadPanel({
                         <Upload aria-hidden="true" size={18} />
                     )}
                     {upload.isPending ? "Uploading" : "Upload document"}
-                </button>
+                </Button>
             </div>
 
             <div>

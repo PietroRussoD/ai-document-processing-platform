@@ -6,6 +6,7 @@ import {
     type DocumentApi,
     type DocumentStatus,
 } from "../../api/documentApi";
+import { Button } from "../../components/ui/Button";
 import { FeedbackMessage } from "../../components/ui/FeedbackMessage";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { ProcessingOutputPanel } from "../processing-output/ProcessingOutputPanel";
@@ -54,14 +55,14 @@ export function DocumentStatusPanel({
                 <FeedbackMessage className="mt-3" role="alert" tone="danger">
                     The persisted status could not be loaded.
                 </FeedbackMessage>
-                <button
-                    type="button"
+                <Button
+                    className="mt-4"
                     onClick={() => void statusQuery.refetch()}
-                    className="mt-4 inline-flex h-9 items-center gap-2 rounded border border-app-border-strong px-3 text-sm font-semibold hover:bg-app-canvas focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                    size="sm"
                 >
                     <RefreshCw aria-hidden="true" size={16} />
                     Retry status
-                </button>
+                </Button>
             </section>
         );
     }

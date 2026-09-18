@@ -9,6 +9,7 @@ const reviewResolutionFormStory =
     "/iframe.html?id=document-review-reviewresolutionform--ready&viewMode=story";
 const feedbackMessageStory =
     "/iframe.html?id=ui-feedbackmessage--warning&viewMode=story";
+const primaryButtonStory = "/iframe.html?id=ui-button--primary&viewMode=story";
 
 test("approved review outcome has no browser-detected accessibility violations", async ({
     page,
@@ -60,6 +61,21 @@ test("feedback message has no browser-detected accessibility violations", async 
     await page.goto(feedbackMessageStory);
     await expect(
         page.getByText("Processing requires an operator review."),
+    ).toBeVisible();
+
+    const results = await new AxeBuilder({ page })
+        .disableRules(["landmark-one-main", "page-has-heading-one"])
+        .analyze();
+
+    expect(results.violations).toEqual([]);
+});
+
+test("primary button has no browser-detected accessibility violations", async ({
+    page,
+}) => {
+    await page.goto(primaryButtonStory);
+    await expect(
+        page.getByRole("button", { name: "Upload document" }),
     ).toBeVisible();
 
     const results = await new AxeBuilder({ page })

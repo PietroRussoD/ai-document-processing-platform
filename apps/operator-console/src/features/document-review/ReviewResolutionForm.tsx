@@ -1,5 +1,6 @@
 import { CheckCircle2, CircleAlert, LoaderCircle, XCircle } from "lucide-react";
 
+import { Button } from "../../components/ui/Button";
 import { FeedbackMessage } from "../../components/ui/FeedbackMessage";
 
 export type ReviewDecision = "APPROVE" | "REJECT";
@@ -89,11 +90,10 @@ export function ReviewResolutionForm({
             </div>
 
             <div className="mt-4 flex flex-wrap gap-3">
-                <button
-                    type="button"
+                <Button
                     disabled={!operatorToken || isSaving}
                     onClick={() => onDecision("APPROVE")}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded bg-app-accent px-4 text-sm font-semibold text-white hover:bg-app-accent-hover disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                    variant="primary"
                 >
                     {isSaving ? (
                         <LoaderCircle
@@ -105,16 +105,15 @@ export function ReviewResolutionForm({
                         <CheckCircle2 aria-hidden="true" size={17} />
                     )}
                     Approve document
-                </button>
-                <button
-                    type="button"
+                </Button>
+                <Button
                     disabled={!operatorToken || isSaving}
                     onClick={() => onDecision("REJECT")}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded border border-app-danger px-4 text-sm font-semibold text-app-danger hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                    variant="danger"
                 >
                     <XCircle aria-hidden="true" size={17} />
                     Reject document
-                </button>
+                </Button>
             </div>
 
             <div>
