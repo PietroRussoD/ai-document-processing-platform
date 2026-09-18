@@ -119,6 +119,16 @@ export interface components {
             document_type: components["schemas"]["BusinessDocumentType"];
             reason: components["schemas"]["DocumentClassificationReason"];
         };
+        /** CurrencyReviewCorrectionRequest */
+        CurrencyReviewCorrectionRequest: {
+            /** Corrected Value */
+            corrected_value: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            field: "CURRENCY";
+        };
         /**
          * DocumentClassificationReason
          * @enum {string}
@@ -193,6 +203,33 @@ export interface components {
          * @enum {string}
          */
         InvoiceExtractionMethod: "DETERMINISTIC_RULES" | "OLLAMA";
+        /** InvoiceNumberReviewCorrectionRequest */
+        InvoiceNumberReviewCorrectionRequest: {
+            /** Corrected Value */
+            corrected_value: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            field: "INVOICE_NUMBER";
+        };
+        /** InvoiceReviewCorrectionMetadataResponse */
+        InvoiceReviewCorrectionMetadataResponse: {
+            /**
+             * Corrected At
+             * Format: date-time
+             */
+            corrected_at: string;
+            /** Corrected Value */
+            corrected_value: string;
+            field: components["schemas"]["InvoiceReviewField"];
+        };
+        InvoiceReviewCorrectionRequest: components["schemas"]["InvoiceNumberReviewCorrectionRequest"] | components["schemas"]["IssueDateReviewCorrectionRequest"] | components["schemas"]["SupplierNameReviewCorrectionRequest"] | components["schemas"]["CurrencyReviewCorrectionRequest"] | components["schemas"]["TotalAmountReviewCorrectionRequest"];
+        /**
+         * InvoiceReviewField
+         * @enum {string}
+         */
+        InvoiceReviewField: "INVOICE_NUMBER" | "ISSUE_DATE" | "SUPPLIER_NAME" | "CURRENCY" | "TOTAL_AMOUNT";
         /**
          * InvoiceValidationDecision
          * @enum {string}
@@ -213,6 +250,19 @@ export interface components {
              * Format: date-time
              */
             validated_at: string;
+        };
+        /** IssueDateReviewCorrectionRequest */
+        IssueDateReviewCorrectionRequest: {
+            /**
+             * Corrected Value
+             * Format: date
+             */
+            corrected_value: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            field: "ISSUE_DATE";
         };
         /** LivenessResponse */
         LivenessResponse: {
@@ -296,6 +346,11 @@ export interface components {
         ProcessingTextSource: "EMBEDDED" | "OCR";
         /** ResolveDocumentReviewRequest */
         ResolveDocumentReviewRequest: {
+            /**
+             * Corrections
+             * @default []
+             */
+            corrections: components["schemas"]["InvoiceReviewCorrectionRequest"][];
             decision: components["schemas"]["ReviewResolutionDecision"];
             /** Review Note */
             review_note?: string | null;
@@ -307,6 +362,8 @@ export interface components {
         ReviewResolutionDecision: "APPROVE" | "REJECT";
         /** ReviewResolutionMetadataResponse */
         ReviewResolutionMetadataResponse: {
+            /** Corrections */
+            corrections: components["schemas"]["InvoiceReviewCorrectionMetadataResponse"][];
             decision: components["schemas"]["ReviewResolutionDecision"];
             /**
              * Resolved At
@@ -335,6 +392,16 @@ export interface components {
             resolved_at: string;
             /** Reviewer Id */
             reviewer_id: string;
+        };
+        /** SupplierNameReviewCorrectionRequest */
+        SupplierNameReviewCorrectionRequest: {
+            /** Corrected Value */
+            corrected_value: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            field: "SUPPLIER_NAME";
         };
         /** TextExtractionMetadataResponse */
         TextExtractionMetadataResponse: {
@@ -366,6 +433,16 @@ export interface components {
              */
             selected_at: string;
             source: components["schemas"]["ProcessingTextSource"];
+        };
+        /** TotalAmountReviewCorrectionRequest */
+        TotalAmountReviewCorrectionRequest: {
+            /** Corrected Value */
+            corrected_value: number | string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            field: "TOTAL_AMOUNT";
         };
         /** ValidationError */
         ValidationError: {

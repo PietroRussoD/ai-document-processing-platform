@@ -12,6 +12,7 @@ from document_platform.adapters.outbound.postgresql.models import (
     DocumentTextExtractionRecord,
     DocumentTextSelectionRecord,
     InvoiceExtractionRecord,
+    InvoiceReviewCorrectionRecord,
     InvoiceValidationRecord,
     ProcessingRunRecord,
     ReviewResolutionRecord,
@@ -20,6 +21,7 @@ from document_platform.application.ports import (
     ClassificationMetadataView,
     DocumentStatusView,
     InvoiceExtractionMetadataView,
+    InvoiceReviewCorrectionMetadataView,
     InvoiceValidationMetadataView,
     OcrExtractionMetadataView,
     ProcessingOutputView,
@@ -34,6 +36,7 @@ from document_platform.domain.processing import (
     DocumentClassificationReason,
     EmbeddedTextQuality,
     InvoiceExtractionMethod,
+    InvoiceReviewField,
     InvoiceValidationDecision,
     InvoiceValidationIssue,
     OcrExtractionMethod,
@@ -97,6 +100,17 @@ class SqlAlchemyDocumentStatusReader:
         )
         async with self._sessions() as session:
             row = (await session.execute(statement)).one_or_none()
+            correction_records = (
+                (
+                    await session.scalars(
+                        select(InvoiceReviewCorrectionRecord)
+                        .where(InvoiceReviewCorrectionRecord.processing_run_id == row[1].id)
+                        .order_by(InvoiceReviewCorrectionRecord.field)
+                    )
+                ).all()
+                if row is not None
+                else ()
+            )
 
         if row is None:
             return None
@@ -142,6 +156,9 @@ class SqlAlchemyDocumentStatusReader:
                         reviewer_id=review_resolution.reviewer_id,
                         review_note=review_resolution.review_note,
                         resolved_at=review_resolution.resolved_at,
+                        corrections=tuple(
+                            _to_review_correction_metadata(record) for record in correction_records
+                        ),
                     )
                     if review_resolution is not None
                     else None
@@ -235,4 +252,27 @@ def _to_processing_output(
             if invoice_validation is not None
             else None
         ),
+    )
+
+
+def _to_review_correction_metadata(
+    record: InvoiceReviewCorrectionRecord,
+) -> InvoiceReviewCorrectionMetadataView:
+    field = InvoiceReviewField(record.field)
+    if field is InvoiceReviewField.ISSUE_DATE:
+        if record.corrected_date is None:
+            raise RuntimeError("persisted ISSUE_DATE correction is missing corrected_date")
+        value = record.corrected_date
+    elif field is InvoiceReviewField.TOTAL_AMOUNT:
+        if record.corrected_amount is None:
+            raise RuntimeError("persisted TOTAL_AMOUNT correction is missing corrected_amount")
+        value = record.corrected_amount
+    else:
+        if record.corrected_text is None:
+            raise RuntimeError("persisted text correction is missing corrected_text")
+        value = record.corrected_text
+    return InvoiceReviewCorrectionMetadataView(
+        field=field,
+        corrected_value=value,
+        corrected_at=record.corrected_at,
     )

@@ -89,6 +89,7 @@ test("resolves a review with the configured bearer token", async () => {
         {
             decision: "APPROVE",
             review_note: "Matched the supplier statement.",
+            corrections: [],
         },
         "operator-token",
     );
@@ -105,6 +106,7 @@ test("resolves a review with the configured bearer token", async () => {
             body: JSON.stringify({
                 decision: "APPROVE",
                 review_note: "Matched the supplier statement.",
+                corrections: [],
             }),
         },
     );

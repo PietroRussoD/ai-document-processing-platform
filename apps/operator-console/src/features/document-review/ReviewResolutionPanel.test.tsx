@@ -48,6 +48,7 @@ test("submits an approval with the token and optional note", async () => {
         {
             decision: "APPROVE",
             review_note: "Checked the supplier statement.",
+            corrections: [],
         },
         "operator-token",
     );
@@ -109,6 +110,7 @@ test("shows the immutable outcome after a refresh", () => {
                     reviewer_id: "operator-42",
                     review_note: "Missing supplier evidence.",
                     resolved_at: "2026-09-17T18:00:00Z",
+                    corrections: [],
                 },
             }}
         />,

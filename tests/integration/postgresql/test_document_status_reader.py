@@ -16,6 +16,7 @@ from document_platform.adapters.outbound.postgresql.repositories import (
     SqlAlchemyDocumentTextExtractionRepository,
     SqlAlchemyDocumentTextSelectionRepository,
     SqlAlchemyInvoiceExtractionRepository,
+    SqlAlchemyInvoiceReviewCorrectionRepository,
     SqlAlchemyInvoiceValidationRepository,
     SqlAlchemyProcessingRunRepository,
     SqlAlchemyReviewResolutionRepository,
@@ -31,6 +32,9 @@ from document_platform.domain.processing import (
     EmbeddedTextQuality,
     InvoiceExtraction,
     InvoiceExtractionMethod,
+    InvoiceReviewCorrection,
+    InvoiceReviewField,
+    InvoiceReviewFieldCorrection,
     InvoiceValidation,
     InvoiceValidationDecision,
     OcrExtractionMethod,
@@ -242,6 +246,18 @@ async def test_returns_safe_review_resolution_metadata(
             await SqlAlchemyDocumentRepository(session).add(document)
             await SqlAlchemyProcessingRunRepository(session).add(run)
             await SqlAlchemyReviewResolutionRepository(session).add(resolution)
+            await SqlAlchemyInvoiceReviewCorrectionRepository(session).add(
+                InvoiceReviewCorrection(
+                    processing_run_id=run_id,
+                    corrections=(
+                        InvoiceReviewFieldCorrection(
+                            field=InvoiceReviewField.TOTAL_AMOUNT,
+                            corrected_value=Decimal("42.50"),
+                        ),
+                    ),
+                    corrected_at=ACCEPTED_AT,
+                )
+            )
 
         result = await SqlAlchemyDocumentStatusReader(database.sessions).get(document_id)
     finally:
@@ -253,3 +269,6 @@ async def test_returns_safe_review_resolution_metadata(
     assert review.decision is ReviewResolutionDecision.APPROVE
     assert review.reviewer_id == "operator-42"
     assert review.review_note == "Matched the supplier statement."
+    assert review.corrections[0].field is InvoiceReviewField.TOTAL_AMOUNT
+    assert review.corrections[0].corrected_value == Decimal("42.50")
+    assert review.corrections[0].corrected_at == ACCEPTED_AT

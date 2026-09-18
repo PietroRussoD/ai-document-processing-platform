@@ -104,6 +104,9 @@ async def test_approves_a_review_required_document_with_authenticated_operator(
                 json={
                     "decision": "APPROVE",
                     "review_note": "Matched the supplier statement.",
+                    "corrections": [
+                        {"field": "TOTAL_AMOUNT", "corrected_value": "159.99"},
+                    ],
                 },
             )
             status_response = await client.get(f"/api/v1/documents/{DOCUMENT_ID}")
@@ -123,6 +126,13 @@ async def test_approves_a_review_required_document_with_authenticated_operator(
         "reviewer_id": "operator-42",
         "review_note": "Matched the supplier statement.",
         "resolved_at": response.json()["resolved_at"],
+        "corrections": [
+            {
+                "field": "TOTAL_AMOUNT",
+                "corrected_value": "159.9900",
+                "corrected_at": response.json()["resolved_at"],
+            }
+        ],
     }
 
 

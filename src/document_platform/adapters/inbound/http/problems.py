@@ -15,7 +15,10 @@ from document_platform.application.commands import (
     ConflictingReviewResolution,
     InvalidReviewResolutionApplication,
     InvalidStagedUpload,
+    ReviewApprovalRequiresCompleteInvoice,
+    ReviewCorrectionRequiresApproval,
     ReviewResolutionDocumentNotFound,
+    ReviewResolutionRequiresInvoiceExtraction,
     ReviewResolutionRunNotFound,
     UnsupportedDocumentMediaType,
 )
@@ -97,6 +100,24 @@ PROBLEM_DEFINITIONS: tuple[tuple[type[Exception], ProblemDefinition], ...] = (
         ReviewResolutionAlreadyExists,
         ProblemDefinition(
             "urn:problem:review-resolution-conflict", "Review cannot be resolved", 409
+        ),
+    ),
+    (
+        ReviewResolutionRequiresInvoiceExtraction,
+        ProblemDefinition(
+            "urn:problem:review-invoice-incomplete", "Invoice review requires correction", 409
+        ),
+    ),
+    (
+        ReviewApprovalRequiresCompleteInvoice,
+        ProblemDefinition(
+            "urn:problem:review-invoice-incomplete", "Invoice review requires correction", 409
+        ),
+    ),
+    (
+        ReviewCorrectionRequiresApproval,
+        ProblemDefinition(
+            "urn:problem:invalid-review-correction", "Invalid review correction", 422
         ),
     ),
     (

@@ -12,6 +12,7 @@ from document_platform.domain.processing import (
     DocumentClassificationReason,
     EmbeddedTextQuality,
     InvoiceExtractionMethod,
+    InvoiceReviewField,
     InvoiceValidationDecision,
     InvoiceValidationIssue,
     OcrExtractionMethod,
@@ -85,11 +86,19 @@ class ProcessingOutputView:
 
 
 @dataclass(frozen=True, slots=True)
+class InvoiceReviewCorrectionMetadataView:
+    field: InvoiceReviewField
+    corrected_value: str | date | Decimal
+    corrected_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
 class ReviewResolutionMetadataView:
     decision: ReviewResolutionDecision
     reviewer_id: str
     review_note: str | None
     resolved_at: datetime
+    corrections: tuple[InvoiceReviewCorrectionMetadataView, ...]
 
 
 @dataclass(frozen=True, slots=True)

@@ -12,6 +12,7 @@ test("renders an approved review outcome", () => {
                 reviewer_id: "operator-42",
                 review_note: "Supplier evidence verified.",
                 resolved_at: "2026-09-17T18:00:00Z",
+                corrections: [],
             }}
         />,
     );
@@ -30,6 +31,7 @@ test("renders a rejected outcome without a review note", () => {
                 reviewer_id: "operator-42",
                 review_note: null,
                 resolved_at: "2026-09-17T18:00:00Z",
+                corrections: [],
             }}
         />,
     );
@@ -46,6 +48,7 @@ test("has no detectable accessibility violations", async () => {
                 reviewer_id: "operator-42",
                 review_note: "Supplier evidence verified.",
                 resolved_at: "2026-09-17T18:00:00Z",
+                corrections: [],
             }}
         />,
     );

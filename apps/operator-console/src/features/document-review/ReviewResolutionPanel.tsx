@@ -36,6 +36,7 @@ export function ReviewResolutionPanel({
                 {
                     decision,
                     review_note: reviewNote.trim() || null,
+                    corrections: [],
                 },
                 operatorToken,
             ),

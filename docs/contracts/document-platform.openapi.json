@@ -79,6 +79,26 @@
         "title": "ClassificationMetadataResponse",
         "type": "object"
       },
+      "CurrencyReviewCorrectionRequest": {
+        "properties": {
+          "corrected_value": {
+            "pattern": "^[A-Z]{3}$",
+            "title": "Corrected Value",
+            "type": "string"
+          },
+          "field": {
+            "const": "CURRENCY",
+            "title": "Field",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "corrected_value"
+        ],
+        "title": "CurrencyReviewCorrectionRequest",
+        "type": "object"
+      },
       "DocumentClassificationReason": {
         "enum": [
           "KEYWORD_MATCHED",
@@ -266,6 +286,90 @@
         "title": "InvoiceExtractionMethod",
         "type": "string"
       },
+      "InvoiceNumberReviewCorrectionRequest": {
+        "properties": {
+          "corrected_value": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Corrected Value",
+            "type": "string"
+          },
+          "field": {
+            "const": "INVOICE_NUMBER",
+            "title": "Field",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "corrected_value"
+        ],
+        "title": "InvoiceNumberReviewCorrectionRequest",
+        "type": "object"
+      },
+      "InvoiceReviewCorrectionMetadataResponse": {
+        "properties": {
+          "corrected_at": {
+            "format": "date-time",
+            "title": "Corrected At",
+            "type": "string"
+          },
+          "corrected_value": {
+            "title": "Corrected Value",
+            "type": "string"
+          },
+          "field": {
+            "$ref": "#/components/schemas/InvoiceReviewField"
+          }
+        },
+        "required": [
+          "field",
+          "corrected_value",
+          "corrected_at"
+        ],
+        "title": "InvoiceReviewCorrectionMetadataResponse",
+        "type": "object"
+      },
+      "InvoiceReviewCorrectionRequest": {
+        "discriminator": {
+          "mapping": {
+            "CURRENCY": "#/components/schemas/CurrencyReviewCorrectionRequest",
+            "INVOICE_NUMBER": "#/components/schemas/InvoiceNumberReviewCorrectionRequest",
+            "ISSUE_DATE": "#/components/schemas/IssueDateReviewCorrectionRequest",
+            "SUPPLIER_NAME": "#/components/schemas/SupplierNameReviewCorrectionRequest",
+            "TOTAL_AMOUNT": "#/components/schemas/TotalAmountReviewCorrectionRequest"
+          },
+          "propertyName": "field"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/InvoiceNumberReviewCorrectionRequest"
+          },
+          {
+            "$ref": "#/components/schemas/IssueDateReviewCorrectionRequest"
+          },
+          {
+            "$ref": "#/components/schemas/SupplierNameReviewCorrectionRequest"
+          },
+          {
+            "$ref": "#/components/schemas/CurrencyReviewCorrectionRequest"
+          },
+          {
+            "$ref": "#/components/schemas/TotalAmountReviewCorrectionRequest"
+          }
+        ]
+      },
+      "InvoiceReviewField": {
+        "enum": [
+          "INVOICE_NUMBER",
+          "ISSUE_DATE",
+          "SUPPLIER_NAME",
+          "CURRENCY",
+          "TOTAL_AMOUNT"
+        ],
+        "title": "InvoiceReviewField",
+        "type": "string"
+      },
       "InvoiceValidationDecision": {
         "enum": [
           "AUTO_APPROVE",
@@ -310,6 +414,26 @@
           "validated_at"
         ],
         "title": "InvoiceValidationMetadataResponse",
+        "type": "object"
+      },
+      "IssueDateReviewCorrectionRequest": {
+        "properties": {
+          "corrected_value": {
+            "format": "date",
+            "title": "Corrected Value",
+            "type": "string"
+          },
+          "field": {
+            "const": "ISSUE_DATE",
+            "title": "Field",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "corrected_value"
+        ],
+        "title": "IssueDateReviewCorrectionRequest",
         "type": "object"
       },
       "LivenessResponse": {
@@ -553,6 +677,14 @@
       },
       "ResolveDocumentReviewRequest": {
         "properties": {
+          "corrections": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/InvoiceReviewCorrectionRequest"
+            },
+            "title": "Corrections",
+            "type": "array"
+          },
           "decision": {
             "$ref": "#/components/schemas/ReviewResolutionDecision"
           },
@@ -585,6 +717,13 @@
       },
       "ReviewResolutionMetadataResponse": {
         "properties": {
+          "corrections": {
+            "items": {
+              "$ref": "#/components/schemas/InvoiceReviewCorrectionMetadataResponse"
+            },
+            "title": "Corrections",
+            "type": "array"
+          },
           "decision": {
             "$ref": "#/components/schemas/ReviewResolutionDecision"
           },
@@ -613,7 +752,8 @@
           "decision",
           "reviewer_id",
           "review_note",
-          "resolved_at"
+          "resolved_at",
+          "corrections"
         ],
         "title": "ReviewResolutionMetadataResponse",
         "type": "object"
@@ -650,6 +790,27 @@
           "replayed"
         ],
         "title": "ReviewResolutionResponse",
+        "type": "object"
+      },
+      "SupplierNameReviewCorrectionRequest": {
+        "properties": {
+          "corrected_value": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Corrected Value",
+            "type": "string"
+          },
+          "field": {
+            "const": "SUPPLIER_NAME",
+            "title": "Field",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "corrected_value"
+        ],
+        "title": "SupplierNameReviewCorrectionRequest",
         "type": "object"
       },
       "TextExtractionMetadataResponse": {
@@ -716,6 +877,34 @@
           "selected_at"
         ],
         "title": "TextSelectionMetadataResponse",
+        "type": "object"
+      },
+      "TotalAmountReviewCorrectionRequest": {
+        "properties": {
+          "corrected_value": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,16}|(?=[\\d.]{1,21}0*$)\\d{0,16}\\.\\d{0,4}0*$)",
+                "type": "string"
+              }
+            ],
+            "title": "Corrected Value"
+          },
+          "field": {
+            "const": "TOTAL_AMOUNT",
+            "title": "Field",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "corrected_value"
+        ],
+        "title": "TotalAmountReviewCorrectionRequest",
         "type": "object"
       },
       "ValidationError": {

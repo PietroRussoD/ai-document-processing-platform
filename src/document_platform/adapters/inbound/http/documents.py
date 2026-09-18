@@ -2,7 +2,7 @@
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Annotated, Any, cast
+from typing import Annotated, Any, Literal, cast
 from uuid import UUID
 
 from fastapi import APIRouter, File, Header, Request, UploadFile, status
@@ -30,6 +30,8 @@ from document_platform.domain.processing import (
     DocumentClassificationReason,
     EmbeddedTextQuality,
     InvoiceExtractionMethod,
+    InvoiceReviewField,
+    InvoiceReviewFieldCorrection,
     InvoiceValidationDecision,
     InvoiceValidationIssue,
     OcrExtractionMethod,
@@ -129,6 +131,20 @@ class ReviewResolutionMetadataResponse(BaseModel):
     reviewer_id: str
     review_note: str | None
     resolved_at: datetime
+    corrections: tuple["InvoiceReviewCorrectionMetadataResponse", ...]
+
+
+class InvoiceReviewCorrectionMetadataResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    field: InvoiceReviewField
+    corrected_value: str
+    corrected_at: datetime
+
+    @field_validator("corrected_value", mode="before")
+    @classmethod
+    def stringify_corrected_value(cls, value: str | date | Decimal) -> str:
+        return str(value)
 
 
 class ProcessingRunStatusResponse(BaseModel):
@@ -160,9 +176,59 @@ class DocumentStatusResponse(BaseModel):
     current_run: ProcessingRunStatusResponse
 
 
+class InvoiceNumberReviewCorrectionRequest(BaseModel):
+    field: Literal[InvoiceReviewField.INVOICE_NUMBER]
+    corrected_value: str = Field(min_length=1, max_length=128)
+
+    @field_validator("corrected_value")
+    @classmethod
+    def reject_blank_value(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("corrected_value must not be blank")
+        return value
+
+
+class IssueDateReviewCorrectionRequest(BaseModel):
+    field: Literal[InvoiceReviewField.ISSUE_DATE]
+    corrected_value: date
+
+
+class SupplierNameReviewCorrectionRequest(BaseModel):
+    field: Literal[InvoiceReviewField.SUPPLIER_NAME]
+    corrected_value: str = Field(min_length=1, max_length=512)
+
+    @field_validator("corrected_value")
+    @classmethod
+    def reject_blank_value(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("corrected_value must not be blank")
+        return value
+
+
+class CurrencyReviewCorrectionRequest(BaseModel):
+    field: Literal[InvoiceReviewField.CURRENCY]
+    corrected_value: str = Field(pattern=r"^[A-Z]{3}$")
+
+
+class TotalAmountReviewCorrectionRequest(BaseModel):
+    field: Literal[InvoiceReviewField.TOTAL_AMOUNT]
+    corrected_value: Decimal = Field(gt=Decimal("0"), max_digits=20, decimal_places=4)
+
+
+type InvoiceReviewCorrectionRequest = Annotated[
+    InvoiceNumberReviewCorrectionRequest
+    | IssueDateReviewCorrectionRequest
+    | SupplierNameReviewCorrectionRequest
+    | CurrencyReviewCorrectionRequest
+    | TotalAmountReviewCorrectionRequest,
+    Field(discriminator="field"),
+]
+
+
 class ResolveDocumentReviewRequest(BaseModel):
     decision: ReviewResolutionDecision
     review_note: str | None = Field(default=None, max_length=2_000)
+    corrections: tuple[InvoiceReviewCorrectionRequest, ...] = ()
 
 
 class ReviewResolutionResponse(BaseModel):
@@ -231,6 +297,13 @@ async def resolve_document_review(
             decision=resolution.decision,
             reviewer_id=operator.reviewer_id,
             review_note=resolution.review_note,
+            corrections=tuple(
+                InvoiceReviewFieldCorrection(
+                    field=correction.field,
+                    corrected_value=correction.corrected_value,
+                )
+                for correction in resolution.corrections
+            ),
         )
     )
     return _review_resolution_response(resolved)

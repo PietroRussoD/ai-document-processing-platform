@@ -21,6 +21,7 @@ export const Approved: Story = {
             reviewer_id: "operator-42",
             review_note: "Supplier evidence verified.",
             resolved_at: "2026-09-17T18:00:00Z",
+            corrections: [],
         },
     },
 };
@@ -32,6 +33,7 @@ export const RejectedWithoutNote: Story = {
             reviewer_id: "operator-42",
             review_note: null,
             resolved_at: "2026-09-17T18:00:00Z",
+            corrections: [],
         },
     },
 };
