@@ -1,6 +1,7 @@
 """HTTP integration tests for authenticated document-review resolution."""
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import cast
 from uuid import UUID
@@ -12,11 +13,16 @@ from pydantic import PostgresDsn, SecretStr
 from document_platform.adapters.outbound.postgresql.database import Database
 from document_platform.adapters.outbound.postgresql.repositories import (
     SqlAlchemyDocumentRepository,
+    SqlAlchemyInvoiceExtractionRepository,
     SqlAlchemyProcessingRunRepository,
 )
 from document_platform.bootstrap import create_app
 from document_platform.domain.documents import Document
-from document_platform.domain.processing import ProcessingRun
+from document_platform.domain.processing import (
+    InvoiceExtraction,
+    InvoiceExtractionMethod,
+    ProcessingRun,
+)
 from document_platform.settings import Settings
 
 TOKEN = "review-operator-token-with-at-least-thirty-two-characters"
@@ -51,6 +57,19 @@ def review_required_run() -> ProcessingRun:
     )
 
 
+def complete_invoice_extraction() -> InvoiceExtraction:
+    return InvoiceExtraction(
+        processing_run_id=RUN_ID,
+        method=InvoiceExtractionMethod.DETERMINISTIC_RULES,
+        invoice_number="INV-2026-001",
+        issue_date=date(2026, 9, 17),
+        supplier_name="Acme Supplies Ltd",
+        currency="EUR",
+        total_amount=Decimal("149.99"),
+        extracted_at=REVIEWED_AT,
+    )
+
+
 @pytest.mark.anyio
 async def test_approves_a_review_required_document_with_authenticated_operator(
     migrated_postgres_url: str,
@@ -69,6 +88,7 @@ async def test_approves_a_review_required_document_with_authenticated_operator(
         async with database.sessions.begin() as session:
             await SqlAlchemyDocumentRepository(session).add(review_required_document())
             await SqlAlchemyProcessingRunRepository(session).add(review_required_run())
+            await SqlAlchemyInvoiceExtractionRepository(session).add(complete_invoice_extraction())
 
         async with AsyncClient(
             transport=ASGITransport(app=application), base_url="http://test"

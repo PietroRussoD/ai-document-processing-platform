@@ -72,7 +72,10 @@ from document_platform.application.commands.resolve_document_review import (
     InvalidReviewResolutionApplication,
     ResolveDocumentReview,
     ResolveDocumentReviewHandler,
+    ReviewApprovalRequiresCompleteInvoice,
+    ReviewCorrectionRequiresApproval,
     ReviewResolutionDocumentNotFound,
+    ReviewResolutionRequiresInvoiceExtraction,
     ReviewResolutionRunNotFound,
 )
 from document_platform.application.commands.select_processing_text import (
@@ -146,7 +149,10 @@ __all__ = [
     "DocumentReviewResolved",
     "ConflictingReviewResolution",
     "InvalidReviewResolutionApplication",
+    "ReviewApprovalRequiresCompleteInvoice",
+    "ReviewCorrectionRequiresApproval",
     "ReviewResolutionDocumentNotFound",
+    "ReviewResolutionRequiresInvoiceExtraction",
     "ReviewResolutionRunNotFound",
     "ProcessingRunDocumentNotFound",
     "ProcessingRunCompleted",

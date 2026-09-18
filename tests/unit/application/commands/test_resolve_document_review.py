@@ -1,6 +1,7 @@
 """Application tests for manual review resolution."""
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
+from decimal import Decimal
 from types import TracebackType
 from typing import Self, cast
 from uuid import UUID
@@ -12,10 +13,18 @@ from document_platform.application.commands.resolve_document_review import (
     DocumentReviewResolved,
     ResolveDocumentReview,
     ResolveDocumentReviewHandler,
+    ReviewApprovalRequiresCompleteInvoice,
+    ReviewCorrectionRequiresApproval,
 )
 from document_platform.application.ports import UnitOfWork
 from document_platform.domain.documents import Document, DocumentStatus
 from document_platform.domain.processing import (
+    InvoiceExtraction,
+    InvoiceExtractionMethod,
+    InvoiceReviewCorrection,
+    InvoiceReviewField,
+    InvoiceReviewFieldCorrection,
+    InvoiceValidationIssue,
     ProcessingRun,
     ProcessingRunStatus,
     ReviewResolution,
@@ -50,6 +59,8 @@ class RecordingUnitOfWork:
     def __init__(self) -> None:
         self.documents = ValueRepository(review_required_document())
         self.processing_runs = ValueRepository(review_required_run())
+        self.invoice_extractions = ValueRepository(incomplete_invoice_extraction())
+        self.invoice_review_corrections = ValueRepository()
         self.review_resolutions = ValueRepository()
         self.commit_count = 0
 
@@ -92,6 +103,19 @@ def review_required_run() -> ProcessingRun:
     )
 
 
+def incomplete_invoice_extraction() -> InvoiceExtraction:
+    return InvoiceExtraction(
+        processing_run_id=RUN_ID,
+        method=InvoiceExtractionMethod.DETERMINISTIC_RULES,
+        invoice_number="INV-42",
+        issue_date=None,
+        supplier_name="Acme S.r.l.",
+        currency="EUR",
+        total_amount=Decimal("39.98"),
+        extracted_at=REVIEWED_AT,
+    )
+
+
 def handler(unit_of_work: RecordingUnitOfWork) -> ResolveDocumentReviewHandler:
     return ResolveDocumentReviewHandler(
         unit_of_work_factory=lambda: cast(UnitOfWork, unit_of_work),
@@ -99,41 +123,95 @@ def handler(unit_of_work: RecordingUnitOfWork) -> ResolveDocumentReviewHandler:
     )
 
 
-def command(decision: ReviewResolutionDecision) -> ResolveDocumentReview:
+def command(
+    decision: ReviewResolutionDecision,
+    *,
+    corrections: tuple[InvoiceReviewFieldCorrection, ...] = (),
+) -> ResolveDocumentReview:
     return ResolveDocumentReview(
         processing_run_id=RUN_ID,
         decision=decision,
         reviewer_id=REVIEWER_ID,
         review_note="Reviewed against the supplier record.",
+        corrections=corrections,
     )
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize(
-    ("decision", "expected_document_status"),
-    [
-        (ReviewResolutionDecision.APPROVE, DocumentStatus.APPROVED),
-        (ReviewResolutionDecision.REJECT, DocumentStatus.REJECTED),
-    ],
-)
-async def test_persists_resolution_and_completes_review_atomically(
-    decision: ReviewResolutionDecision,
-    expected_document_status: DocumentStatus,
-) -> None:
+async def test_approves_a_complete_corrected_invoice_and_persists_the_audit_record() -> None:
     unit_of_work = RecordingUnitOfWork()
+    corrections = (
+        InvoiceReviewFieldCorrection(
+            field=InvoiceReviewField.ISSUE_DATE,
+            corrected_value=date(2026, 9, 17),
+        ),
+    )
 
-    result = await handler(unit_of_work)(command(decision))
+    result = await handler(unit_of_work)(
+        command(ReviewResolutionDecision.APPROVE, corrections=corrections)
+    )
 
     assert result == DocumentReviewResolved(
-        RUN_ID, decision, REVIEWER_ID, RESOLVED_AT, replayed=False
+        RUN_ID, ReviewResolutionDecision.APPROVE, REVIEWER_ID, RESOLVED_AT, replayed=False
     )
-    assert cast(Document, unit_of_work.documents.updated[0]).status is expected_document_status
+    assert cast(Document, unit_of_work.documents.updated[0]).status is DocumentStatus.APPROVED
     assert (
         cast(ProcessingRun, unit_of_work.processing_runs.updated[0]).status
         is ProcessingRunStatus.COMPLETED
     )
-    assert cast(ReviewResolution, unit_of_work.review_resolutions.value).decision is decision
+    assert (
+        cast(ReviewResolution, unit_of_work.review_resolutions.value).decision
+        is ReviewResolutionDecision.APPROVE
+    )
+    assert unit_of_work.invoice_review_corrections.value == InvoiceReviewCorrection(
+        processing_run_id=RUN_ID,
+        corrections=corrections,
+        corrected_at=RESOLVED_AT,
+    )
     assert unit_of_work.commit_count == 1
+
+
+@pytest.mark.anyio
+async def test_rejects_without_requiring_or_persisting_invoice_corrections() -> None:
+    unit_of_work = RecordingUnitOfWork()
+
+    result = await handler(unit_of_work)(command(ReviewResolutionDecision.REJECT))
+
+    assert result.decision is ReviewResolutionDecision.REJECT
+    assert cast(Document, unit_of_work.documents.updated[0]).status is DocumentStatus.REJECTED
+    assert unit_of_work.invoice_review_corrections.value is None
+    assert unit_of_work.commit_count == 1
+
+
+@pytest.mark.anyio
+async def test_rejects_approval_when_required_fields_remain_missing() -> None:
+    unit_of_work = RecordingUnitOfWork()
+
+    with pytest.raises(ReviewApprovalRequiresCompleteInvoice) as error:
+        await handler(unit_of_work)(command(ReviewResolutionDecision.APPROVE))
+
+    assert error.value.issues == (InvoiceValidationIssue.MISSING_ISSUE_DATE,)
+    assert unit_of_work.commit_count == 0
+
+
+@pytest.mark.anyio
+async def test_rejects_corrections_on_a_rejected_document() -> None:
+    unit_of_work = RecordingUnitOfWork()
+
+    with pytest.raises(ReviewCorrectionRequiresApproval):
+        await handler(unit_of_work)(
+            command(
+                ReviewResolutionDecision.REJECT,
+                corrections=(
+                    InvoiceReviewFieldCorrection(
+                        field=InvoiceReviewField.ISSUE_DATE,
+                        corrected_value=date(2026, 9, 17),
+                    ),
+                ),
+            )
+        )
+
+    assert unit_of_work.commit_count == 0
 
 
 @pytest.mark.anyio
@@ -148,8 +226,21 @@ async def test_replays_the_same_resolution_without_mutation() -> None:
         review_note="Reviewed against the supplier record.",
         resolved_at=RESOLVED_AT,
     )
+    corrections = (
+        InvoiceReviewFieldCorrection(
+            field=InvoiceReviewField.ISSUE_DATE,
+            corrected_value=date(2026, 9, 17),
+        ),
+    )
+    unit_of_work.invoice_review_corrections.value = InvoiceReviewCorrection(
+        processing_run_id=RUN_ID,
+        corrections=corrections,
+        corrected_at=RESOLVED_AT,
+    )
 
-    result = await handler(unit_of_work)(command(ReviewResolutionDecision.APPROVE))
+    result = await handler(unit_of_work)(
+        command(ReviewResolutionDecision.APPROVE, corrections=corrections)
+    )
 
     assert result.replayed is True
     assert unit_of_work.documents.updated == []
