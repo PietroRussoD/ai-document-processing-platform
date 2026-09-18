@@ -5,16 +5,16 @@ data from business documents.
 
 ## Status
 
-The [`v0.2.0` tagged release](https://github.com/PietroRussoD/ai-document-processing-platform/tree/v0.2.0),
-documented in the [release notes](docs/releases/v0.2.0.md), adds durable document
-processing to the `v0.1.0` ingestion milestone: bounded embedded-text
-extraction, a local OCR fallback, canonical-text selection and deterministic
-document classification. For invoices, the worker persists explicitly labelled
-fields and an immutable validation decision. A complete invoice is automatically
-approved; an incomplete one is handed off to review. The console derives a safe
-timeline from persisted metadata and never renders extracted document text.
-The API accepts bounded PDF uploads through real validation, local blob storage
-and atomic PostgreSQL registration.
+The [`v0.3.0` tagged release](https://github.com/PietroRussoD/ai-document-processing-platform/tree/v0.3.0),
+documented in the [release notes](docs/releases/v0.3.0.md), adds an authenticated
+operator resolution flow to the durable document-processing pipeline introduced
+in `v0.2.0`. The worker performs bounded embedded-text extraction, a local OCR
+fallback, canonical-text selection, deterministic document classification and
+invoice validation. A complete invoice is automatically approved; an incomplete
+one is handed off to review. The console derives a safe timeline from persisted
+metadata and never renders extracted document text. The API accepts bounded PDF
+uploads through real validation, local blob storage and atomic PostgreSQL
+registration.
 A read endpoint exposes the current document and processing-run status. The
 operator console provides tested PDF selection and submission, including
 acceptance identifiers, safe error feedback and polling of the persisted
@@ -22,9 +22,9 @@ document and processing-run status. Once available, the same status snapshot
 also exposes safe extraction, selection, classification and review-resolution
 metadata; it never returns extracted document text or blob paths.
 
-Current `v0.3.0.dev0` work turns the durable `REVIEW_REQUIRED` handoff into an
-authenticated operator action with an immutable resolution record and focused
-reviewer feedback.
+`v0.3.0` turns the durable `REVIEW_REQUIRED` handoff into an authenticated
+operator action with an immutable resolution record, idempotent replay and
+focused reviewer feedback.
 
 ## Implemented Technology
 
