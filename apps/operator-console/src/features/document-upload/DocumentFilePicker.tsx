@@ -1,6 +1,8 @@
 import { FileText, X } from "lucide-react";
 import { useRef, useState } from "react";
 
+import { FeedbackMessage } from "../../components/ui/FeedbackMessage";
+
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
 
 type DocumentFilePickerProps = {
@@ -72,12 +74,9 @@ export function DocumentFilePicker({
             </label>
 
             {error !== null ? (
-                <p
-                    role="alert"
-                    className="mt-4 border-l-2 border-app-danger pl-3 text-sm text-app-danger"
-                >
+                <FeedbackMessage className="mt-4" role="alert" tone="danger">
                     {error}
-                </p>
+                </FeedbackMessage>
             ) : null}
 
             {selectedFile !== null ? (

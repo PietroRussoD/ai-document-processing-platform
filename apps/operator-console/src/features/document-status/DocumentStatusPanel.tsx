@@ -1,11 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle2, CircleAlert, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 import {
     createDocumentApi,
     type DocumentApi,
     type DocumentStatus,
 } from "../../api/documentApi";
+import { FeedbackMessage } from "../../components/ui/FeedbackMessage";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { ProcessingOutputPanel } from "../processing-output/ProcessingOutputPanel";
 import { ProcessingTimeline } from "../processing-output/ProcessingTimeline";
@@ -39,9 +40,9 @@ export function DocumentStatusPanel({
         return (
             <section className="mt-4 border border-app-border bg-app-surface p-5">
                 <h3 className="text-sm font-semibold">Persisted status</h3>
-                <p role="status" className="mt-3 text-sm text-app-muted">
+                <FeedbackMessage className="mt-3" tone="info">
                     Loading persisted status
-                </p>
+                </FeedbackMessage>
             </section>
         );
     }
@@ -50,9 +51,9 @@ export function DocumentStatusPanel({
         return (
             <section className="mt-4 border border-app-border bg-app-surface p-5">
                 <h3 className="text-sm font-semibold">Persisted status</h3>
-                <p role="alert" className="mt-3 text-sm text-app-danger">
+                <FeedbackMessage className="mt-3" role="alert" tone="danger">
                     The persisted status could not be loaded.
-                </p>
+                </FeedbackMessage>
                 <button
                     type="button"
                     onClick={() => void statusQuery.refetch()}
@@ -70,22 +71,14 @@ export function DocumentStatusPanel({
         <section className="mt-4 border border-app-border bg-app-surface p-5">
             <h3 className="text-sm font-semibold">Persisted status</h3>
             {document.current_run.status === "COMPLETED" ? (
-                <div
-                    role="status"
-                    className="mt-4 flex items-center gap-2 border-l-2 border-app-success pl-3 text-sm text-app-success"
-                >
-                    <CheckCircle2 aria-hidden="true" size={18} />
-                    <p>Processing results are ready.</p>
-                </div>
+                <FeedbackMessage className="mt-4" tone="success">
+                    Processing results are ready.
+                </FeedbackMessage>
             ) : null}
             {document.current_run.status === "REVIEW_REQUIRED" ? (
-                <div
-                    role="status"
-                    className="mt-4 flex items-center gap-2 border-l-2 border-app-warning pl-3 text-sm text-app-warning"
-                >
-                    <CircleAlert aria-hidden="true" size={18} />
-                    <p>Processing requires an operator review.</p>
-                </div>
+                <FeedbackMessage className="mt-4" tone="warning">
+                    Processing requires an operator review.
+                </FeedbackMessage>
             ) : null}
             <dl className="mt-4 grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
                 <StatusValue label="Document status" status={document.status} />

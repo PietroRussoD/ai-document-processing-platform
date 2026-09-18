@@ -1,5 +1,6 @@
 import { CheckCircle2, CircleAlert, LoaderCircle, XCircle } from "lucide-react";
-import { useEffect, useRef } from "react";
+
+import { FeedbackMessage } from "../../components/ui/FeedbackMessage";
 
 export type ReviewDecision = "APPROVE" | "REJECT";
 
@@ -24,14 +25,6 @@ export function ReviewResolutionForm({
     operatorToken,
     reviewNote,
 }: ReviewResolutionFormProps) {
-    const errorMessageRef = useRef<HTMLParagraphElement>(null);
-
-    useEffect(() => {
-        if (errorMessage !== null) {
-            errorMessageRef.current?.focus();
-        }
-    }, [errorMessage]);
-
     return (
         <section
             className="mt-6 border border-amber-300 bg-amber-50 p-5"
@@ -124,22 +117,22 @@ export function ReviewResolutionForm({
                 </button>
             </div>
 
-            <div aria-live="polite">
+            <div>
                 {isSaving ? (
-                    <p role="status" className="mt-4 text-sm text-app-muted">
+                    <FeedbackMessage className="mt-4" tone="info">
                         Saving review decision
-                    </p>
+                    </FeedbackMessage>
                 ) : null}
                 {errorMessage !== null ? (
-                    <p
-                        ref={errorMessageRef}
+                    <FeedbackMessage
                         id={reviewResolutionErrorId}
+                        className="mt-4"
+                        focusOnMount
                         role="alert"
-                        tabIndex={-1}
-                        className="mt-4 text-sm text-app-danger"
+                        tone="danger"
                     >
                         {errorMessage}
-                    </p>
+                    </FeedbackMessage>
                 ) : null}
             </div>
         </section>

@@ -7,6 +7,7 @@ import {
     type DocumentApi,
     DocumentApiProblem,
 } from "../../api/documentApi";
+import { FeedbackMessage } from "../../components/ui/FeedbackMessage";
 import { DocumentStatusPanel } from "../document-status/DocumentStatusPanel";
 import { DocumentFilePicker } from "./DocumentFilePicker";
 
@@ -79,14 +80,16 @@ export function DocumentUploadPanel({
                 </button>
             </div>
 
-            <div aria-live="polite">
+            <div>
                 {upload.isError ? (
-                    <p
+                    <FeedbackMessage
+                        className="mt-5"
+                        focusOnMount
                         role="alert"
-                        className="mt-5 border-l-2 border-app-danger pl-3 text-sm text-app-danger"
+                        tone="danger"
                     >
                         {failureMessage}
-                    </p>
+                    </FeedbackMessage>
                 ) : null}
 
                 {upload.data !== undefined ? (
