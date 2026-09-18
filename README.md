@@ -212,6 +212,11 @@ cd apps/operator-console
 pnpm check
 ```
 
+The operator console also has a local Storybook catalogue for reusable visual
+components. Run it with `pnpm storybook`; build the static catalogue with
+`pnpm build-storybook`. The Storybook a11y addon is enabled for interactive
+inspection, but WCAG conformance is verified separately through focused tests.
+
 Tests enforce branch coverage of at least 85%. The same command writes a local
 HTML report to `htmlcov/index.html` and a machine-readable report to
 `coverage.xml`. CI retains both as the `backend-coverage` artifact for 14 days.

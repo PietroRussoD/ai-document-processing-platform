@@ -24,3 +24,6 @@ coverage/
 
 data/
 artifacts/
+
+*storybook.log
+storybook-static
