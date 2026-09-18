@@ -36,6 +36,13 @@ from document_platform.domain.processing.invoice_extraction import (
     InvoiceExtraction,
     InvoiceExtractionMethod,
 )
+from document_platform.domain.processing.invoice_review_correction import (
+    InvalidInvoiceReviewCorrection,
+    InvoiceReviewCorrection,
+    InvoiceReviewField,
+    InvoiceReviewFieldCorrection,
+    InvoiceReviewFieldValue,
+)
 from document_platform.domain.processing.invoice_validation import (
     InvalidInvoiceValidation,
     InvoiceValidation,
@@ -80,6 +87,11 @@ __all__ = [
     "InvalidInvoiceExtraction",
     "InvoiceExtraction",
     "InvoiceExtractionMethod",
+    "InvalidInvoiceReviewCorrection",
+    "InvoiceReviewCorrection",
+    "InvoiceReviewField",
+    "InvoiceReviewFieldCorrection",
+    "InvoiceReviewFieldValue",
     "InvalidInvoiceValidation",
     "InvoiceValidation",
     "InvoiceValidationDecision",
