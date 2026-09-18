@@ -223,6 +223,17 @@ The review panel keeps native controls in a tested keyboard order. When a
 review decision is rejected by the API, focus moves to the associated alert and
 the operator-token field references that error message.
 
+Run the browser accessibility checks locally with:
+
+```bash
+cd apps/operator-console
+pnpm test:a11y:browser
+```
+
+The command starts Storybook when necessary, runs axe in Chromium against the
+review outcome, and checks the narrow 320 px layout. It is intentionally not
+part of the ordinary CI gate.
+
 Tests enforce branch coverage of at least 85%. The same command writes a local
 HTML report to `htmlcov/index.html` and a machine-readable report to
 `coverage.xml`. CI retains both as the `backend-coverage` artifact for 14 days.

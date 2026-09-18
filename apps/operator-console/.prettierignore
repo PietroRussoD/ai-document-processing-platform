@@ -1,4 +1,6 @@
 coverage/
 dist/
 storybook-static/
+playwright-report/
+test-results/
 src/api/generated/
