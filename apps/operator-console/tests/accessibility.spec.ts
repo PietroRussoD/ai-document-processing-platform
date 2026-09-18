@@ -5,6 +5,8 @@ const approvedReviewStory =
     "/iframe.html?id=document-review-resolvedreview--approved&viewMode=story";
 const rejectedReviewStory =
     "/iframe.html?id=document-review-resolvedreview--rejected-without-note&viewMode=story";
+const reviewResolutionFormStory =
+    "/iframe.html?id=document-review-reviewresolutionform--ready&viewMode=story";
 
 test("approved review outcome has no browser-detected accessibility violations", async ({
     page,
@@ -33,4 +35,19 @@ test("rejected review outcome fits a narrow viewport", async ({ page }) => {
     );
 
     expect(hasHorizontalOverflow).toBe(false);
+});
+
+test("review resolution form has no browser-detected accessibility violations", async ({
+    page,
+}) => {
+    await page.goto(reviewResolutionFormStory);
+    await expect(
+        page.getByRole("heading", { name: "Resolve operator review" }),
+    ).toBeVisible();
+
+    const results = await new AxeBuilder({ page })
+        .disableRules(["landmark-one-main", "page-has-heading-one"])
+        .analyze();
+
+    expect(results.violations).toEqual([]);
 });
