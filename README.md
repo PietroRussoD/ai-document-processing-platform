@@ -39,7 +39,7 @@ reviewer feedback.
 
 - Ollama for local structured extraction comparison;
 - optional S3-compatible storage and external-provider comparison;
-- human-review resolution, notifications and retention workflows.
+- notifications and retention workflows.
 
 ## Architecture
 
@@ -56,6 +56,8 @@ HTTP / React -> application use cases -> domain rules
 See [architecture documentation](docs/architecture.md) and
 [architectural decisions](docs/decisions/). The repeatable release checks are
 documented in the [v0.2 verification runbook](docs/runbooks/v0.2-verification.md).
+The current review-resolution flow is documented separately in the
+[v0.3 verification runbook](docs/runbooks/v0.3-verification.md).
 
 ## Repository Layout
 
@@ -97,6 +99,7 @@ The API is available at `http://localhost:8000`. Current endpoints:
 - liveness: `GET http://localhost:8000/health/live`;
 - document ingestion: `POST http://localhost:8000/api/v1/documents`;
 - document status: `GET http://localhost:8000/api/v1/documents/{document_id}`;
+- review resolution: `POST http://localhost:8000/api/v1/documents/{document_id}/review-resolution`;
 - OpenAPI document: `GET http://localhost:8000/openapi.json`;
 - interactive API documentation: `http://localhost:8000/docs`.
 
@@ -148,7 +151,20 @@ using a small deterministic, word-boundary keyword policy. For invoices, it
 extracts explicitly labelled fields, validates their completeness and persists
 the decision. `AUTO_APPROVE` atomically transitions the document to `APPROVED`
 and the run to `COMPLETED`; `REVIEW_REQUIRED` transitions both to review. The
-console stops polling after either automated outcome.
+console stops polling after either automated outcome. A configured local review
+operator can then approve or reject the review-required document. Resolution is
+atomic, immutable and idempotent for the same decision, reviewer and note.
+
+Set these local-only values before resolving a review through the API or console:
+
+```bash
+export DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN='replace-with-at-least-32-characters'
+export DOCUMENT_PLATFORM_REVIEW_OPERATOR_ID='local-reviewer'
+```
+
+The console sends the token only for the resolution request and never persists
+it. This static bearer-token mechanism is a development fixture, not an
+identity or authorization system.
 
 Before starting an OCR-recommended workflow, install the `tesseract` executable
 with the required language data and verify it with `tesseract --list-langs`.

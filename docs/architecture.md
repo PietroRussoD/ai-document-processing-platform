@@ -4,12 +4,13 @@
 
 The platform accepts synthetic business documents and processes them
 asynchronously for validation and review. `v0.1` implemented the ingestion
-boundary; current `v0.2` development executes bounded text extraction, OCR
+boundary; current `v0.3` development executes bounded text extraction, OCR
 fallback, canonical-text selection, deterministic classification, invoice
-extraction and invoice validation. It is designed as a local-first system: a
-clean default run does not require cloud credentials or a paid AI provider.
+extraction, invoice validation and authenticated review resolution. It is
+designed as a local-first system: a clean default run does not require cloud
+credentials or a paid AI provider.
 
-## Implemented Components (`v0.2`)
+## Implemented Components (`v0.3`)
 
 ```mermaid
 flowchart LR
@@ -38,7 +39,7 @@ flowchart LR
     Model -. optional .-> OpenAI[External provider]
 ```
 
-The local model comparison and human-review resolution are planned extensions.
+The local model comparison is a planned extension.
 A model provider will never be an authority for business state.
 
 ## Dependency Direction
@@ -75,6 +76,7 @@ sequenceDiagram
     participant Dispatcher
     participant Temporal
     participant Worker
+    participant Operator
 
     API->>DB: Commit document, run, idempotency record and PENDING request
     Dispatcher->>DB: Claim PENDING request with owner, token and lease
@@ -99,9 +101,13 @@ sequenceDiagram
     else Other document type
         Worker->>DB: Mark technical processing run COMPLETED
     end
+    opt Review-required document is resolved
+        Operator->>API: Submit approve or reject with bearer token
+        API->>DB: Atomically persist immutable resolution and complete run
+    end
 ```
 
-`v0.2` currently implements durable request claiming, application dispatch and
+`v0.3` currently implements durable request claiming, application dispatch and
 the Temporal activity set for text extraction, OCR, selection, classification,
 invoice extraction, validation and lifecycle application. The Temporal adapter starts the stable workflow ID
 with an existing-running workflow treated as the same successful handoff. A
@@ -221,7 +227,7 @@ stateDiagram-v2
     RUNNING --> WAITING_RETRY
     WAITING_RETRY --> RUNNING: retry
     RUNNING --> REVIEW_REQUIRED
-    REVIEW_REQUIRED --> RUNNING: review resolved
+    REVIEW_REQUIRED --> COMPLETED: review resolved
     RUNNING --> FAILED
     RUNNING --> CANCELLED
     WAITING_RETRY --> CANCELLED
@@ -425,6 +431,7 @@ tests/e2e/           API and browser journeys
 | Text extraction | Embedded/OCR extraction and persisted canonical source selection | OCR quality calibration and language policy |
 | Document classification | Deterministic canonical-text keyword policy | Evaluated local model policy |
 | Workflow execution | Temporal development server with local worker | Managed/self-hosted Temporal later |
+| Review authentication | Configured local static bearer token | Enterprise identity and authorization provider |
 
 ## Related Decisions
 
