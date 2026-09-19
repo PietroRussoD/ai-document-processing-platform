@@ -56,8 +56,35 @@ export function ResolvedReview({ resolution }: ResolvedReviewProps) {
                     value={resolution.review_note ?? "No note provided"}
                 />
             </dl>
+            {resolution.corrections.length > 0 ? (
+                <div className="mt-5 border-t border-app-success-border pt-4">
+                    <h4 className="text-sm font-semibold">
+                        Recorded corrections
+                    </h4>
+                    <dl className="mt-3 grid gap-4 text-sm sm:grid-cols-2">
+                        {resolution.corrections.map((correction) => (
+                            <ReviewValue
+                                key={correction.field}
+                                label={correctionLabel(correction.field)}
+                                value={correction.corrected_value}
+                            />
+                        ))}
+                    </dl>
+                </div>
+            ) : null}
         </section>
     );
+}
+
+function correctionLabel(field: string): string {
+    const labels: Record<string, string> = {
+        CURRENCY: "Currency",
+        INVOICE_NUMBER: "Invoice number",
+        ISSUE_DATE: "Issue date",
+        SUPPLIER_NAME: "Supplier",
+        TOTAL_AMOUNT: "Total amount",
+    };
+    return labels[field] ?? field;
 }
 
 function ReviewValue({

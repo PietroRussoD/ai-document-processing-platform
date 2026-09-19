@@ -37,3 +37,26 @@ export const RejectedWithoutNote: Story = {
         },
     },
 };
+
+export const ApprovedWithCorrections: Story = {
+    args: {
+        resolution: {
+            decision: "APPROVE",
+            reviewer_id: "operator-42",
+            review_note: "Supplier evidence verified.",
+            resolved_at: "2026-09-17T18:00:00Z",
+            corrections: [
+                {
+                    field: "SUPPLIER_NAME",
+                    corrected_value: "Acme Europe Ltd",
+                    corrected_at: "2026-09-17T18:00:00Z",
+                },
+                {
+                    field: "TOTAL_AMOUNT",
+                    corrected_value: "159.9900",
+                    corrected_at: "2026-09-17T18:00:00Z",
+                },
+            ],
+        },
+    },
+};

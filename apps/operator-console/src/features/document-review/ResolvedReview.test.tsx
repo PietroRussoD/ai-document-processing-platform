@@ -12,7 +12,18 @@ test("renders an approved review outcome", () => {
                 reviewer_id: "operator-42",
                 review_note: "Supplier evidence verified.",
                 resolved_at: "2026-09-17T18:00:00Z",
-                corrections: [],
+                corrections: [
+                    {
+                        field: "SUPPLIER_NAME",
+                        corrected_value: "Acme Europe Ltd",
+                        corrected_at: "2026-09-17T18:00:00Z",
+                    },
+                    {
+                        field: "TOTAL_AMOUNT",
+                        corrected_value: "159.9900",
+                        corrected_at: "2026-09-17T18:00:00Z",
+                    },
+                ],
             }}
         />,
     );
@@ -21,6 +32,9 @@ test("renders an approved review outcome", () => {
     expect(screen.getByText("Approved")).toBeVisible();
     expect(screen.getByText("operator-42")).toBeVisible();
     expect(screen.getByText("Supplier evidence verified.")).toBeVisible();
+    expect(screen.getByText("Recorded corrections")).toBeVisible();
+    expect(screen.getByText("Acme Europe Ltd")).toBeVisible();
+    expect(screen.getByText("159.9900")).toBeVisible();
 });
 
 test("renders a rejected outcome without a review note", () => {
