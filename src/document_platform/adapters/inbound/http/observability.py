@@ -1,6 +1,7 @@
 """Prometheus exposition and request instrumentation for the HTTP adapter."""
 
 from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
 from time import perf_counter
 
 from fastapi import APIRouter, Request, Response
@@ -8,10 +9,14 @@ from prometheus_client import (
     CONTENT_TYPE_LATEST,
     CollectorRegistry,
     Counter,
+    Gauge,
     Histogram,
     Info,
     generate_latest,
 )
+
+from document_platform.application.ports import ProcessingRunMetricsSnapshot
+from document_platform.domain.processing import ProcessingRunStatus
 
 
 class HttpMetrics:
@@ -35,6 +40,17 @@ class HttpMetrics:
             ("method", "route"),
             registry=self.registry,
         )
+        self._processing_run_count = Gauge(
+            "document_platform_processing_runs",
+            "Durable processing runs grouped by their current status.",
+            ("status",),
+            registry=self.registry,
+        )
+        self._oldest_queued_age = Gauge(
+            "document_platform_processing_queue_oldest_age_seconds",
+            "Age in seconds of the oldest queued processing run.",
+            registry=self.registry,
+        )
 
     def observe(self, *, request: Request, response: Response, duration_seconds: float) -> None:
         route = request.scope.get("route")
@@ -49,6 +65,22 @@ class HttpMetrics:
             route=route_path,
         ).observe(duration_seconds)
 
+    def observe_processing_runs(
+        self,
+        *,
+        snapshot: ProcessingRunMetricsSnapshot,
+        observed_at: datetime,
+    ) -> None:
+        for status in ProcessingRunStatus:
+            self._processing_run_count.labels(status=status).set(
+                snapshot.counts_by_status.get(status, 0)
+            )
+        oldest_queued_at = snapshot.oldest_queued_at
+        if oldest_queued_at is None:
+            self._oldest_queued_age.set(0)
+            return
+        self._oldest_queued_age.set(max(0, (observed_at - oldest_queued_at).total_seconds()))
+
 
 router = APIRouter(tags=["Observability"])
 
@@ -56,6 +88,8 @@ router = APIRouter(tags=["Observability"])
 @router.get("/metrics", include_in_schema=False)
 async def get_metrics(request: Request) -> Response:
     metrics = request.app.state.http_metrics
+    snapshot = await request.app.state.processing_run_metrics_reader.read()
+    metrics.observe_processing_runs(snapshot=snapshot, observed_at=datetime.now(UTC))
     return Response(content=generate_latest(metrics.registry), media_type=CONTENT_TYPE_LATEST)
 
 

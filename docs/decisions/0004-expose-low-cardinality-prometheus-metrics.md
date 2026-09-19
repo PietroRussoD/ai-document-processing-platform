@@ -23,6 +23,11 @@ count and duration. Request labels are limited to HTTP method, matched route
 template and status class. Instrumentation observes a response after route
 handling and does not participate in document or workflow transactions.
 
+Each scrape also refreshes a read-only PostgreSQL snapshot of current
+processing-run counts by the bounded status enum and the age of the oldest
+queued run. This is the authoritative backlog view after an application restart;
+it is not a historical event counter.
+
 The metrics endpoint is deliberately outside the versioned `/api/v1` business
 API and outside OpenAPI. Access control, network policy and a Prometheus/Grafana
 deployment are environment concerns to be designed separately.
@@ -31,7 +36,9 @@ deployment are environment concerns to be designed separately.
 
 - Local operators can scrape stable process telemetry immediately.
 - Metrics contain no document-derived values or high-cardinality identifiers.
-- A restart resets counters; durable backlog and outcome metrics must be based
-  on persisted PostgreSQL state in a subsequent slice.
+- A restart resets HTTP counters, while the processing backlog snapshot is
+  reconstructed from PostgreSQL on the next scrape.
+- Current status counts are not historical throughput or outcome-event totals;
+  those require a separate event or audit design.
 - The application does not claim a production monitoring deployment merely by
   exposing the endpoint.

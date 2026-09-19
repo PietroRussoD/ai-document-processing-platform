@@ -22,19 +22,26 @@ from document_platform.adapters.outbound.filesystem import LocalBlobStore
 from document_platform.adapters.outbound.pdf import PyMuPdfInspector
 from document_platform.adapters.outbound.postgresql import SqlAlchemyUnitOfWork
 from document_platform.adapters.outbound.postgresql.database import create_database
-from document_platform.adapters.outbound.postgresql.queries import SqlAlchemyDocumentStatusReader
+from document_platform.adapters.outbound.postgresql.queries import (
+    SqlAlchemyDocumentStatusReader,
+    SqlAlchemyProcessingRunMetricsReader,
+)
 from document_platform.application.commands import (
     AcceptDocumentUploadHandler,
     RegisterDocumentHandler,
     ResolveDocumentReviewHandler,
 )
+from document_platform.application.ports import ProcessingRunMetricsReader
 from document_platform.application.queries import GetDocumentStatusHandler
 from document_platform.settings import Settings
 
 PACKAGE_NAME = "ai-document-processing-platform"
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    processing_run_metrics_reader: ProcessingRunMetricsReader | None = None,
+) -> FastAPI:
     active_settings = settings or Settings()
     application_version = version(PACKAGE_NAME)
     database = create_database(active_settings)
@@ -77,6 +84,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.state.get_document_status = get_document_status
     application.state.resolve_document_review = resolve_document_review
     application.state.http_metrics = HttpMetrics(application_version=application_version)
+    application.state.processing_run_metrics_reader = (
+        processing_run_metrics_reader or SqlAlchemyProcessingRunMetricsReader(database.sessions)
+    )
     application.middleware("http")(observe_request)
     install_problem_handlers(application)
     application.include_router(health_router)

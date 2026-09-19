@@ -218,11 +218,13 @@ exposed by the HTTP contract.
 ### Metrics
 
 `GET /metrics` exposes Prometheus text metrics for local operational scraping.
-The initial instrumentation records build information plus completed HTTP request
-counts and durations. Labels are limited to method, matched route template and
-HTTP status class; document identifiers, filenames, tokens, request URLs and
-document content are never labels. The endpoint is operational infrastructure,
-not part of the versioned `/api/v1` business contract.
+It records build information plus completed HTTP request counts and durations,
+and refreshes a PostgreSQL snapshot of processing-run counts by current status
+and oldest queued-run age on every scrape. Labels are limited to method, matched
+route template, HTTP status class and the bounded processing-run status enum;
+document identifiers, filenames, tokens, request URLs and document content are
+never labels. The endpoint is operational infrastructure, not part of the
+versioned `/api/v1` business contract.
 
 The versioned API contract is stored at
 [`docs/contracts/document-platform.openapi.json`](docs/contracts/document-platform.openapi.json).

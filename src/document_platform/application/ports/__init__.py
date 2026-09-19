@@ -74,6 +74,10 @@ from document_platform.application.ports.pdf_text_extractor import (
     PdfTextExtractor,
     PdfTextLimitExceeded,
 )
+from document_platform.application.ports.processing_run_metrics_reader import (
+    ProcessingRunMetricsReader,
+    ProcessingRunMetricsSnapshot,
+)
 from document_platform.application.ports.processing_run_repository import (
     ConcurrentProcessingRunUpdate,
     ProcessingRunAlreadyExists,
@@ -145,6 +149,8 @@ __all__ = [
     "OcrExtractionMetadataView",
     "ProcessingOutputView",
     "ProcessingRunAlreadyExists",
+    "ProcessingRunMetricsReader",
+    "ProcessingRunMetricsSnapshot",
     "ProcessingRunRepository",
     "ProcessingRunStatusView",
     "ReviewResolutionAlreadyExists",
