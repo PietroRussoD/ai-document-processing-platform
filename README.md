@@ -30,15 +30,19 @@ adds a synthetic extraction corpus and a local Ollama comparison harness. The
 recorded Qwen3 result does not meet the product policy, so model calls remain
 evaluation-only and outside the document-processing workflow.
 
-Current `v0.5.0` development starts the operational-hardening milestone. Its
-first concern is observable, bounded processing behavior; notifications,
-retention, malware scanning and production deployment remain separate decisions
-until their concrete boundaries are designed and tested.
+Current `v0.5.0` development is the operational-observability milestone. It
+starts with low-cardinality Prometheus telemetry, then adds durable pipeline
+backlog/outcome metrics, correlation-safe logs and an optional local
+Prometheus/Grafana profile. Controlled reprocessing and the Operations Console
+belong to the separate `v0.6.0` milestone. Notifications, retention, malware
+scanning and production deployment remain separate decisions until their
+concrete boundaries are designed and tested.
 
 ## Implemented Technology
 
 - Python 3.13 and `uv`;
 - FastAPI and PostgreSQL;
+- Prometheus client for local operational metrics;
 - PyMuPDF for PDF validation and embedded-text extraction;
 - Temporal for durable local workflow execution;
 - bounded local Tesseract OCR fallback;
