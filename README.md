@@ -63,10 +63,10 @@ HTTP / React -> application use cases -> domain rules
 See [architecture documentation](docs/architecture.md) and
 [architectural decisions](docs/decisions/). The repeatable release checks are
 documented in the [v0.2 verification runbook](docs/runbooks/v0.2-verification.md).
-The current review-resolution flow is documented separately in the
-[v0.3 verification runbook](docs/runbooks/v0.3-verification.md). `v0.4`
-extends that flow with field corrections and records local model-comparison
-evidence in [`docs/evaluation.md`](docs/evaluation.md).
+The review-resolution flow is documented in the
+[v0.3 verification runbook](docs/runbooks/v0.3-verification.md). Its `v0.4`
+correction and local-model verification extension is documented separately in
+the [v0.4 verification runbook](docs/runbooks/v0.4-verification.md).
 
 ## Repository Layout
 
