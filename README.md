@@ -30,6 +30,11 @@ adds a synthetic extraction corpus and a local Ollama comparison harness. The
 recorded Qwen3 result does not meet the product policy, so model calls remain
 evaluation-only and outside the document-processing workflow.
 
+Current `v0.5.0` development starts the operational-hardening milestone. Its
+first concern is observable, bounded processing behavior; notifications,
+retention, malware scanning and production deployment remain separate decisions
+until their concrete boundaries are designed and tested.
+
 ## Implemented Technology
 
 - Python 3.13 and `uv`;
