@@ -449,3 +449,4 @@ tests/e2e/           API and browser journeys
 - [ADR 0001: Pragmatic Ports and Adapters](decisions/0001-pragmatic-ports-and-adapters.md)
 - [ADR 0002: Preserve Operator Corrections Separately from Extraction](decisions/0002-preserve-operator-corrections-separately.md)
 - [ADR 0003: Keep Local Models Evaluation-Only Until a Policy Gate Is Met](decisions/0003-keep-local-models-evaluation-only.md)
+- [ADR 0004: Expose Low-Cardinality Prometheus Metrics](decisions/0004-expose-low-cardinality-prometheus-metrics.md)

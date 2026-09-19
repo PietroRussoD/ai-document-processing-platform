@@ -10,6 +10,13 @@ from fastapi import FastAPI
 
 from document_platform.adapters.inbound.http.documents import router as documents_router
 from document_platform.adapters.inbound.http.health import router as health_router
+from document_platform.adapters.inbound.http.observability import (
+    HttpMetrics,
+    observe_request,
+)
+from document_platform.adapters.inbound.http.observability import (
+    router as observability_router,
+)
 from document_platform.adapters.inbound.http.problems import install_problem_handlers
 from document_platform.adapters.outbound.filesystem import LocalBlobStore
 from document_platform.adapters.outbound.pdf import PyMuPdfInspector
@@ -69,8 +76,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.state.accept_document_upload = accept_document_upload
     application.state.get_document_status = get_document_status
     application.state.resolve_document_review = resolve_document_review
+    application.state.http_metrics = HttpMetrics(application_version=application_version)
+    application.middleware("http")(observe_request)
     install_problem_handlers(application)
     application.include_router(health_router)
+    application.include_router(observability_router)
     application.include_router(documents_router)
     return application
 

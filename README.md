@@ -77,6 +77,8 @@ The current durable decisions are recorded in
 [ADR 0001](docs/decisions/0001-pragmatic-ports-and-adapters.md),
 [ADR 0002](docs/decisions/0002-preserve-operator-corrections-separately.md)
 and [ADR 0003](docs/decisions/0003-keep-local-models-evaluation-only.md).
+Operational telemetry is defined in
+[ADR 0004](docs/decisions/0004-expose-low-cardinality-prometheus-metrics.md).
 
 ## Repository Layout
 
@@ -116,6 +118,7 @@ uv run uvicorn document_platform.bootstrap:app --reload
 The API is available at `http://localhost:8000`. Current endpoints:
 
 - liveness: `GET http://localhost:8000/health/live`;
+- Prometheus metrics: `GET http://localhost:8000/metrics`;
 - document ingestion: `POST http://localhost:8000/api/v1/documents`;
 - document status: `GET http://localhost:8000/api/v1/documents/{document_id}`;
 - review resolution: `POST http://localhost:8000/api/v1/documents/{document_id}/review-resolution`;
@@ -207,6 +210,15 @@ processing run. Its optional `processing_output` contains only extraction counts
 quality decisions, canonical-text selection, classification, invoice fields and
 validation reason codes. Internal storage paths and extracted text are never
 exposed by the HTTP contract.
+
+### Metrics
+
+`GET /metrics` exposes Prometheus text metrics for local operational scraping.
+The initial instrumentation records build information plus completed HTTP request
+counts and durations. Labels are limited to method, matched route template and
+HTTP status class; document identifiers, filenames, tokens, request URLs and
+document content are never labels. The endpoint is operational infrastructure,
+not part of the versioned `/api/v1` business contract.
 
 The versioned API contract is stored at
 [`docs/contracts/document-platform.openapi.json`](docs/contracts/document-platform.openapi.json).
