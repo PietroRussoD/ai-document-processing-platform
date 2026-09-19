@@ -41,6 +41,9 @@ focused reviewer feedback.
 - optional S3-compatible storage and external-provider comparison;
 - notifications and retention workflows.
 
+The synthetic, versioned invoice-extraction baseline is documented in
+[`docs/evaluation.md`](docs/evaluation.md).
+
 ## Architecture
 
 The backend follows pragmatic ports and adapters. Business rules and use cases

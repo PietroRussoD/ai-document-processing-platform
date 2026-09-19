@@ -1,0 +1,95 @@
+{
+  "dataset_id": "invoice-extraction-v1",
+  "schema_version": 1,
+  "description": "Synthetic labelled invoice snippets for exact structured-field evaluation.",
+  "cases": [
+    {
+      "id": "english-complete-eur",
+      "text": "INVOICE\nInvoice number: INV-2026-001\nInvoice date: 2026-09-18\nSupplier: Acme Supplies Ltd\nTotal: EUR 1234.50\n",
+      "expected": {
+        "invoice_number": "INV-2026-001",
+        "issue_date": "2026-09-18",
+        "supplier_name": "Acme Supplies Ltd",
+        "currency": "EUR",
+        "total_amount": "1234.50"
+      }
+    },
+    {
+      "id": "italian-complete-eur-symbol",
+      "text": "FATTURA\nFattura numero: IT-2026-18\nData: 18/09/2026\nFornitore: Contoso S.r.l.\nTotale: € 12,50\n",
+      "expected": {
+        "invoice_number": "IT-2026-18",
+        "issue_date": "2026-09-18",
+        "supplier_name": "Contoso S.r.l.",
+        "currency": "EUR",
+        "total_amount": "12.50"
+      }
+    },
+    {
+      "id": "english-gbp-symbol",
+      "text": "Invoice No: GB-52\nDate: 18-09-2026\nSupplier: Northwind Trading\nTotal amount: £ 78.90\n",
+      "expected": {
+        "invoice_number": "GB-52",
+        "issue_date": "2026-09-18",
+        "supplier_name": "Northwind Trading",
+        "currency": "GBP",
+        "total_amount": "78.90"
+      }
+    },
+    {
+      "id": "missing-issue-date",
+      "text": "Invoice number: INV-MISSING-DATE\nSupplier: Fabrikam Ltd\nTotal: USD 45.00\n",
+      "expected": {
+        "invoice_number": "INV-MISSING-DATE",
+        "issue_date": null,
+        "supplier_name": "Fabrikam Ltd",
+        "currency": "USD",
+        "total_amount": "45.00"
+      }
+    },
+    {
+      "id": "whitespace-and-thousands-separator",
+      "text": "  Invoice # :  INV-SPACE-1  \nInvoice date: 2026-09-18\nSupplier:  Alpine Ski House  \nTotal: EUR 1,234.50\n",
+      "expected": {
+        "invoice_number": "INV-SPACE-1",
+        "issue_date": "2026-09-18",
+        "supplier_name": "Alpine Ski House",
+        "currency": "EUR",
+        "total_amount": "1234.50"
+      }
+    },
+    {
+      "id": "unlabelled-text",
+      "text": "Payment due for invoice INV-999 on 2026-09-18. Amount due: 12.50.\n",
+      "expected": {
+        "invoice_number": null,
+        "issue_date": null,
+        "supplier_name": null,
+        "currency": null,
+        "total_amount": null
+      }
+    },
+    {
+      "id": "invalid-date",
+      "text": "Invoice number: INV-BAD-DATE\nInvoice date: 2026-99-99\nSupplier: Adventure Works\nTotal: EUR 20.00\n",
+      "expected": {
+        "invoice_number": "INV-BAD-DATE",
+        "issue_date": null,
+        "supplier_name": "Adventure Works",
+        "currency": "EUR",
+        "total_amount": "20.00"
+      }
+    },
+    {
+      "id": "unsupported-currency",
+      "text": "Invoice number: INV-CAD-1\nInvoice date: 2026-09-18\nSupplier: Tailspin Toys\nTotal: CAD 99.00\n",
+      "expected": {
+        "invoice_number": "INV-CAD-1",
+        "issue_date": "2026-09-18",
+        "supplier_name": "Tailspin Toys",
+        "currency": null,
+        "total_amount": null
+      }
+    }
+  ]
+}
