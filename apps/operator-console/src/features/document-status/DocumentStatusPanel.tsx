@@ -100,6 +100,9 @@ export function DocumentStatusPanel({
                 />
             </dl>
             <ProcessingOutputPanel
+                corrections={
+                    document.current_run.review_resolution?.corrections ?? []
+                }
                 output={document.current_run.processing_output}
             />
             <ReviewResolutionPanel

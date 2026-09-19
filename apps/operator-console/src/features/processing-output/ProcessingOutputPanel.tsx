@@ -14,12 +14,20 @@ import { StatusBadge } from "../../components/ui/StatusBadge";
 type ProcessingOutput = NonNullable<
     DocumentStatus["current_run"]["processing_output"]
 >;
+type ReviewCorrections = NonNullable<
+    DocumentStatus["current_run"]["review_resolution"]
+>["corrections"];
+type InvoiceExtraction = NonNullable<ProcessingOutput["invoice_extraction"]>;
 
 type ProcessingOutputPanelProps = {
+    corrections?: ReviewCorrections;
     output: ProcessingOutput | null;
 };
 
-export function ProcessingOutputPanel({ output }: ProcessingOutputPanelProps) {
+export function ProcessingOutputPanel({
+    corrections = [],
+    output,
+}: ProcessingOutputPanelProps) {
     if (output === null) {
         return (
             <section
@@ -38,6 +46,11 @@ export function ProcessingOutputPanel({ output }: ProcessingOutputPanelProps) {
             </section>
         );
     }
+
+    const effectiveInvoiceExtraction = applyCorrections(
+        output.invoice_extraction,
+        corrections,
+    );
 
     return (
         <section
@@ -116,7 +129,14 @@ export function ProcessingOutputPanel({ output }: ProcessingOutputPanelProps) {
                         </>
                     )}
                 </ResultGroup>
-                <ResultGroup icon={ReceiptText} title="Invoice extraction">
+                <ResultGroup
+                    icon={ReceiptText}
+                    title={
+                        corrections.length > 0
+                            ? "Effective invoice values"
+                            : "Invoice extraction"
+                    }
+                >
                     {output.invoice_extraction === null ? (
                         <ResultValue
                             label="Extraction"
@@ -124,30 +144,57 @@ export function ProcessingOutputPanel({ output }: ProcessingOutputPanelProps) {
                         />
                     ) : (
                         <>
-                            <ResultValue
+                            <InvoiceValue
                                 label="Invoice number"
+                                originalValue={
+                                    output.invoice_extraction.invoice_number
+                                }
                                 value={
-                                    output.invoice_extraction.invoice_number ??
-                                    "Not found"
+                                    effectiveInvoiceExtraction?.invoice_number ??
+                                    null
                                 }
                             />
-                            <ResultValue
+                            <InvoiceValue
                                 label="Issue date"
+                                originalValue={
+                                    output.invoice_extraction.issue_date
+                                }
                                 value={
-                                    output.invoice_extraction.issue_date ??
-                                    "Not found"
+                                    effectiveInvoiceExtraction?.issue_date ??
+                                    null
                                 }
                             />
-                            <ResultValue
+                            <InvoiceValue
                                 label="Supplier"
+                                originalValue={
+                                    output.invoice_extraction.supplier_name
+                                }
                                 value={
-                                    output.invoice_extraction.supplier_name ??
-                                    "Not found"
+                                    effectiveInvoiceExtraction?.supplier_name ??
+                                    null
                                 }
                             />
-                            <ResultValue
-                                label="Total"
-                                value={formatTotal(output.invoice_extraction)}
+                            <InvoiceValue
+                                label="Currency"
+                                originalValue={
+                                    output.invoice_extraction.currency
+                                }
+                                value={
+                                    effectiveInvoiceExtraction?.currency ?? null
+                                }
+                            />
+                            <InvoiceValue
+                                label="Total amount"
+                                originalValue={formatAmount(
+                                    output.invoice_extraction.total_amount,
+                                    output.invoice_extraction.currency,
+                                )}
+                                value={formatAmount(
+                                    effectiveInvoiceExtraction?.total_amount ??
+                                        null,
+                                    effectiveInvoiceExtraction?.currency ??
+                                        null,
+                                )}
                             />
                         </>
                     )}
@@ -216,15 +263,68 @@ function formatValidationIssues(issues: string[]): string {
         : issues.map(formatLabel).join(", ");
 }
 
-function formatTotal(
-    extraction: NonNullable<ProcessingOutput["invoice_extraction"]>,
-): string {
-    if (extraction.total_amount === null) {
-        return "Not found";
+function formatAmount(
+    amount: string | null,
+    currency: string | null,
+): string | null {
+    if (amount === null) {
+        return null;
     }
-    return extraction.currency === null
-        ? extraction.total_amount
-        : `${extraction.currency} ${extraction.total_amount}`;
+    return currency === null ? amount : `${currency} ${amount}`;
+}
+
+function InvoiceValue({
+    label,
+    originalValue,
+    value,
+}: {
+    label: string;
+    originalValue: string | null;
+    value: string | null;
+}) {
+    const changed = value !== originalValue;
+    return (
+        <div>
+            <dt className="text-xs font-medium text-app-muted">{label}</dt>
+            <dd className="mt-1 break-words">
+                {value ?? "Not found"}
+                {changed ? (
+                    <span className="ml-2 align-middle">
+                        <StatusBadge label="Corrected" tone="info" />
+                    </span>
+                ) : null}
+            </dd>
+            {changed ? (
+                <p className="mt-1 text-xs text-app-muted">
+                    Extracted: {originalValue ?? "Not found"}
+                </p>
+            ) : null}
+        </div>
+    );
+}
+
+function applyCorrections(
+    extraction: InvoiceExtraction | null,
+    corrections: ReviewCorrections,
+): InvoiceExtraction | null {
+    if (extraction === null || corrections.length === 0) {
+        return extraction;
+    }
+    const values = new Map(
+        corrections.map((correction) => [
+            correction.field,
+            correction.corrected_value,
+        ]),
+    );
+    return {
+        ...extraction,
+        invoice_number:
+            values.get("INVOICE_NUMBER") ?? extraction.invoice_number,
+        issue_date: values.get("ISSUE_DATE") ?? extraction.issue_date,
+        supplier_name: values.get("SUPPLIER_NAME") ?? extraction.supplier_name,
+        currency: values.get("CURRENCY") ?? extraction.currency,
+        total_amount: values.get("TOTAL_AMOUNT") ?? extraction.total_amount,
+    };
 }
 
 function ResultGroup({

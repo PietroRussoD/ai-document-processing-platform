@@ -106,7 +106,7 @@ test("shows invoice review reasons without exposing source text", () => {
     expect(
         screen.getByText("Missing Issue Date, Missing Total Amount"),
     ).toBeVisible();
-    expect(screen.getAllByText("Not found")).toHaveLength(2);
+    expect(screen.getAllByText("Not found")).toHaveLength(3);
 });
 
 test("marks invoice-only output as not applicable for other document types", () => {
@@ -128,4 +128,50 @@ test("marks invoice-only output as not applicable for other document types", () 
     );
 
     expect(screen.getAllByText("Not applicable")).toHaveLength(2);
+});
+
+test("shows review-corrected invoice values without replacing extracted values", () => {
+    render(
+        <ProcessingOutputPanel
+            corrections={[
+                {
+                    field: "SUPPLIER_NAME",
+                    corrected_value: "Acme Europe Ltd",
+                    corrected_at: "2026-09-16T12:00:06Z",
+                },
+                {
+                    field: "TOTAL_AMOUNT",
+                    corrected_value: "15.00",
+                    corrected_at: "2026-09-16T12:00:06Z",
+                },
+            ]}
+            output={{
+                embedded_text: null,
+                ocr_text: null,
+                selected_text: null,
+                classification: {
+                    document_type: "INVOICE",
+                    reason: "KEYWORD_MATCHED",
+                    classified_at: "2026-09-16T12:00:03Z",
+                },
+                invoice_extraction: {
+                    method: "DETERMINISTIC_RULES",
+                    invoice_number: "INV-42",
+                    issue_date: "2026-09-16",
+                    supplier_name: "Acme Ltd",
+                    currency: "EUR",
+                    total_amount: "12.50",
+                    extracted_at: "2026-09-16T12:00:04Z",
+                },
+                invoice_validation: null,
+            }}
+        />,
+    );
+
+    expect(screen.getByText("Effective invoice values")).toBeVisible();
+    expect(screen.getByText("Acme Europe Ltd")).toBeVisible();
+    expect(screen.getByText("EUR 15.00")).toBeVisible();
+    expect(screen.getAllByText("Corrected")).toHaveLength(2);
+    expect(screen.getByText("Extracted: Acme Ltd")).toBeVisible();
+    expect(screen.getByText("Extracted: EUR 12.50")).toBeVisible();
 });
