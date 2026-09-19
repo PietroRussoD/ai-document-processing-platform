@@ -27,7 +27,7 @@ test("submits an approval with the token and optional note", async () => {
         <ReviewResolutionPanel
             api={{ resolveReview }}
             documentId={DOCUMENT_ID}
-            run={reviewRequiredRun()}
+            run={reviewRequiredRunWithInvoice()}
         />,
         { wrapper: QueryWrapper },
     );
@@ -147,6 +147,28 @@ function reviewRequiredRun(): DocumentStatus["current_run"] {
         attempt_count: 1,
         processing_output: null,
         review_resolution: null,
+    };
+}
+
+function reviewRequiredRunWithInvoice(): DocumentStatus["current_run"] {
+    return {
+        ...reviewRequiredRun(),
+        processing_output: {
+            embedded_text: null,
+            ocr_text: null,
+            selected_text: null,
+            classification: null,
+            invoice_extraction: {
+                method: "DETERMINISTIC_RULES",
+                invoice_number: "INV-2026-001",
+                issue_date: "2026-09-17",
+                supplier_name: "Acme Supplies Ltd",
+                currency: "EUR",
+                total_amount: "149.9900",
+                extracted_at: "2026-09-17T18:00:00Z",
+            },
+            invoice_validation: null,
+        },
     };
 }
 

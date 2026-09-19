@@ -53,6 +53,7 @@ function InteractiveReviewResolutionForm({
     return (
         <ReviewResolutionForm
             errorMessage={errorMessage}
+            invoiceExtraction={null}
             isSaving={isSaving}
             onDecision={() => undefined}
             onOperatorTokenChange={setOperatorToken}

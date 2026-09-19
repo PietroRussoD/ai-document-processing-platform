@@ -30,13 +30,21 @@ export function ReviewResolutionPanel({
     const [operatorToken, setOperatorToken] = useState("");
     const [reviewNote, setReviewNote] = useState("");
     const resolutionMutation = useMutation({
-        mutationFn: (decision: "APPROVE" | "REJECT") =>
+        mutationFn: ({
+            corrections,
+            decision,
+        }: {
+            corrections: Parameters<
+                ReviewApi["resolveReview"]
+            >[1]["corrections"];
+            decision: "APPROVE" | "REJECT";
+        }) =>
             api.resolveReview(
                 documentId,
                 {
                     decision,
                     review_note: reviewNote.trim() || null,
-                    corrections: [],
+                    corrections,
                 },
                 operatorToken,
             ),
@@ -64,8 +72,17 @@ export function ReviewResolutionPanel({
     return (
         <ReviewResolutionForm
             errorMessage={resolutionMutation.isError ? failureMessage : null}
+            invoiceExtraction={
+                run.processing_output?.invoice_extraction ?? null
+            }
             isSaving={resolutionMutation.isPending}
-            onDecision={(decision) => resolutionMutation.mutate(decision)}
+            key={
+                run.processing_output?.invoice_extraction?.extracted_at ??
+                "no-extraction"
+            }
+            onDecision={(decision, corrections) =>
+                resolutionMutation.mutate({ decision, corrections })
+            }
             onOperatorTokenChange={setOperatorToken}
             onReviewNoteChange={setReviewNote}
             operatorToken={operatorToken}
