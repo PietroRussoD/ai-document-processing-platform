@@ -1,5 +1,10 @@
 """Versioned synthetic-corpus evaluation utilities."""
 
+from document_platform.evaluation.benchmarking import (
+    LatencySummary,
+    TimedInvoiceExtractor,
+    summarize_latencies,
+)
 from document_platform.evaluation.invoice_extraction import (
     EvaluationCase,
     EvaluationCorpus,
@@ -13,6 +18,8 @@ from document_platform.evaluation.invoice_extraction import (
 )
 
 __all__ = [
+    "LatencySummary",
+    "TimedInvoiceExtractor",
     "EvaluationCase",
     "EvaluationCorpus",
     "EvaluationReport",
@@ -22,4 +29,5 @@ __all__ = [
     "InvoiceExtractionMismatch",
     "InvoiceFields",
     "load_invoice_extraction_corpus",
+    "summarize_latencies",
 ]

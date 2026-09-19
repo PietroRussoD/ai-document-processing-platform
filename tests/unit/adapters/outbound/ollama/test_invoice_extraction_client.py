@@ -43,6 +43,7 @@ def test_extracts_valid_structured_invoice_fields() -> None:
     assert received[0][2] == 12.5
     assert received[0][1]["model"] == "invoice-model"
     assert received[0][1]["stream"] is False
+    assert received[0][1]["think"] is False
     assert received[0][1]["options"] == {"temperature": 0}
     response_schema = received[0][1]["format"]
     assert isinstance(response_schema, dict)

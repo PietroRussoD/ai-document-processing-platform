@@ -63,6 +63,7 @@ class OllamaInvoiceExtractionClient:
             {
                 "model": self._settings.model,
                 "stream": False,
+                "think": False,
                 "format": _OllamaInvoiceResponse.model_json_schema(),
                 "options": {"temperature": 0},
                 "messages": [

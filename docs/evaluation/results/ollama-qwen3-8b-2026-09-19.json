@@ -1,0 +1,98 @@
+{
+  "benchmark": {
+    "failed_requests": 0,
+    "latency": {
+      "maximum_milliseconds": 5016.507,
+      "mean_milliseconds": 3362.303,
+      "minimum_milliseconds": 2725.247,
+      "p95_milliseconds": 5016.507,
+      "request_count": 8,
+      "total_milliseconds": 26898.42
+    },
+    "model": "qwen3:8b",
+    "temperature": 0,
+    "thinking_enabled": false
+  },
+  "dataset_id": "invoice-extraction-v1",
+  "exact_case_match_rate": 0.5,
+  "exact_case_matches": 4,
+  "fields": {
+    "currency": {
+      "exact_match_rate": 0.75,
+      "exact_matches": 6,
+      "total_cases": 8
+    },
+    "invoice_number": {
+      "exact_match_rate": 0.875,
+      "exact_matches": 7,
+      "total_cases": 8
+    },
+    "issue_date": {
+      "exact_match_rate": 0.625,
+      "exact_matches": 5,
+      "total_cases": 8
+    },
+    "supplier_name": {
+      "exact_match_rate": 1.0,
+      "exact_matches": 8,
+      "total_cases": 8
+    },
+    "total_amount": {
+      "exact_match_rate": 0.75,
+      "exact_matches": 6,
+      "total_cases": 8
+    }
+  },
+  "mismatches": [
+    {
+      "actual": "18-09-2026",
+      "case_id": "english-gbp-symbol",
+      "expected": "2026-09-18",
+      "field": "issue_date"
+    },
+    {
+      "actual": "INV-999",
+      "case_id": "unlabelled-text",
+      "expected": null,
+      "field": "invoice_number"
+    },
+    {
+      "actual": "2026-09-18",
+      "case_id": "unlabelled-text",
+      "expected": null,
+      "field": "issue_date"
+    },
+    {
+      "actual": "USD",
+      "case_id": "unlabelled-text",
+      "expected": null,
+      "field": "currency"
+    },
+    {
+      "actual": "12.50",
+      "case_id": "unlabelled-text",
+      "expected": null,
+      "field": "total_amount"
+    },
+    {
+      "actual": "2026-99-99",
+      "case_id": "invalid-date",
+      "expected": null,
+      "field": "issue_date"
+    },
+    {
+      "actual": "CAD",
+      "case_id": "unsupported-currency",
+      "expected": null,
+      "field": "currency"
+    },
+    {
+      "actual": "99.00",
+      "case_id": "unsupported-currency",
+      "expected": null,
+      "field": "total_amount"
+    }
+  ],
+  "schema_version": 1,
+  "total_cases": 8
+}

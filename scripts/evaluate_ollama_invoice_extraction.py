@@ -8,7 +8,11 @@ from document_platform.adapters.outbound.ollama import (
     OllamaInvoiceExtractionClient,
     OllamaInvoiceExtractionSettings,
 )
-from document_platform.evaluation import InvoiceExtractionEvaluator, load_invoice_extraction_corpus
+from document_platform.evaluation import (
+    InvoiceExtractionEvaluator,
+    TimedInvoiceExtractor,
+    load_invoice_extraction_corpus,
+)
 
 CORPUS_PATH = Path(__file__).resolve().parents[1] / "docs/evaluation/invoice-extraction-v1.json"
 
@@ -23,8 +27,27 @@ def main() -> None:
             timeout_seconds=arguments.timeout_seconds,
         )
     )
-    report = InvoiceExtractionEvaluator().evaluate(corpus=corpus, extractor=client.extract)
-    print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+    timed_extractor = TimedInvoiceExtractor(client.extract)
+    report = InvoiceExtractionEvaluator().evaluate(
+        corpus=corpus,
+        extractor=timed_extractor.extract,
+    )
+    print(
+        json.dumps(
+            {
+                **report.as_dict(),
+                "benchmark": {
+                    "model": arguments.model,
+                    "thinking_enabled": False,
+                    "temperature": 0,
+                    "failed_requests": 0,
+                    "latency": timed_extractor.latency_summary().as_dict(),
+                },
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
 
 
 def _parse_arguments() -> argparse.Namespace:
