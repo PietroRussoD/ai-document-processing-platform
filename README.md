@@ -5,10 +5,10 @@ data from business documents.
 
 ## Status
 
-The [`v0.3.0` tagged release](https://github.com/PietroRussoD/ai-document-processing-platform/tree/v0.3.0),
-documented in the [release notes](docs/releases/v0.3.0.md), adds an authenticated
-operator resolution flow to the durable document-processing pipeline introduced
-in `v0.2.0`. The worker performs bounded embedded-text extraction, a local OCR
+The [`v0.4.0` tagged release](https://github.com/PietroRussoD/ai-document-processing-platform/tree/v0.4.0),
+documented in the [release notes](docs/releases/v0.4.0.md), adds immutable
+field-level invoice corrections to the authenticated review flow introduced in
+`v0.3.0`. The worker performs bounded embedded-text extraction, a local OCR
 fallback, canonical-text selection, deterministic document classification and
 invoice validation. A complete invoice is automatically approved; an incomplete
 one is handed off to review. The console derives a safe timeline from persisted
@@ -22,13 +22,13 @@ document and processing-run status. Once available, the same status snapshot
 also exposes safe extraction, selection, classification and review-resolution
 metadata; it never returns extracted document text or blob paths.
 
-`v0.3.0` turns the durable `REVIEW_REQUIRED` handoff into an authenticated
-operator action with an immutable resolution record, idempotent replay and
-focused reviewer feedback. Current `v0.4.0` development adds immutable
-field-level invoice corrections: the operator can complete a missing or
-incorrect extraction while the original extraction remains auditable. The same
-status projection exposes the original extraction and each recorded correction;
-the console derives the effective reviewed values from those immutable records.
+`v0.4.0` lets an operator complete a missing or incorrect invoice extraction
+without rewriting evidence. An immutable correction set is recorded beside the
+original extraction and resolution. The status projection exposes both facts,
+and the console derives effective reviewed values from them. The release also
+adds a synthetic extraction corpus and a local Ollama comparison harness. The
+recorded Qwen3 result does not meet the product policy, so model calls remain
+evaluation-only and outside the document-processing workflow.
 
 ## Implemented Technology
 
