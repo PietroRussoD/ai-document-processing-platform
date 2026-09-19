@@ -68,6 +68,11 @@ The review-resolution flow is documented in the
 correction and local-model verification extension is documented separately in
 the [v0.4 verification runbook](docs/runbooks/v0.4-verification.md).
 
+The current durable decisions are recorded in
+[ADR 0001](docs/decisions/0001-pragmatic-ports-and-adapters.md),
+[ADR 0002](docs/decisions/0002-preserve-operator-corrections-separately.md)
+and [ADR 0003](docs/decisions/0003-keep-local-models-evaluation-only.md).
+
 ## Repository Layout
 
 ```text
