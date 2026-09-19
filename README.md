@@ -24,7 +24,11 @@ metadata; it never returns extracted document text or blob paths.
 
 `v0.3.0` turns the durable `REVIEW_REQUIRED` handoff into an authenticated
 operator action with an immutable resolution record, idempotent replay and
-focused reviewer feedback.
+focused reviewer feedback. Current `v0.4.0` development adds immutable
+field-level invoice corrections: the operator can complete a missing or
+incorrect extraction while the original extraction remains auditable. The same
+status projection exposes the original extraction and each recorded correction;
+the console derives the effective reviewed values from those immutable records.
 
 ## Implemented Technology
 
@@ -37,7 +41,7 @@ focused reviewer feedback.
 
 ## Planned Extensions
 
-- Ollama for local structured extraction comparison;
+- further local-model comparison after a broader corpus and policy design;
 - optional S3-compatible storage and external-provider comparison;
 - notifications and retention workflows.
 
@@ -60,7 +64,9 @@ See [architecture documentation](docs/architecture.md) and
 [architectural decisions](docs/decisions/). The repeatable release checks are
 documented in the [v0.2 verification runbook](docs/runbooks/v0.2-verification.md).
 The current review-resolution flow is documented separately in the
-[v0.3 verification runbook](docs/runbooks/v0.3-verification.md).
+[v0.3 verification runbook](docs/runbooks/v0.3-verification.md). `v0.4`
+extends that flow with field corrections and records local model-comparison
+evidence in [`docs/evaluation.md`](docs/evaluation.md).
 
 ## Repository Layout
 

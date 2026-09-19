@@ -4,13 +4,14 @@
 
 The platform accepts synthetic business documents and processes them
 asynchronously for validation and review. `v0.1` implemented the ingestion
-boundary; current `v0.3` development executes bounded text extraction, OCR
+boundary; current `v0.4` development executes bounded text extraction, OCR
 fallback, canonical-text selection, deterministic classification, invoice
-extraction, invoice validation and authenticated review resolution. It is
+extraction, invoice validation, authenticated review resolution and immutable
+field-level corrections. It is
 designed as a local-first system: a clean default run does not require cloud
 credentials or a paid AI provider.
 
-## Implemented Components (`v0.3`)
+## Implemented Components (`v0.4`)
 
 ```mermaid
 flowchart LR
@@ -29,18 +30,19 @@ records, immutable processing outputs and user-facing status projections.
 Filesystem storage owns uploaded document blobs. Temporal owns durable workflow
 execution history while PostgreSQL remains authoritative for business state.
 
-## Planned Extensions
+## Local Model Evaluation
 
 ```mermaid
 flowchart LR
-    Worker[Existing workflow activities] --> Model[Extraction provider port]
-    Model --> Fake[Deterministic fake]
-    Model --> Ollama[Local Ollama]
-    Model -. optional .-> OpenAI[External provider]
+    Corpus[Versioned synthetic corpus] --> Evaluator[Evaluation CLI]
+    Evaluator --> Baseline[Deterministic policy]
+    Evaluator --> Ollama[Local Ollama comparison]
 ```
 
-The local model comparison is a planned extension.
-A model provider will never be an authority for business state.
+The local Ollama client is an evaluation-only adapter. It is not wired to the
+Temporal workflow, cannot persist model output, and is not an authority for
+business state. Any future workflow integration requires an explicit policy
+gate, a broader corpus and an independently measured improvement.
 
 ## Dependency Direction
 
@@ -50,8 +52,9 @@ adapters -> application -> domain
 
 The domain does not import framework, database, workflow, OCR, storage or model
 SDK types. The application defines ports only for boundaries that are external,
-fallible or plausibly replaceable: repositories, object storage, workflow start,
-text extraction, structured extraction and notifications.
+fallible or plausibly replaceable: repositories, object storage, workflow start
+and PDF text extraction. The evaluation-only Ollama client deliberately has no
+application port until it meets a justified workflow-integration threshold.
 
 Temporal workflows are deterministic orchestration. Database, filesystem, OCR,
 clock and model calls happen in Activities, never directly inside workflow code.
@@ -102,12 +105,13 @@ sequenceDiagram
         Worker->>DB: Mark technical processing run COMPLETED
     end
     opt Review-required document is resolved
-        Operator->>API: Submit approve or reject with bearer token
-        API->>DB: Atomically persist immutable resolution and complete run
+        Operator->>API: Submit approve or reject, optionally with corrections
+        API->>DB: Validate effective invoice and persist immutable correction rows
+        API->>DB: Persist immutable resolution and complete run
     end
 ```
 
-`v0.3` currently implements durable request claiming, application dispatch and
+`v0.4` currently implements durable request claiming, application dispatch and
 the Temporal activity set for text extraction, OCR, selection, classification,
 invoice extraction, validation and lifecycle application. The Temporal adapter starts the stable workflow ID
 with an existing-running workflow treated as the same successful handoff. A
@@ -148,6 +152,13 @@ data yields `REVIEW_REQUIRED` for both. `PURCHASE_ORDER`, `CREDIT_NOTE` and
 All activity outputs are immutable and keyed by processing run, which makes
 retries safe. The status API and console expose safe structured values and
 reason codes, never source text or storage paths.
+
+An operator may approve a review-required invoice with a non-empty set of typed
+field corrections. The application applies that set only in memory to validate
+the effective invoice, then persists correction rows and the review resolution
+in one transaction. The original extraction is never overwritten. A rejected
+review cannot carry corrections, and an approval without corrections remains
+valid only when the originally extracted invoice is complete.
 
 The operator console derives its processing timeline from the same persisted
 metadata exposed by the status endpoint. It does not query Temporal directly,
@@ -427,7 +438,7 @@ tests/e2e/           API and browser journeys
 | Boundary | Current implementation | Planned extension |
 | --- | --- | --- |
 | Object storage | Local filesystem | S3-compatible adapter |
-| Invoice extraction | Deterministic labelled-field extraction and validation | Ollama comparison behind policy gates |
+| Invoice extraction | Deterministic extraction, validation and immutable review corrections | Evaluation-only Ollama comparison; workflow use requires a policy gate |
 | Text extraction | Embedded/OCR extraction and persisted canonical source selection | OCR quality calibration and language policy |
 | Document classification | Deterministic canonical-text keyword policy | Evaluated local model policy |
 | Workflow execution | Temporal development server with local worker | Managed/self-hosted Temporal later |
