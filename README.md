@@ -84,7 +84,9 @@ and [ADR 0003](docs/decisions/0003-keep-local-models-evaluation-only.md).
 Operational telemetry is defined in
 [ADR 0004](docs/decisions/0004-expose-low-cardinality-prometheus-metrics.md),
 with bounded request correlation covered by
-[ADR 0005](docs/decisions/0005-use-bounded-http-correlation-identifiers.md).
+[ADR 0005](docs/decisions/0005-use-bounded-http-correlation-identifiers.md) and
+structured application logging by
+[ADR 0006](docs/decisions/0006-emit-allowlisted-json-application-logs.md).
 
 ## Repository Layout
 
@@ -118,7 +120,7 @@ intentional; empty packages and placeholder abstractions are not committed.
 uv sync --all-groups
 docker compose up -d postgres
 uv run alembic upgrade head
-uv run uvicorn document_platform.bootstrap:app --reload
+uv run uvicorn document_platform.bootstrap:app --reload --no-access-log
 ```
 
 The API is available at `http://localhost:8000`. Current endpoints:
@@ -232,6 +234,12 @@ Every completed HTTP response also carries `X-Correlation-ID`. A safe client
 value is preserved; otherwise the API generates a UUID. The identifier is
 request-scoped operational metadata and never replaces a document or processing
 run identifier.
+
+Application logs are emitted as one JSON object per event. HTTP completion logs
+contain only the correlation ID, method, matched route template, status and
+duration; raw URLs, headers, document values and credentials are excluded. The
+custom request event replaces Uvicorn's access log, hence the local command uses
+`--no-access-log`.
 
 The versioned API contract is stored at
 [`docs/contracts/document-platform.openapi.json`](docs/contracts/document-platform.openapi.json).

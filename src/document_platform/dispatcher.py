@@ -17,6 +17,7 @@ from document_platform.application.commands import (
     DispatchWorkflowStartRequestsHandler,
     WorkflowStartDispatchResult,
 )
+from document_platform.logging_configuration import configure_json_logging
 from document_platform.settings import Settings
 
 logger = logging.getLogger(__name__)
@@ -80,18 +81,29 @@ def _log_dispatch_result(result: WorkflowStartDispatchResult) -> None:
             result.claimed_count,
             result.dispatched_count,
             result.deferred_count,
+            extra={
+                "event": "workflow_start_dispatch_deferred",
+                "claimed_count": result.claimed_count,
+                "dispatched_count": result.dispatched_count,
+                "deferred_count": result.deferred_count,
+            },
         )
     elif result.dispatched_count:
         logger.info(
             "workflow-start dispatch completed claimed=%s dispatched=%s",
             result.claimed_count,
             result.dispatched_count,
+            extra={
+                "event": "workflow_start_dispatch_completed",
+                "claimed_count": result.claimed_count,
+                "dispatched_count": result.dispatched_count,
+            },
         )
 
 
 def main() -> None:
     settings = Settings()
-    logging.basicConfig(level=settings.log_level)
+    configure_json_logging(level=settings.log_level, component="dispatcher")
     try:
         asyncio.run(run_dispatcher(settings))
     except KeyboardInterrupt:

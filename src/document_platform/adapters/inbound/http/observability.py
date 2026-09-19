@@ -1,5 +1,6 @@
 """Prometheus exposition and request instrumentation for the HTTP adapter."""
 
+import logging
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from time import perf_counter
@@ -15,8 +16,11 @@ from prometheus_client import (
     generate_latest,
 )
 
+from document_platform.adapters.inbound.http.request_correlation import current_correlation_id
 from document_platform.application.ports import ProcessingRunMetricsSnapshot
 from document_platform.domain.processing import ProcessingRunStatus
+
+logger = logging.getLogger(__name__)
 
 
 class HttpMetrics:
@@ -98,10 +102,41 @@ async def observe_request(
     call_next: Callable[[Request], Awaitable[Response]],
 ) -> Response:
     started_at = perf_counter()
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    except Exception:
+        logger.exception(
+            "HTTP request failed",
+            extra={
+                "event": "http_request_failed",
+                "correlation_id": current_correlation_id(),
+                "http_method": request.method,
+                "http_route": _route_template(request),
+                "http_status": 500,
+                "duration_seconds": perf_counter() - started_at,
+            },
+        )
+        raise
+    duration_seconds = perf_counter() - started_at
     request.app.state.http_metrics.observe(
         request=request,
         response=response,
-        duration_seconds=perf_counter() - started_at,
+        duration_seconds=duration_seconds,
+    )
+    logger.info(
+        "HTTP request completed",
+        extra={
+            "event": "http_request_completed",
+            "correlation_id": current_correlation_id(),
+            "http_method": request.method,
+            "http_route": _route_template(request),
+            "http_status": response.status_code,
+            "duration_seconds": duration_seconds,
+        },
     )
     return response
+
+
+def _route_template(request: Request) -> str:
+    route = request.scope.get("route")
+    return getattr(route, "path", "unmatched")

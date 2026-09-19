@@ -18,7 +18,10 @@ from document_platform.adapters.inbound.http.observability import (
     router as observability_router,
 )
 from document_platform.adapters.inbound.http.problems import install_problem_handlers
-from document_platform.adapters.inbound.http.request_correlation import correlate_request
+from document_platform.adapters.inbound.http.request_correlation import (
+    correlate_request,
+    current_correlation_id,
+)
 from document_platform.adapters.outbound.filesystem import LocalBlobStore
 from document_platform.adapters.outbound.pdf import PyMuPdfInspector
 from document_platform.adapters.outbound.postgresql import SqlAlchemyUnitOfWork
@@ -34,6 +37,7 @@ from document_platform.application.commands import (
 )
 from document_platform.application.ports import ProcessingRunMetricsReader
 from document_platform.application.queries import GetDocumentStatusHandler
+from document_platform.logging_configuration import configure_json_logging
 from document_platform.settings import Settings
 
 PACKAGE_NAME = "ai-document-processing-platform"
@@ -70,6 +74,11 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(_application: FastAPI) -> AsyncGenerator[None]:
+        configure_json_logging(
+            level=active_settings.log_level,
+            component="api",
+            correlation_id_provider=current_correlation_id,
+        )
         yield
         await database.dispose()
 

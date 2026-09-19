@@ -1,7 +1,6 @@
 """Standalone Temporal worker for document-processing workflows."""
 
 import asyncio
-import logging
 from datetime import UTC, datetime
 
 from temporalio.client import Client
@@ -41,6 +40,7 @@ from document_platform.domain.processing import (
     InvoiceValidationPolicy,
     ProcessingTextSelectionPolicy,
 )
+from document_platform.logging_configuration import configure_json_logging
 from document_platform.settings import Settings
 from document_platform.workflows import ProcessBusinessDocumentWorkflow
 
@@ -160,7 +160,7 @@ async def run_worker(settings: Settings) -> None:
 
 def main() -> None:
     settings = Settings()
-    logging.basicConfig(level=settings.log_level)
+    configure_json_logging(level=settings.log_level, component="worker")
     try:
         asyncio.run(run_worker(settings))
     except KeyboardInterrupt:
