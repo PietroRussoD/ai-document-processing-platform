@@ -29,8 +29,9 @@ queued run. This is the authoritative backlog view after an application restart;
 it is not a historical event counter.
 
 The metrics endpoint is deliberately outside the versioned `/api/v1` business
-API and outside OpenAPI. Access control, network policy and a Prometheus/Grafana
-deployment are environment concerns to be designed separately.
+API and outside OpenAPI. An optional Compose profile provides a pinned local
+Prometheus scraper with seven-day retention. It reaches the API running on the
+host and does not define production access control, network policy or storage.
 
 ## Consequences
 
@@ -40,5 +41,7 @@ deployment are environment concerns to be designed separately.
   reconstructed from PostgreSQL on the next scrape.
 - Current status counts are not historical throughput or outcome-event totals;
   those require a separate event or audit design.
+- The local Prometheus volume survives container replacement until explicitly
+  removed, while its retention bounds disk use.
 - The application does not claim a production monitoring deployment merely by
   exposing the endpoint.

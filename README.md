@@ -241,6 +241,20 @@ duration; raw URLs, headers, document values and credentials are excluded. The
 custom request event replaces Uvicorn's access log, hence the local command uses
 `--no-access-log`.
 
+Start the optional local Prometheus scraper after the API is listening on port
+`8000`:
+
+```bash
+docker compose --profile observability up -d prometheus
+```
+
+Prometheus is available at `http://localhost:9090`. Its target page should show
+`document-platform-api` as `UP`. Useful initial queries are
+`document_platform_processing_runs`,
+`document_platform_processing_queue_oldest_age_seconds` and
+`rate(document_platform_http_requests_total[5m])`. The Compose profile retains
+local time-series data for seven days and is not a production monitoring setup.
+
 The versioned API contract is stored at
 [`docs/contracts/document-platform.openapi.json`](docs/contracts/document-platform.openapi.json).
 After changing an HTTP contract, regenerate the JSON and frontend types with:
