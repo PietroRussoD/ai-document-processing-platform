@@ -443,7 +443,7 @@ tests/e2e/           API and browser journeys
 | Document classification | Deterministic canonical-text keyword policy | Evaluated local model policy |
 | Workflow execution | Temporal development server with local worker | Managed/self-hosted Temporal later |
 | Review authentication | Configured local static bearer token | Enterprise identity and authorization provider |
-| Operational telemetry | Prometheus build/HTTP metrics plus durable run-status and queued-age snapshot | Correlation-safe logs and optional local Grafana |
+| Operational telemetry | Prometheus metrics plus bounded HTTP correlation context | Structured correlation-safe logs and optional local Grafana |
 
 ## Related Decisions
 
@@ -451,3 +451,4 @@ tests/e2e/           API and browser journeys
 - [ADR 0002: Preserve Operator Corrections Separately from Extraction](decisions/0002-preserve-operator-corrections-separately.md)
 - [ADR 0003: Keep Local Models Evaluation-Only Until a Policy Gate Is Met](decisions/0003-keep-local-models-evaluation-only.md)
 - [ADR 0004: Expose Low-Cardinality Prometheus Metrics](decisions/0004-expose-low-cardinality-prometheus-metrics.md)
+- [ADR 0005: Use Bounded HTTP Correlation Identifiers](decisions/0005-use-bounded-http-correlation-identifiers.md)

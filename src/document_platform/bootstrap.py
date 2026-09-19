@@ -18,6 +18,7 @@ from document_platform.adapters.inbound.http.observability import (
     router as observability_router,
 )
 from document_platform.adapters.inbound.http.problems import install_problem_handlers
+from document_platform.adapters.inbound.http.request_correlation import correlate_request
 from document_platform.adapters.outbound.filesystem import LocalBlobStore
 from document_platform.adapters.outbound.pdf import PyMuPdfInspector
 from document_platform.adapters.outbound.postgresql import SqlAlchemyUnitOfWork
@@ -88,6 +89,7 @@ def create_app(
         processing_run_metrics_reader or SqlAlchemyProcessingRunMetricsReader(database.sessions)
     )
     application.middleware("http")(observe_request)
+    application.middleware("http")(correlate_request)
     install_problem_handlers(application)
     application.include_router(health_router)
     application.include_router(observability_router)

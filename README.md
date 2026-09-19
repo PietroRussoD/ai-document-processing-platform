@@ -82,7 +82,9 @@ The current durable decisions are recorded in
 [ADR 0002](docs/decisions/0002-preserve-operator-corrections-separately.md)
 and [ADR 0003](docs/decisions/0003-keep-local-models-evaluation-only.md).
 Operational telemetry is defined in
-[ADR 0004](docs/decisions/0004-expose-low-cardinality-prometheus-metrics.md).
+[ADR 0004](docs/decisions/0004-expose-low-cardinality-prometheus-metrics.md),
+with bounded request correlation covered by
+[ADR 0005](docs/decisions/0005-use-bounded-http-correlation-identifiers.md).
 
 ## Repository Layout
 
@@ -225,6 +227,11 @@ route template, HTTP status class and the bounded processing-run status enum;
 document identifiers, filenames, tokens, request URLs and document content are
 never labels. The endpoint is operational infrastructure, not part of the
 versioned `/api/v1` business contract.
+
+Every completed HTTP response also carries `X-Correlation-ID`. A safe client
+value is preserved; otherwise the API generates a UUID. The identifier is
+request-scoped operational metadata and never replaces a document or processing
+run identifier.
 
 The versioned API contract is stored at
 [`docs/contracts/document-platform.openapi.json`](docs/contracts/document-platform.openapi.json).
