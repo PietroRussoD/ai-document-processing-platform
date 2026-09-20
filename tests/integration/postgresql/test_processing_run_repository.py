@@ -80,14 +80,14 @@ async def test_adds_and_loads_a_processing_run(migrated_postgres_url: str) -> No
 @pytest.mark.anyio
 async def test_adds_and_loads_processing_run_lineage(migrated_postgres_url: str) -> None:
     database = database_for(migrated_postgres_url)
-    document = document_with_id(UUID("11111111-1111-4111-8111-111111111111"))
+    document = document_with_id(UUID("f1010101-0101-4101-8101-010101010101"))
     source_run = (
-        run_with_id(UUID("22222222-2222-4222-8222-222222222222"), document.id)
+        run_with_id(UUID("f2020202-0202-4202-8202-020202020202"), document.id)
         .start(at=QUEUED_AT + timedelta(seconds=1))
         .complete(at=QUEUED_AT + timedelta(seconds=2))
     )
     replacement_run = run_with_id(
-        UUID("33333333-3333-4333-8333-333333333333"),
+        UUID("f3030303-0303-4303-8303-030303030303"),
         document.id,
         previous_run_id=source_run.id,
     )

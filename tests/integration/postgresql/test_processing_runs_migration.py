@@ -15,6 +15,7 @@ from document_platform.settings import Settings
 EXPECTED_COLUMNS = {
     "id",
     "document_id",
+    "previous_run_id",
     "status",
     "queued_at",
     "started_at",
