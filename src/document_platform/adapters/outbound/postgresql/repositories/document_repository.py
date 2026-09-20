@@ -3,7 +3,7 @@
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,6 +32,12 @@ class SqlAlchemyDocumentRepository:
 
     async def get(self, document_id: UUID) -> Document | None:
         record = await self._session.get(DocumentRecord, document_id)
+        return _to_domain(record) if record is not None else None
+
+    async def get_for_update(self, document_id: UUID) -> Document | None:
+        record = await self._session.scalar(
+            select(DocumentRecord).where(DocumentRecord.id == document_id).with_for_update()
+        )
         return _to_domain(record) if record is not None else None
 
     async def update(self, document: Document) -> None:

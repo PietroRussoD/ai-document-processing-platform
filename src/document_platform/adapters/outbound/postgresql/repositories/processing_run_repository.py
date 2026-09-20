@@ -3,7 +3,7 @@
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,6 +43,16 @@ class SqlAlchemyProcessingRunRepository:
 
     async def get(self, run_id: UUID) -> ProcessingRun | None:
         record = await self._session.get(ProcessingRunRecord, run_id)
+        return _to_domain(record) if record is not None else None
+
+    async def get_latest_for_document(self, document_id: UUID) -> ProcessingRun | None:
+        record = await self._session.scalar(
+            select(ProcessingRunRecord)
+            .where(ProcessingRunRecord.document_id == document_id)
+            .order_by(ProcessingRunRecord.queued_at.desc(), ProcessingRunRecord.id.desc())
+            .limit(1)
+            .with_for_update()
+        )
         return _to_domain(record) if record is not None else None
 
     async def update(self, run: ProcessingRun) -> None:

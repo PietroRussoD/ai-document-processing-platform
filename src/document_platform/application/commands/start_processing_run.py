@@ -61,6 +61,11 @@ class StartProcessingRunHandler:
             document = await unit_of_work.documents.get(run.document_id)
             if document is None:
                 raise ProcessingRunDocumentNotFound(run.document_id)
+            if document.status is DocumentStatus.PROCESSING and run.previous_run_id is not None:
+                started_at = self._clock()
+                await unit_of_work.processing_runs.update(run.start(at=started_at))
+                await unit_of_work.commit()
+                return ProcessingRunStarted(run.id, started_at, replayed=False)
             if document.status is not DocumentStatus.UPLOADED:
                 raise InvalidProcessingDocumentStart(document.id, document.status)
 

@@ -23,6 +23,7 @@ from document_platform.application.ports import (
     InvoiceReviewCorrectionRepository,
     InvoiceValidationRepository,
     ProcessingRunRepository,
+    ReprocessingOperationRepository,
     ReviewResolutionRepository,
     UploadIdempotencyRecordAlreadyExists,
     UploadIdempotencyRepository,
@@ -35,7 +36,11 @@ from document_platform.application.upload_idempotency import (
     UploadRequestFingerprint,
 )
 from document_platform.domain.documents import Document, InvalidDocument
-from document_platform.domain.processing import ProcessingRun, WorkflowStartRequest
+from document_platform.domain.processing import (
+    ProcessingRun,
+    ReprocessingOperation,
+    WorkflowStartRequest,
+)
 
 DOCUMENT_ID = UUID("c1e87668-329b-4862-87fc-e4f5150e233c")
 RUN_ID = UUID("91c5567b-8951-4713-b9c6-211055d4bb3e")
@@ -51,6 +56,9 @@ class RecordingDocumentRepository:
 
     async def get(self, document_id: UUID) -> Document | None:
         return next((document for document in self.added if document.id == document_id), None)
+
+    async def get_for_update(self, document_id: UUID) -> Document | None:
+        return await self.get(document_id)
 
     async def update(self, document: Document) -> None:
         raise NotImplementedError
@@ -68,6 +76,10 @@ class RecordingProcessingRunRepository:
 
     async def get(self, run_id: UUID) -> ProcessingRun | None:
         return next((run for run in self.added if run.id == run_id), None)
+
+    async def get_latest_for_document(self, document_id: UUID) -> ProcessingRun | None:
+        matching = [run for run in self.added if run.document_id == document_id]
+        return max(matching, key=lambda run: (run.queued_at, str(run.id)), default=None)
 
     async def update(self, run: ProcessingRun) -> None:
         raise NotImplementedError
@@ -120,6 +132,19 @@ class RecordingWorkflowStartRequestRepository:
 
     async def update(self, request: WorkflowStartRequest) -> None:
         self.requests[request.processing_run_id] = request
+
+
+class UnusedReprocessingOperationRepository:
+    async def add(self, operation: ReprocessingOperation) -> None:
+        raise AssertionError("not used")
+
+    async def get(
+        self,
+        *,
+        document_id: UUID,
+        idempotency_key: str,
+    ) -> ReprocessingOperation | None:
+        raise AssertionError("not used")
 
 
 class UnusedDocumentTextExtractionRepository:
@@ -199,6 +224,7 @@ class RecordingUnitOfWork:
             fail_on_add=fail_on_idempotency_add
         )
         self._workflow_start_requests = RecordingWorkflowStartRequestRepository()
+        self._reprocessing_operations = UnusedReprocessingOperationRepository()
         self._document_text_extractions = UnusedDocumentTextExtractionRepository()
         self._document_ocr_extractions = UnusedDocumentOcrExtractionRepository()
         self._document_text_selections = UnusedDocumentTextSelectionRepository()
@@ -257,6 +283,10 @@ class RecordingUnitOfWork:
     @property
     def workflow_start_requests(self) -> WorkflowStartRequestRepository:
         return self._workflow_start_requests
+
+    @property
+    def reprocessing_operations(self) -> ReprocessingOperationRepository:
+        return self._reprocessing_operations
 
     @property
     def recorded_documents(self) -> tuple[Document, ...]:

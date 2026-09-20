@@ -129,3 +129,22 @@ async def test_rejects_starting_a_terminal_run() -> None:
         await handler(unit_of_work)(StartProcessingRun(RUN_ID))
 
     assert unit_of_work.commit_count == 0
+
+
+@pytest.mark.anyio
+async def test_starts_a_reprocessing_run_without_restarting_the_document() -> None:
+    processing_document = document().start_processing(at=STARTED_AT)
+    reprocessing_run = ProcessingRun.queue(
+        run_id=RUN_ID,
+        document_id=DOCUMENT_ID,
+        previous_run_id=UUID("43434343-4343-4434-8434-434343434343"),
+        queued_at=QUEUED_AT,
+    )
+    unit_of_work = RecordingUnitOfWork(processing_document, reprocessing_run)
+
+    result = await handler(unit_of_work)(StartProcessingRun(RUN_ID))
+
+    assert result == ProcessingRunStarted(RUN_ID, STARTED_AT, replayed=False)
+    assert unit_of_work.documents.updated == []
+    assert unit_of_work.processing_runs.updated[0].status.value == "RUNNING"
+    assert unit_of_work.commit_count == 1

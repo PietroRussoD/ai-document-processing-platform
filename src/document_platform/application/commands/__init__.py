@@ -66,6 +66,15 @@ from document_platform.application.commands.register_document import (
     RegisterDocumentHandler,
     RegisteredDocument,
 )
+from document_platform.application.commands.request_document_reprocessing import (
+    DocumentReprocessingRequested,
+    InvalidReprocessingDocumentState,
+    ReprocessingDocumentNotFound,
+    ReprocessingRunNotFound,
+    ReprocessingRunNotTerminal,
+    RequestDocumentReprocessing,
+    RequestDocumentReprocessingHandler,
+)
 from document_platform.application.commands.resolve_document_review import (
     ConflictingReviewResolution,
     DocumentReviewResolved,
@@ -144,6 +153,13 @@ __all__ = [
     "RegisterDocument",
     "RegisterDocumentHandler",
     "RegisteredDocument",
+    "DocumentReprocessingRequested",
+    "InvalidReprocessingDocumentState",
+    "ReprocessingDocumentNotFound",
+    "ReprocessingRunNotFound",
+    "ReprocessingRunNotTerminal",
+    "RequestDocumentReprocessing",
+    "RequestDocumentReprocessingHandler",
     "ResolveDocumentReview",
     "ResolveDocumentReviewHandler",
     "DocumentReviewResolved",
