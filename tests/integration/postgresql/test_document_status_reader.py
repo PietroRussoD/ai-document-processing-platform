@@ -69,10 +69,14 @@ async def test_returns_the_document_with_its_most_recent_run(
         storage_key="blobs/sha256/bb/" + "b" * 64,
         accepted_at=ACCEPTED_AT,
     )
-    first_run = ProcessingRun.queue(
-        run_id=first_run_id,
-        document_id=document_id,
-        queued_at=ACCEPTED_AT,
+    first_run = (
+        ProcessingRun.queue(
+            run_id=first_run_id,
+            document_id=document_id,
+            queued_at=ACCEPTED_AT,
+        )
+        .start(at=ACCEPTED_AT + timedelta(seconds=1))
+        .complete(at=ACCEPTED_AT + timedelta(seconds=2))
     )
     latest_run = ProcessingRun.queue(
         run_id=latest_run_id,

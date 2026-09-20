@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Uuid
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Uuid, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from document_platform.adapters.outbound.postgresql.metadata import Base
@@ -58,6 +58,14 @@ class ProcessingRunRecord(Base):
         Index("ix_processing_runs_document_id_queued_at", "document_id", "queued_at"),
         Index("ix_processing_runs_previous_run_id", "previous_run_id"),
         Index("ix_processing_runs_status_queued_at", "status", "queued_at"),
+        Index(
+            "uq_processing_runs_document_id_active",
+            "document_id",
+            unique=True,
+            postgresql_where=text(
+                "status IN ('QUEUED', 'RUNNING', 'WAITING_RETRY', 'REVIEW_REQUIRED')"
+            ),
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)

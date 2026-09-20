@@ -45,6 +45,19 @@ def _run(run_id: UUID, document_id: UUID, *, previous_run_id: UUID | None = None
     )
 
 
+def _completed_run(
+    run_id: UUID,
+    document_id: UUID,
+    *,
+    previous_run_id: UUID | None = None,
+) -> ProcessingRun:
+    return (
+        _run(run_id, document_id, previous_run_id=previous_run_id)
+        .start(at=REQUESTED_AT)
+        .complete(at=REQUESTED_AT)
+    )
+
+
 def _operation(
     *,
     operation_id: UUID,
@@ -82,15 +95,15 @@ async def _add_document_and_runs(
 @pytest.mark.anyio
 async def test_adds_and_loads_a_reprocessing_operation(migrated_postgres_url: str) -> None:
     database = _database_for(migrated_postgres_url)
-    document = _document(UUID("10101010-1010-4010-8010-101010101010"))
-    source_run = _run(UUID("20202020-2020-4020-8020-202020202020"), document.id)
+    document = _document(UUID("a1010101-0101-4101-8101-010101010101"))
+    source_run = _completed_run(UUID("a2020202-0202-4202-8202-020202020202"), document.id)
     replacement_run = _run(
-        UUID("30303030-3030-4030-8030-303030303030"),
+        UUID("a3030303-0303-4303-8303-030303030303"),
         document.id,
         previous_run_id=source_run.id,
     )
     operation = _operation(
-        operation_id=UUID("40404040-4040-4040-8040-404040404040"),
+        operation_id=UUID("a4040404-0404-4404-8404-040404040404"),
         document_id=document.id,
         source_run_id=source_run.id,
         replacement_run_id=replacement_run.id,
@@ -118,27 +131,27 @@ async def test_maps_a_duplicate_document_idempotency_key_to_an_application_error
     migrated_postgres_url: str,
 ) -> None:
     database = _database_for(migrated_postgres_url)
-    document = _document(UUID("50505050-5050-4050-8050-505050505050"))
-    source_run = _run(UUID("60606060-6060-4060-8060-606060606060"), document.id)
-    first_replacement = _run(
-        UUID("70707070-7070-4070-8070-707070707070"),
+    document = _document(UUID("b5050505-0505-4505-8505-050505050505"))
+    source_run = _completed_run(UUID("b6060606-0606-4606-8606-060606060606"), document.id)
+    first_replacement = _completed_run(
+        UUID("b7070707-0707-4707-8707-070707070707"),
         document.id,
         previous_run_id=source_run.id,
     )
-    second_replacement = _run(
-        UUID("80808080-8080-4080-8080-808080808080"),
+    second_replacement = _completed_run(
+        UUID("b8080808-0808-4808-8808-080808080808"),
         document.id,
         previous_run_id=source_run.id,
     )
     first_operation = _operation(
-        operation_id=UUID("90909090-9090-4090-8090-909090909090"),
+        operation_id=UUID("b9090909-0909-4909-8909-090909090909"),
         document_id=document.id,
         source_run_id=source_run.id,
         replacement_run_id=first_replacement.id,
         idempotency_key="duplicate-key",
     )
     second_operation = _operation(
-        operation_id=UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+        operation_id=UUID("caaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
         document_id=document.id,
         source_run_id=source_run.id,
         replacement_run_id=second_replacement.id,

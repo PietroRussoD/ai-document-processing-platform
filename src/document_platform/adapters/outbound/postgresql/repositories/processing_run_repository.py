@@ -8,13 +8,19 @@ from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from document_platform.adapters.outbound.postgresql.errors import is_unique_violation
+from document_platform.adapters.outbound.postgresql.errors import (
+    is_unique_violation,
+    unique_constraint_name,
+)
 from document_platform.adapters.outbound.postgresql.models import ProcessingRunRecord
 from document_platform.application.ports import (
+    ActiveProcessingRunAlreadyExists,
     ConcurrentProcessingRunUpdate,
     ProcessingRunAlreadyExists,
 )
 from document_platform.domain.processing import ProcessingRun, ProcessingRunStatus
+
+ACTIVE_PROCESSING_RUN_CONSTRAINT = "uq_processing_runs_document_id_active"
 
 
 class SqlAlchemyProcessingRunRepository:
@@ -26,8 +32,13 @@ class SqlAlchemyProcessingRunRepository:
         try:
             await self._session.flush()
         except IntegrityError as error:
-            if is_unique_violation(error):
+            if is_unique_violation(error) and unique_constraint_name(error) == "pk_processing_runs":
                 raise ProcessingRunAlreadyExists(run.id) from error
+            if (
+                is_unique_violation(error)
+                and unique_constraint_name(error) == ACTIVE_PROCESSING_RUN_CONSTRAINT
+            ):
+                raise ActiveProcessingRunAlreadyExists(run.document_id) from error
             raise
 
     async def get(self, run_id: UUID) -> ProcessingRun | None:

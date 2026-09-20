@@ -11,6 +11,11 @@ class ProcessingRunAlreadyExists(RuntimeError):
         super().__init__(f"processing run already exists: {run_id}")
 
 
+class ActiveProcessingRunAlreadyExists(RuntimeError):
+    def __init__(self, document_id: UUID) -> None:
+        super().__init__(f"an active processing run already exists for document: {document_id}")
+
+
 class ConcurrentProcessingRunUpdate(RuntimeError):
     def __init__(self, run_id: UUID) -> None:
         super().__init__(f"processing run was concurrently updated: {run_id}")

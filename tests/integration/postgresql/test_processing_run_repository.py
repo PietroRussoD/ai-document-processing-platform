@@ -12,6 +12,7 @@ from document_platform.adapters.outbound.postgresql.repositories import (
     SqlAlchemyProcessingRunRepository,
 )
 from document_platform.application.ports import (
+    ActiveProcessingRunAlreadyExists,
     ConcurrentProcessingRunUpdate,
     ProcessingRunAlreadyExists,
 )
@@ -80,7 +81,11 @@ async def test_adds_and_loads_a_processing_run(migrated_postgres_url: str) -> No
 async def test_adds_and_loads_processing_run_lineage(migrated_postgres_url: str) -> None:
     database = database_for(migrated_postgres_url)
     document = document_with_id(UUID("11111111-1111-4111-8111-111111111111"))
-    source_run = run_with_id(UUID("22222222-2222-4222-8222-222222222222"), document.id)
+    source_run = (
+        run_with_id(UUID("22222222-2222-4222-8222-222222222222"), document.id)
+        .start(at=QUEUED_AT + timedelta(seconds=1))
+        .complete(at=QUEUED_AT + timedelta(seconds=2))
+    )
     replacement_run = run_with_id(
         UUID("33333333-3333-4333-8333-333333333333"),
         document.id,
@@ -100,6 +105,27 @@ async def test_adds_and_loads_processing_run_lineage(migrated_postgres_url: str)
         await database.dispose()
 
     assert loaded == replacement_run
+
+
+@pytest.mark.anyio
+async def test_rejects_multiple_active_processing_runs_for_a_document(
+    migrated_postgres_url: str,
+) -> None:
+    database = database_for(migrated_postgres_url)
+    document = document_with_id(UUID("34343434-3434-4434-8434-343434343434"))
+    first_run = run_with_id(UUID("45454545-4545-4455-8455-454545454545"), document.id)
+    second_run = run_with_id(UUID("56565656-5656-4565-8565-565656565656"), document.id)
+
+    try:
+        await add_document(database, document)
+        async with database.sessions.begin() as session:
+            await SqlAlchemyProcessingRunRepository(session).add(first_run)
+
+        with pytest.raises(ActiveProcessingRunAlreadyExists):
+            async with database.sessions.begin() as session:
+                await SqlAlchemyProcessingRunRepository(session).add(second_run)
+    finally:
+        await database.dispose()
 
 
 @pytest.mark.anyio

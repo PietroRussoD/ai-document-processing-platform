@@ -79,6 +79,7 @@ from document_platform.application.ports.processing_run_metrics_reader import (
     ProcessingRunMetricsSnapshot,
 )
 from document_platform.application.ports.processing_run_repository import (
+    ActiveProcessingRunAlreadyExists,
     ConcurrentProcessingRunUpdate,
     ProcessingRunAlreadyExists,
     ProcessingRunRepository,
@@ -109,6 +110,7 @@ __all__ = [
     "BlobNotFound",
     "BlobStore",
     "BlobTooLarge",
+    "ActiveProcessingRunAlreadyExists",
     "Clock",
     "ClassificationMetadataView",
     "ConcurrentDocumentUpdate",
