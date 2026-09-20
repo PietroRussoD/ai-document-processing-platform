@@ -76,6 +76,8 @@ The review-resolution flow is documented in the
 [v0.3 verification runbook](docs/runbooks/v0.3-verification.md). Its `v0.4`
 correction and local-model verification extension is documented separately in
 the [v0.4 verification runbook](docs/runbooks/v0.4-verification.md).
+Operational telemetry verification is documented in the
+[v0.5 verification runbook](docs/runbooks/v0.5-verification.md).
 
 The current durable decisions are recorded in
 [ADR 0001](docs/decisions/0001-pragmatic-ports-and-adapters.md),
