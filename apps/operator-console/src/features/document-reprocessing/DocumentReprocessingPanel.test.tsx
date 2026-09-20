@@ -54,9 +54,18 @@ test("submits a terminal run for controlled reprocessing", async () => {
         );
     });
     await waitFor(() => {
-        expect(screen.getByLabelText("Operator token")).toHaveValue("");
-        expect(screen.getByLabelText("Reprocessing reason")).toHaveValue("");
+        expect(screen.getByText("Reprocessing requested")).toBeVisible();
     });
+    expect(screen.queryByLabelText("Operator token")).not.toBeInTheDocument();
+    expect(
+        screen.queryByLabelText("Reprocessing reason"),
+    ).not.toBeInTheDocument();
+    expect(
+        screen.getByText("33333333-3333-4333-8333-333333333333"),
+    ).toBeVisible();
+    expect(
+        screen.getByText("44444444-4444-4444-8444-444444444444"),
+    ).toBeVisible();
 });
 
 test("keeps the idempotency key when a request can be retried", async () => {

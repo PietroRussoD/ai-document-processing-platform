@@ -1,11 +1,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { LoaderCircle, RotateCcw } from "lucide-react";
+import { CheckCircle2, LoaderCircle, RotateCcw } from "lucide-react";
 import { useState } from "react";
 
 import {
     createDocumentApi,
     type DocumentApi,
     DocumentApiProblem,
+    type DocumentReprocessing,
     type DocumentStatus,
 } from "../../api/documentApi";
 import { Button } from "../../components/ui/Button";
@@ -38,6 +39,9 @@ export function DocumentReprocessingPanel({
     const [operatorToken, setOperatorToken] = useState("");
     const [reason, setReason] = useState("");
     const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
+    const [lastRequest, setLastRequest] = useState<DocumentReprocessing | null>(
+        null,
+    );
     const reprocessingMutation = useMutation({
         mutationFn: ({
             idempotencyKey: requestIdempotencyKey,
@@ -52,15 +56,20 @@ export function DocumentReprocessingPanel({
                 operatorToken,
                 requestIdempotencyKey,
             ),
-        onSuccess: async () => {
+        onSuccess: async (reprocessing) => {
             setOperatorToken("");
             setReason("");
             setIdempotencyKey(null);
+            setLastRequest(reprocessing);
             await queryClient.invalidateQueries({
                 queryKey: ["document-status", documentId],
             });
         },
     });
+
+    if (lastRequest !== null) {
+        return <ReprocessingRequestOutcome reprocessing={lastRequest} />;
+    }
 
     if (!terminalRunStatuses.has(run.status)) {
         return null;
@@ -191,5 +200,57 @@ export function DocumentReprocessingPanel({
                 </FeedbackMessage>
             ) : null}
         </section>
+    );
+}
+
+function ReprocessingRequestOutcome({
+    reprocessing,
+}: {
+    reprocessing: DocumentReprocessing;
+}) {
+    return (
+        <section
+            className="mt-6 border border-app-success-border bg-app-success-surface p-5"
+            aria-labelledby="reprocessing-request-outcome-heading"
+        >
+            <div className="flex items-center gap-2 text-app-success">
+                <CheckCircle2 aria-hidden="true" size={20} />
+                <h3
+                    id="reprocessing-request-outcome-heading"
+                    className="font-semibold"
+                >
+                    {reprocessing.replayed
+                        ? "Existing reprocessing request restored"
+                        : "Reprocessing requested"}
+                </h3>
+            </div>
+            <p className="mt-2 text-sm text-app-success">
+                The replacement run has been queued. The persisted status will
+                refresh as processing continues.
+            </p>
+            <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                <Identifier
+                    label="Reprocessing operation ID"
+                    value={reprocessing.operation_id}
+                />
+                <Identifier
+                    label="Source processing run ID"
+                    value={reprocessing.source_run_id}
+                />
+                <Identifier
+                    label="Replacement processing run ID"
+                    value={reprocessing.replacement_run_id}
+                />
+            </dl>
+        </section>
+    );
+}
+
+function Identifier({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="min-w-0">
+            <dt className="text-xs font-medium text-app-muted">{label}</dt>
+            <dd className="mt-1 break-all font-mono text-xs">{value}</dd>
+        </div>
     );
 }
