@@ -443,7 +443,7 @@ tests/e2e/           API and browser journeys
 | Document classification | Deterministic canonical-text keyword policy | Evaluated local model policy |
 | Workflow execution | Temporal development server with local worker | Managed/self-hosted Temporal later |
 | Review authentication | Configured local static bearer token | Enterprise identity and authorization provider |
-| Operational telemetry | Prometheus metrics, local scraper and allowlisted JSON logs with bounded HTTP correlation | Optional local Grafana dashboards |
+| Operational telemetry | Prometheus metrics, provisioned local Grafana dashboard and allowlisted JSON logs with bounded HTTP correlation | Production monitoring, access policy and alerting |
 
 ## Related Decisions
 

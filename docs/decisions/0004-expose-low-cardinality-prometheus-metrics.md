@@ -30,8 +30,10 @@ it is not a historical event counter.
 
 The metrics endpoint is deliberately outside the versioned `/api/v1` business
 API and outside OpenAPI. An optional Compose profile provides a pinned local
-Prometheus scraper with seven-day retention. It reaches the API running on the
-host and does not define production access control, network policy or storage.
+Prometheus scraper with seven-day retention and a file-provisioned Grafana
+dashboard. Prometheus reaches the API running on the host; Grafana reaches
+Prometheus over the Compose network. This stack does not define production
+access control, network policy, alerting or storage.
 
 ## Consequences
 
@@ -43,5 +45,7 @@ host and does not define production access control, network policy or storage.
   those require a separate event or audit design.
 - The local Prometheus volume survives container replacement until explicitly
   removed, while its retention bounds disk use.
+- The Grafana datasource and dashboard are version-controlled and read-only in
+  the UI, preventing untracked demo configuration.
 - The application does not claim a production monitoring deployment merely by
   exposing the endpoint.

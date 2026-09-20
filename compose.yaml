@@ -1,6 +1,32 @@
 name: ai-document-processing-platform
 
 services:
+  grafana:
+    profiles: ["observability"]
+    image: grafana/grafana:13.2.2
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: local-development-only
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/document-platform.json
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
+    volumes:
+      - ./ops/observability/grafana/provisioning/datasources/prometheus.yml:/etc/grafana/provisioning/datasources/prometheus.yml:ro
+      - ./ops/observability/grafana/provisioning/dashboards/document-platform.yml:/etc/grafana/provisioning/dashboards/document-platform.yml:ro
+      - ./ops/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - document-platform-grafana:/var/lib/grafana
+
   prometheus:
     profiles: ["observability"]
     image: prom/prometheus:v3.14.0
@@ -82,6 +108,7 @@ services:
       - "${TEMPORAL_UI_PORT:-8233}:8080"
 
 volumes:
+  document-platform-grafana:
   document-platform-postgres:
   document-platform-prometheus:
   document-platform-temporal-postgres:

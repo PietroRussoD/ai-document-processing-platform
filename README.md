@@ -241,19 +241,26 @@ duration; raw URLs, headers, document values and credentials are excluded. The
 custom request event replaces Uvicorn's access log, hence the local command uses
 `--no-access-log`.
 
-Start the optional local Prometheus scraper after the API is listening on port
+Start the optional local monitoring stack after the API is listening on port
 `8000`:
 
 ```bash
-docker compose --profile observability up -d prometheus
+docker compose --profile observability up -d prometheus grafana
 ```
 
 Prometheus is available at `http://localhost:9090`. Its target page should show
 `document-platform-api` as `UP`. Useful initial queries are
 `document_platform_processing_runs`,
 `document_platform_processing_queue_oldest_age_seconds` and
-`rate(document_platform_http_requests_total[5m])`. The Compose profile retains
-local time-series data for seven days and is not a production monitoring setup.
+`rate(document_platform_http_requests_total[5m])`.
+
+Grafana is available at `http://localhost:3000` with the local-only credentials
+`admin` / `local-development-only`. Its provisioned **Document Platform
+Operations** dashboard shows scrape health, current run states, oldest queued-run
+age, request rate and p95 latency. Dashboard and datasource changes belong in
+`ops/observability/grafana`; UI edits are intentionally disabled because
+version-controlled files are authoritative. The Compose profile retains local
+time-series and Grafana data and is not a production monitoring setup.
 
 The versioned API contract is stored at
 [`docs/contracts/document-platform.openapi.json`](docs/contracts/document-platform.openapi.json).

@@ -1,0 +1,13 @@
+apiVersion: 1
+
+providers:
+  - name: document-platform
+    orgId: 1
+    folder: Document Platform
+    folderUid: document-platform
+    type: file
+    disableDeletion: true
+    editable: false
+    updateIntervalSeconds: 10
+    options:
+      path: /var/lib/grafana/dashboards
