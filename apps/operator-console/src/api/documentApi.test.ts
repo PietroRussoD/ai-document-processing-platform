@@ -112,6 +112,43 @@ test("resolves a review with the configured bearer token", async () => {
     );
 });
 
+test("requests reprocessing with a bearer token and idempotency key", async () => {
+    const reprocessing = {
+        operation_id: "33333333-3333-4333-8333-333333333333",
+        document_id: acceptedDocument.document_id,
+        source_run_id: acceptedDocument.processing_run_id,
+        replacement_run_id: "44444444-4444-4444-8444-444444444444",
+        requested_at: "2026-09-20T10:15:00Z",
+        replayed: false,
+    } as const;
+    const fetcher = vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(jsonResponse(reprocessing, 202));
+
+    const result = await createDocumentApi(fetcher).requestReprocessing(
+        acceptedDocument.document_id,
+        { reason: "Retry after the upstream OCR outage was resolved." },
+        "operator-token",
+        "reprocess-42",
+    );
+
+    expect(result).toEqual(reprocessing);
+    expect(fetcher).toHaveBeenCalledWith(
+        `/api/v1/documents/${acceptedDocument.document_id}/reprocessing-requests`,
+        {
+            method: "POST",
+            headers: {
+                Authorization: "Bearer operator-token",
+                "Content-Type": "application/json",
+                "Idempotency-Key": "reprocess-42",
+            },
+            body: JSON.stringify({
+                reason: "Retry after the upstream OCR outage was resolved.",
+            }),
+        },
+    );
+});
+
 test("maps RFC 9457 responses to a typed API error", async () => {
     const problem = {
         type: "urn:problem:document-not-found",

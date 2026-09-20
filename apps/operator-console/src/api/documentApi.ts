@@ -4,6 +4,8 @@ type UploadOperation = paths["/api/v1/documents"]["post"];
 type StatusOperation = paths["/api/v1/documents/{document_id}"]["get"];
 type ReviewResolutionOperation =
     paths["/api/v1/documents/{document_id}/review-resolution"]["post"];
+type ReprocessingOperation =
+    paths["/api/v1/documents/{document_id}/reprocessing-requests"]["post"];
 
 export type AcceptedDocument =
     UploadOperation["responses"][202]["content"]["application/json"];
@@ -13,6 +15,10 @@ export type ReviewResolutionRequest =
     ReviewResolutionOperation["requestBody"]["content"]["application/json"];
 export type ReviewResolution =
     ReviewResolutionOperation["responses"][200]["content"]["application/json"];
+export type DocumentReprocessingRequest =
+    ReprocessingOperation["requestBody"]["content"]["application/json"];
+export type DocumentReprocessing =
+    ReprocessingOperation["responses"][202]["content"]["application/json"];
 export type ProblemDetails =
     StatusOperation["responses"][404]["content"]["application/problem+json"];
 
@@ -69,6 +75,27 @@ export function createDocumentApi(fetcher: typeof fetch = globalThis.fetch) {
                 },
             );
             return readResponse<ReviewResolution>(response);
+        },
+
+        async requestReprocessing(
+            documentId: string,
+            reprocessing: DocumentReprocessingRequest,
+            operatorToken: string,
+            idempotencyKey: string,
+        ): Promise<DocumentReprocessing> {
+            const response = await fetcher(
+                `/api/v1/documents/${encodeURIComponent(documentId)}/reprocessing-requests`,
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${operatorToken}`,
+                        "Content-Type": "application/json",
+                        "Idempotency-Key": idempotencyKey,
+                    },
+                    body: JSON.stringify(reprocessing),
+                },
+            );
+            return readResponse<DocumentReprocessing>(response);
         },
     };
 }
