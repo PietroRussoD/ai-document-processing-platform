@@ -94,6 +94,40 @@ def test_completes_human_review(final_status: DocumentStatus) -> None:
     assert completed.version == 3
 
 
+@pytest.mark.parametrize("final_status", [DocumentStatus.APPROVED, DocumentStatus.REJECTED])
+def test_reopens_a_terminal_document_for_reprocessing(final_status: DocumentStatus) -> None:
+    resolved = (
+        accepted_document()
+        .start_processing(at=ACCEPTED_AT + timedelta(seconds=1))
+        .require_review(at=ACCEPTED_AT + timedelta(seconds=2))
+    )
+    resolved = (
+        resolved.approve(at=ACCEPTED_AT + timedelta(seconds=3))
+        if final_status is DocumentStatus.APPROVED
+        else resolved.reject(at=ACCEPTED_AT + timedelta(seconds=3))
+    )
+
+    reopened_at = ACCEPTED_AT + timedelta(seconds=4)
+    reopened = resolved.reopen_for_reprocessing(at=reopened_at)
+
+    assert reopened.status is DocumentStatus.PROCESSING
+    assert reopened.status_changed_at == reopened_at
+    assert reopened.version == 4
+
+
+@pytest.mark.parametrize("status", [DocumentStatus.UPLOADED, DocumentStatus.PROCESSING])
+def test_rejects_reprocessing_for_a_nonterminal_document(status: DocumentStatus) -> None:
+    document = accepted_document()
+    if status is DocumentStatus.PROCESSING:
+        document = document.start_processing(at=ACCEPTED_AT + timedelta(seconds=1))
+
+    with pytest.raises(
+        InvalidDocumentTransition,
+        match=f"cannot reopen for reprocessing from {status}",
+    ):
+        document.reopen_for_reprocessing(at=ACCEPTED_AT + timedelta(seconds=2))
+
+
 def test_rejects_a_transition_that_skips_processing() -> None:
     with pytest.raises(
         InvalidDocumentTransition,
