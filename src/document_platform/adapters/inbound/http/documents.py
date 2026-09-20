@@ -16,7 +16,10 @@ from document_platform.adapters.inbound.http.upload_staging import stage_upload
 from document_platform.application.commands import (
     AcceptDocumentUpload,
     AcceptDocumentUploadHandler,
+    DocumentReprocessingRequested,
     DocumentReviewResolved,
+    RequestDocumentReprocessing,
+    RequestDocumentReprocessingHandler,
     ResolveDocumentReview,
     ResolveDocumentReviewHandler,
 )
@@ -239,6 +242,19 @@ class ReviewResolutionResponse(BaseModel):
     replayed: bool
 
 
+class RequestDocumentReprocessingRequest(BaseModel):
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class DocumentReprocessingResponse(BaseModel):
+    operation_id: UUID
+    document_id: UUID
+    source_run_id: UUID
+    replacement_run_id: UUID
+    requested_at: datetime
+    replayed: bool
+
+
 router = APIRouter(prefix="/api/v1/documents", tags=["Documents"])
 
 
@@ -310,6 +326,43 @@ async def resolve_document_review(
 
 
 @router.post(
+    "/{document_id}/reprocessing-requests",
+    operation_id="requestDocumentReprocessing",
+    summary="Request controlled reprocessing for a completed document",
+    status_code=status.HTTP_202_ACCEPTED,
+    responses={
+        401: _problem_response("Unauthorized"),
+        404: _problem_response("Not Found"),
+        409: _problem_response("Conflict"),
+        422: _problem_response("Unprocessable Content"),
+        503: _problem_response("Service Unavailable"),
+    },
+)
+async def request_document_reprocessing(
+    document_id: UUID,
+    reprocessing_request: RequestDocumentReprocessingRequest,
+    request: Request,
+    idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+    authorization: Annotated[str | None, Header()] = None,
+) -> DocumentReprocessingResponse:
+    settings = cast(Settings, request.app.state.settings)
+    operator = authenticate_review_operator(authorization=authorization, settings=settings)
+    handler = cast(
+        RequestDocumentReprocessingHandler,
+        request.app.state.request_document_reprocessing,
+    )
+    reprocessing = await handler(
+        RequestDocumentReprocessing(
+            document_id=document_id,
+            requested_by=operator.reviewer_id,
+            reason=reprocessing_request.reason,
+            idempotency_key=idempotency_key,
+        )
+    )
+    return _document_reprocessing_response(reprocessing)
+
+
+@router.post(
     "",
     operation_id="acceptDocumentUpload",
     summary="Accept a PDF for asynchronous processing",
@@ -366,4 +419,17 @@ def _review_resolution_response(resolved: DocumentReviewResolved) -> ReviewResol
         reviewer_id=resolved.reviewer_id,
         resolved_at=resolved.resolved_at,
         replayed=resolved.replayed,
+    )
+
+
+def _document_reprocessing_response(
+    requested: DocumentReprocessingRequested,
+) -> DocumentReprocessingResponse:
+    return DocumentReprocessingResponse(
+        operation_id=requested.operation_id,
+        document_id=requested.document_id,
+        source_run_id=requested.source_run_id,
+        replacement_run_id=requested.replacement_run_id,
+        requested_at=requested.requested_at,
+        replayed=requested.replayed,
     )

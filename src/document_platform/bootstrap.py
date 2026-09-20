@@ -33,6 +33,7 @@ from document_platform.adapters.outbound.postgresql.queries import (
 from document_platform.application.commands import (
     AcceptDocumentUploadHandler,
     RegisterDocumentHandler,
+    RequestDocumentReprocessingHandler,
     ResolveDocumentReviewHandler,
 )
 from document_platform.application.ports import ProcessingRunMetricsReader
@@ -71,6 +72,11 @@ def create_app(
         unit_of_work_factory=lambda: SqlAlchemyUnitOfWork(database.sessions),
         clock=lambda: datetime.now(UTC),
     )
+    request_document_reprocessing = RequestDocumentReprocessingHandler(
+        unit_of_work_factory=lambda: SqlAlchemyUnitOfWork(database.sessions),
+        clock=lambda: datetime.now(UTC),
+        id_generator=uuid4,
+    )
 
     @asynccontextmanager
     async def lifespan(_application: FastAPI) -> AsyncGenerator[None]:
@@ -93,6 +99,7 @@ def create_app(
     application.state.accept_document_upload = accept_document_upload
     application.state.get_document_status = get_document_status
     application.state.resolve_document_review = resolve_document_review
+    application.state.request_document_reprocessing = request_document_reprocessing
     application.state.http_metrics = HttpMetrics(application_version=application_version)
     application.state.processing_run_metrics_reader = (
         processing_run_metrics_reader or SqlAlchemyProcessingRunMetricsReader(database.sessions)

@@ -13,8 +13,12 @@ from document_platform.adapters.inbound.http.review_authentication import (
 )
 from document_platform.application.commands import (
     ConflictingReviewResolution,
+    InvalidReprocessingDocumentState,
     InvalidReviewResolutionApplication,
     InvalidStagedUpload,
+    ReprocessingDocumentNotFound,
+    ReprocessingRunNotFound,
+    ReprocessingRunNotTerminal,
     ReviewApprovalRequiresCompleteInvoice,
     ReviewCorrectionRequiresApproval,
     ReviewResolutionDocumentNotFound,
@@ -23,11 +27,13 @@ from document_platform.application.commands import (
     UnsupportedDocumentMediaType,
 )
 from document_platform.application.ports import (
+    ActiveProcessingRunAlreadyExists,
     BlobTooLarge,
     EmptyBlob,
     EncryptedPdf,
     InvalidPdf,
     PdfPageLimitExceeded,
+    ReprocessingOperationAlreadyExists,
     ReviewResolutionAlreadyExists,
 )
 from document_platform.application.queries import DocumentNotFound
@@ -36,7 +42,11 @@ from document_platform.application.upload_idempotency import (
     InvalidIdempotencyKey,
 )
 from document_platform.domain.documents import InvalidDocument
-from document_platform.domain.processing import InvalidReviewResolution
+from document_platform.domain.processing import (
+    ConflictingReprocessingIdempotencyKey,
+    InvalidReprocessingOperation,
+    InvalidReviewResolution,
+)
 
 
 class ProblemDetails(BaseModel):
@@ -83,6 +93,44 @@ PROBLEM_DEFINITIONS: tuple[tuple[type[Exception], ProblemDefinition], ...] = (
     (
         ReviewResolutionDocumentNotFound,
         ProblemDefinition("urn:problem:document-not-found", "Document not found", 404),
+    ),
+    (
+        ReprocessingDocumentNotFound,
+        ProblemDefinition("urn:problem:document-not-found", "Document not found", 404),
+    ),
+    (
+        ReprocessingRunNotFound,
+        ProblemDefinition("urn:problem:reprocessing-unavailable", "Reprocessing unavailable", 409),
+    ),
+    (
+        ReprocessingRunNotTerminal,
+        ProblemDefinition("urn:problem:reprocessing-conflict", "Reprocessing unavailable", 409),
+    ),
+    (
+        InvalidReprocessingDocumentState,
+        ProblemDefinition("urn:problem:reprocessing-conflict", "Reprocessing unavailable", 409),
+    ),
+    (
+        ActiveProcessingRunAlreadyExists,
+        ProblemDefinition("urn:problem:reprocessing-conflict", "Reprocessing unavailable", 409),
+    ),
+    (
+        ReprocessingOperationAlreadyExists,
+        ProblemDefinition(
+            "urn:problem:reprocessing-idempotency-conflict", "Idempotency conflict", 409
+        ),
+    ),
+    (
+        ConflictingReprocessingIdempotencyKey,
+        ProblemDefinition(
+            "urn:problem:reprocessing-idempotency-conflict", "Idempotency conflict", 409
+        ),
+    ),
+    (
+        InvalidReprocessingOperation,
+        ProblemDefinition(
+            "urn:problem:invalid-reprocessing-request", "Invalid reprocessing request", 422
+        ),
     ),
     (
         InvalidReviewResolutionApplication,
