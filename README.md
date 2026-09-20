@@ -26,10 +26,14 @@ metadata; it never returns extracted document text or blob paths.
 pipeline state, returns bounded correlation IDs, and emits allowlisted JSON
 application logs. An optional local Prometheus/Grafana profile provides a
 version-controlled dashboard without pretending to be a production monitoring
-deployment. Controlled reprocessing and the Operations Console belong to the
-separate `v0.6.0` milestone. Notifications, retention, malware scanning and
-production deployment remain separate decisions until their concrete boundaries
-are designed and tested.
+deployment.
+
+Current `v0.6.0` development adds controlled reprocessing and an Operations
+Console backed by persisted run data. A reprocessing request will create a new,
+immutable run linked to its predecessor; it will not rewrite past evidence or
+allow concurrent active runs for the same document. Notifications, retention,
+malware scanning and production deployment remain separate decisions until
+their concrete boundaries are designed and tested.
 
 ## Implemented Technology
 
