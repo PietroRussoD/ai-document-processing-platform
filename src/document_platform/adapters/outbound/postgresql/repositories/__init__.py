@@ -20,6 +20,9 @@ from . import (
     invoice_validation_repository,
     review_resolution_repository,
 )
+from .reprocessing_operation_repository import (
+    SqlAlchemyReprocessingOperationRepository,
+)
 from .workflow_start_request_repository import SqlAlchemyWorkflowStartRequestRepository
 
 SqlAlchemyDocumentTextExtractionRepository = (
@@ -58,6 +61,7 @@ __all__ = [
     "SqlAlchemyInvoiceValidationRepository",
     "SqlAlchemyReviewResolutionRepository",
     "SqlAlchemyProcessingRunRepository",
+    "SqlAlchemyReprocessingOperationRepository",
     "SqlAlchemyUploadIdempotencyRepository",
     "SqlAlchemyWorkflowStartRequestRepository",
 ]

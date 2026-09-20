@@ -83,6 +83,10 @@ from document_platform.application.ports.processing_run_repository import (
     ProcessingRunAlreadyExists,
     ProcessingRunRepository,
 )
+from document_platform.application.ports.reprocessing_operation_repository import (
+    ReprocessingOperationAlreadyExists,
+    ReprocessingOperationRepository,
+)
 from document_platform.application.ports.review_resolution_repository import (
     ReviewResolutionAlreadyExists,
     ReviewResolutionRepository,
@@ -153,6 +157,8 @@ __all__ = [
     "ProcessingRunMetricsSnapshot",
     "ProcessingRunRepository",
     "ProcessingRunStatusView",
+    "ReprocessingOperationAlreadyExists",
+    "ReprocessingOperationRepository",
     "ReviewResolutionAlreadyExists",
     "ReviewResolutionMetadataView",
     "ReviewResolutionRepository",
