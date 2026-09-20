@@ -14,6 +14,7 @@ from document_platform.domain.processing import (
 
 RUN_ID = UUID("60a5ab35-fd9f-41bf-a007-91b07df38fec")
 DOCUMENT_ID = UUID("baa4df29-707a-47f3-947f-ad79b935c400")
+PREVIOUS_RUN_ID = UUID("9b0f9be2-572c-41b8-a369-df1d9f9e4c8a")
 QUEUED_AT = datetime(2026, 9, 13, 12, 0, tzinfo=UTC)
 
 
@@ -35,6 +36,13 @@ def test_queues_an_unstarted_run() -> None:
     assert run.finished_at is None
     assert run.attempt_count == 0
     assert run.version == 0
+    assert run.previous_run_id is None
+
+
+def test_queues_a_reprocessing_run_with_immutable_lineage() -> None:
+    run = queued_run(previous_run_id=PREVIOUS_RUN_ID)
+
+    assert run.previous_run_id == PREVIOUS_RUN_ID
 
 
 @pytest.mark.parametrize(
@@ -42,6 +50,8 @@ def test_queues_an_unstarted_run() -> None:
     [
         ("run_id", UUID(int=0)),
         ("document_id", UUID(int=0)),
+        ("previous_run_id", UUID(int=0)),
+        ("previous_run_id", RUN_ID),
         ("queued_at", datetime(2026, 9, 13, 12, 0)),
     ],
 )

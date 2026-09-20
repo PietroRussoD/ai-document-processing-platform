@@ -77,12 +77,17 @@ class ProcessingRun:
     finished_at: datetime | None
     attempt_count: int
     version: int
+    previous_run_id: UUID | None = None
 
     def __post_init__(self) -> None:
         if self.id.int == 0:
             raise InvalidProcessingRun("id must not be the nil UUID")
         if self.document_id.int == 0:
             raise InvalidProcessingRun("document_id must not be the nil UUID")
+        if self.previous_run_id is not None and self.previous_run_id.int == 0:
+            raise InvalidProcessingRun("previous_run_id must not be the nil UUID")
+        if self.previous_run_id == self.id:
+            raise InvalidProcessingRun("previous_run_id must not equal id")
         if not _is_timezone_aware(self.queued_at):
             raise InvalidProcessingRun("queued_at must be timezone-aware")
         if not _is_timezone_aware(self.status_changed_at):
@@ -123,6 +128,7 @@ class ProcessingRun:
         run_id: UUID,
         document_id: UUID,
         queued_at: datetime,
+        previous_run_id: UUID | None = None,
     ) -> Self:
         return cls(
             id=run_id,
@@ -134,6 +140,7 @@ class ProcessingRun:
             finished_at=None,
             attempt_count=0,
             version=0,
+            previous_run_id=previous_run_id,
         )
 
     def start(self, *, at: datetime) -> Self:
