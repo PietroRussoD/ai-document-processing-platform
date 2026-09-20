@@ -5,13 +5,13 @@ data from business documents.
 
 ## Status
 
-The [`v0.4.0` tagged release](https://github.com/PietroRussoD/ai-document-processing-platform/tree/v0.4.0),
-documented in the [release notes](docs/releases/v0.4.0.md), adds immutable
-field-level invoice corrections to the authenticated review flow introduced in
-`v0.3.0`. The worker performs bounded embedded-text extraction, a local OCR
-fallback, canonical-text selection, deterministic document classification and
-invoice validation. A complete invoice is automatically approved; an incomplete
-one is handed off to review. The console derives a safe timeline from persisted
+The [`v0.5.0` tagged release](https://github.com/PietroRussoD/ai-document-processing-platform/tree/v0.5.0),
+documented in the [release notes](docs/releases/v0.5.0.md), adds local
+operational observability to the durable document-processing and review flow.
+The worker performs bounded embedded-text extraction, local OCR fallback,
+canonical-text selection, deterministic document classification and invoice
+validation. A complete invoice is automatically approved; an incomplete one is
+handed off to review. The console derives a safe timeline from persisted
 metadata and never renders extracted document text. The API accepts bounded PDF
 uploads through real validation, local blob storage and atomic PostgreSQL
 registration.
@@ -22,21 +22,14 @@ document and processing-run status. Once available, the same status snapshot
 also exposes safe extraction, selection, classification and review-resolution
 metadata; it never returns extracted document text or blob paths.
 
-`v0.4.0` lets an operator complete a missing or incorrect invoice extraction
-without rewriting evidence. An immutable correction set is recorded beside the
-original extraction and resolution. The status projection exposes both facts,
-and the console derives effective reviewed values from them. The release also
-adds a synthetic extraction corpus and a local Ollama comparison harness. The
-recorded Qwen3 result does not meet the product policy, so model calls remain
-evaluation-only and outside the document-processing workflow.
-
-Current `v0.5.0` development is the operational-observability milestone. It
-starts with low-cardinality Prometheus telemetry, then adds durable pipeline
-backlog/outcome metrics, correlation-safe logs and an optional local
-Prometheus/Grafana profile. Controlled reprocessing and the Operations Console
-belong to the separate `v0.6.0` milestone. Notifications, retention, malware
-scanning and production deployment remain separate decisions until their
-concrete boundaries are designed and tested.
+`v0.5.0` exposes low-cardinality Prometheus metrics for requests and durable
+pipeline state, returns bounded correlation IDs, and emits allowlisted JSON
+application logs. An optional local Prometheus/Grafana profile provides a
+version-controlled dashboard without pretending to be a production monitoring
+deployment. Controlled reprocessing and the Operations Console belong to the
+separate `v0.6.0` milestone. Notifications, retention, malware scanning and
+production deployment remain separate decisions until their concrete boundaries
+are designed and tested.
 
 ## Implemented Technology
 

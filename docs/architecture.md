@@ -4,14 +4,13 @@
 
 The platform accepts synthetic business documents and processes them
 asynchronously for validation and review. `v0.1` implemented the ingestion
-boundary; current `v0.4` development executes bounded text extraction, OCR
+boundary; `v0.5` adds bounded operational telemetry to text extraction, OCR
 fallback, canonical-text selection, deterministic classification, invoice
 extraction, invoice validation, authenticated review resolution and immutable
-field-level corrections. It is
-designed as a local-first system: a clean default run does not require cloud
-credentials or a paid AI provider.
+field-level corrections. It is designed as a local-first system: a clean default
+run does not require cloud credentials or a paid AI provider.
 
-## Implemented Components (`v0.4`)
+## Implemented Components (`v0.5`)
 
 ```mermaid
 flowchart LR
@@ -23,6 +22,10 @@ flowchart LR
     Application --> Temporal[Temporal]
     Temporal --> Worker[Workflow activities]
     Worker --> Text[PyMuPDF and Tesseract]
+    API --> Metrics[Prometheus metrics]
+    Metrics --> Prometheus[Local Prometheus]
+    Prometheus --> Grafana[Provisioned Grafana dashboard]
+    API --> Logs[Allowlisted JSON logs]
 ```
 
 PostgreSQL is authoritative for documents, processing runs, upload idempotency
