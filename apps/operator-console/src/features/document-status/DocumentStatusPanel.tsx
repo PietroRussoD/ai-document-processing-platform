@@ -12,6 +12,7 @@ import { StatusBadge } from "../../components/ui/StatusBadge";
 import { ProcessingOutputPanel } from "../processing-output/ProcessingOutputPanel";
 import { ProcessingTimeline } from "../processing-output/ProcessingTimeline";
 import { ReviewResolutionPanel } from "../document-review/ReviewResolutionPanel";
+import { DocumentReprocessingPanel } from "../document-reprocessing/DocumentReprocessingPanel";
 import { statusPollInterval } from "./statusPolling";
 
 type StatusApi = Pick<DocumentApi, "getStatus">;
@@ -106,6 +107,10 @@ export function DocumentStatusPanel({
                 output={document.current_run.processing_output}
             />
             <ReviewResolutionPanel
+                documentId={document.id}
+                run={document.current_run}
+            />
+            <DocumentReprocessingPanel
                 documentId={document.id}
                 run={document.current_run}
             />

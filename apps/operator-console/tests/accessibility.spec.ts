@@ -7,6 +7,8 @@ const rejectedReviewStory =
     "/iframe.html?id=document-review-resolvedreview--rejected-without-note&viewMode=story";
 const reviewResolutionFormStory =
     "/iframe.html?id=document-review-reviewresolutionform--ready&viewMode=story";
+const documentReprocessingStory =
+    "/iframe.html?id=document-reprocessing-documentreprocessingpanel--ready&viewMode=story";
 const feedbackMessageStory =
     "/iframe.html?id=ui-feedbackmessage--warning&viewMode=story";
 const primaryButtonStory = "/iframe.html?id=ui-button--primary&viewMode=story";
@@ -46,6 +48,21 @@ test("review resolution form has no browser-detected accessibility violations", 
     await page.goto(reviewResolutionFormStory);
     await expect(
         page.getByRole("heading", { name: "Resolve operator review" }),
+    ).toBeVisible();
+
+    const results = await new AxeBuilder({ page })
+        .disableRules(["landmark-one-main", "page-has-heading-one"])
+        .analyze();
+
+    expect(results.violations).toEqual([]);
+});
+
+test("document reprocessing form has no browser-detected accessibility violations", async ({
+    page,
+}) => {
+    await page.goto(documentReprocessingStory);
+    await expect(
+        page.getByRole("heading", { name: "Request controlled reprocessing" }),
     ).toBeVisible();
 
     const results = await new AxeBuilder({ page })
