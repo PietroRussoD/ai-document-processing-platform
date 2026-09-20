@@ -64,6 +64,7 @@ def _to_record(run: ProcessingRun) -> ProcessingRunRecord:
     return ProcessingRunRecord(
         id=run.id,
         document_id=run.document_id,
+        previous_run_id=run.previous_run_id,
         status=run.status.value,
         queued_at=run.queued_at,
         started_at=run.started_at,
@@ -78,6 +79,7 @@ def _to_domain(record: ProcessingRunRecord) -> ProcessingRun:
     return ProcessingRun(
         id=record.id,
         document_id=record.document_id,
+        previous_run_id=record.previous_run_id,
         status=ProcessingRunStatus(record.status),
         queued_at=record.queued_at,
         started_at=record.started_at,

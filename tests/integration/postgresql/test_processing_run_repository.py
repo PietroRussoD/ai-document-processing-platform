@@ -38,8 +38,18 @@ def document_with_id(document_id: UUID) -> Document:
     )
 
 
-def run_with_id(run_id: UUID, document_id: UUID) -> ProcessingRun:
-    return ProcessingRun.queue(run_id=run_id, document_id=document_id, queued_at=QUEUED_AT)
+def run_with_id(
+    run_id: UUID,
+    document_id: UUID,
+    *,
+    previous_run_id: UUID | None = None,
+) -> ProcessingRun:
+    return ProcessingRun.queue(
+        run_id=run_id,
+        document_id=document_id,
+        queued_at=QUEUED_AT,
+        previous_run_id=previous_run_id,
+    )
 
 
 async def add_document(database: Database, document: Document) -> None:
@@ -64,6 +74,32 @@ async def test_adds_and_loads_a_processing_run(migrated_postgres_url: str) -> No
         await database.dispose()
 
     assert loaded == run
+
+
+@pytest.mark.anyio
+async def test_adds_and_loads_processing_run_lineage(migrated_postgres_url: str) -> None:
+    database = database_for(migrated_postgres_url)
+    document = document_with_id(UUID("11111111-1111-4111-8111-111111111111"))
+    source_run = run_with_id(UUID("22222222-2222-4222-8222-222222222222"), document.id)
+    replacement_run = run_with_id(
+        UUID("33333333-3333-4333-8333-333333333333"),
+        document.id,
+        previous_run_id=source_run.id,
+    )
+
+    try:
+        await add_document(database, document)
+        async with database.sessions.begin() as session:
+            repository = SqlAlchemyProcessingRunRepository(session)
+            await repository.add(source_run)
+            await repository.add(replacement_run)
+
+        async with database.sessions() as session:
+            loaded = await SqlAlchemyProcessingRunRepository(session).get(replacement_run.id)
+    finally:
+        await database.dispose()
+
+    assert loaded == replacement_run
 
 
 @pytest.mark.anyio

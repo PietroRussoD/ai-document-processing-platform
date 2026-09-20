@@ -50,8 +50,13 @@ class ProcessingRunRecord(Base):
             "OR (started_at IS NOT NULL AND attempt_count >= 1)",
             name="attempt_count_consistent",
         ),
+        CheckConstraint(
+            "previous_run_id IS NULL OR previous_run_id <> id",
+            name="previous_run_id_not_self",
+        ),
         CheckConstraint("version >= 0", name="version_not_negative"),
         Index("ix_processing_runs_document_id_queued_at", "document_id", "queued_at"),
+        Index("ix_processing_runs_previous_run_id", "previous_run_id"),
         Index("ix_processing_runs_status_queued_at", "status", "queued_at"),
     )
 
@@ -62,6 +67,13 @@ class ProcessingRunRecord(Base):
             "documents.id",
             name="fk_processing_runs_document_id_documents",
             ondelete="CASCADE",
+        ),
+    )
+    previous_run_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey(
+            "processing_runs.id",
+            name="fk_processing_runs_previous_run_id_processing_runs",
         ),
     )
     status: Mapped[str] = mapped_column(String(32))
