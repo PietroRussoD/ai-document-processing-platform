@@ -56,6 +56,11 @@ from document_platform.domain.processing.processing_run import (
     ProcessingRun,
     ProcessingRunStatus,
 )
+from document_platform.domain.processing.reprocessing_operation import (
+    ConflictingReprocessingIdempotencyKey,
+    InvalidReprocessingOperation,
+    ReprocessingOperation,
+)
 from document_platform.domain.processing.review_resolution import (
     InvalidReviewResolution,
     ReviewResolution,
@@ -70,6 +75,7 @@ from document_platform.domain.processing.workflow_start_request import (
 __all__ = [
     "InvalidProcessingRun",
     "InvalidProcessingRunTransition",
+    "ConflictingReprocessingIdempotencyKey",
     "DocumentTextExtraction",
     "DocumentTextSelection",
     "DocumentOcrExtraction",
@@ -99,6 +105,8 @@ __all__ = [
     "InvoiceValidationPolicy",
     "ProcessingRun",
     "ProcessingRunStatus",
+    "InvalidReprocessingOperation",
+    "ReprocessingOperation",
     "InvalidReviewResolution",
     "ReviewResolution",
     "ReviewResolutionDecision",
