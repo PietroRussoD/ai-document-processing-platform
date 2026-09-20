@@ -41,6 +41,7 @@ def document_view() -> DocumentStatusView:
         status_changed_at=ACCEPTED_AT,
         current_run=ProcessingRunStatusView(
             id=RUN_ID,
+            previous_run_id=None,
             status=ProcessingRunStatus.QUEUED,
             queued_at=ACCEPTED_AT,
             started_at=None,

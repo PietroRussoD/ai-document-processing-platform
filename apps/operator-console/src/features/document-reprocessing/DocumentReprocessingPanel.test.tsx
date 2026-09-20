@@ -144,6 +144,7 @@ function terminalRun(): DocumentStatus["current_run"] {
 function activeRun(): DocumentStatus["current_run"] {
     return {
         id: "22222222-2222-4222-8222-222222222222",
+        previous_run_id: null,
         status: "RUNNING",
         queued_at: "2026-09-20T11:00:00Z",
         started_at: "2026-09-20T11:00:01Z",

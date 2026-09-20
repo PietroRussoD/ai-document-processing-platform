@@ -82,6 +82,7 @@ async def test_returns_the_document_with_its_most_recent_run(
         run_id=latest_run_id,
         document_id=document_id,
         queued_at=ACCEPTED_AT + timedelta(minutes=5),
+        previous_run_id=first_run_id,
     )
 
     try:
@@ -101,6 +102,7 @@ async def test_returns_the_document_with_its_most_recent_run(
     assert result.id == document_id
     assert result.original_filename == "supplier-invoice.pdf"
     assert result.current_run.id == latest_run_id
+    assert result.current_run.previous_run_id == first_run_id
     assert result.current_run.queued_at == latest_run.queued_at
     assert result.current_run.processing_output is None
     assert missing is None

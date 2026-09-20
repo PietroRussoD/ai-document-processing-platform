@@ -365,6 +365,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Previous Run Id */
+            previous_run_id: string | null;
             processing_output: components["schemas"]["ProcessingOutputResponse"] | null;
             /**
              * Queued At

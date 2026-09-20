@@ -136,6 +136,7 @@ class SqlAlchemyDocumentStatusReader:
             status_changed_at=document.status_changed_at,
             current_run=ProcessingRunStatusView(
                 id=run.id,
+                previous_run_id=run.previous_run_id,
                 status=ProcessingRunStatus(run.status),
                 queued_at=run.queued_at,
                 started_at=run.started_at,

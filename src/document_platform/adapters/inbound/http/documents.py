@@ -154,6 +154,7 @@ class ProcessingRunStatusResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+    previous_run_id: UUID | None
     status: ProcessingRunStatus
     queued_at: datetime
     started_at: datetime | None

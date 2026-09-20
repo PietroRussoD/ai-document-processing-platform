@@ -641,6 +641,18 @@
             "title": "Id",
             "type": "string"
           },
+          "previous_run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Run Id"
+          },
           "processing_output": {
             "anyOf": [
               {
@@ -689,6 +701,7 @@
         },
         "required": [
           "id",
+          "previous_run_id",
           "status",
           "queued_at",
           "started_at",

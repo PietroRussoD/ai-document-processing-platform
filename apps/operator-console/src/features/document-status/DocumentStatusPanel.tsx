@@ -99,6 +99,13 @@ export function DocumentStatusPanel({
                     value={document.current_run.id}
                     technical
                 />
+                {document.current_run.previous_run_id !== null ? (
+                    <Value
+                        label="Previous processing run ID"
+                        value={document.current_run.previous_run_id}
+                        technical
+                    />
+                ) : null}
             </dl>
             <ProcessingOutputPanel
                 corrections={

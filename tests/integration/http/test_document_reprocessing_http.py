@@ -99,6 +99,7 @@ async def test_requests_and_replays_controlled_document_reprocessing(
     assert replay_response.json() == {**response.json(), "replayed": True}
     assert status_response.json()["status"] == "PROCESSING"
     assert status_response.json()["current_run"]["id"] == response.json()["replacement_run_id"]
+    assert status_response.json()["current_run"]["previous_run_id"] == str(RUN_ID)
     assert status_response.json()["current_run"]["status"] == "QUEUED"
 
 

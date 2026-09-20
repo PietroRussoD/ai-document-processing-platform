@@ -29,6 +29,7 @@ const persistedStatus: DocumentStatus = {
     status_changed_at: acceptedDocument.accepted_at,
     current_run: {
         id: acceptedDocument.processing_run_id,
+        previous_run_id: null,
         status: "QUEUED",
         queued_at: acceptedDocument.accepted_at,
         started_at: null,

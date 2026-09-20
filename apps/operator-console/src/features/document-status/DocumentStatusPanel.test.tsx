@@ -110,6 +110,32 @@ test("explains when processing requires an operator review", async () => {
     ).toBeVisible();
 });
 
+test("shows the preceding run for a reprocessing lineage", async () => {
+    const previousRunId = "33333333-3333-4333-8333-333333333333";
+    const getStatus = vi
+        .fn<
+            (
+                documentId: string,
+                signal?: AbortSignal,
+            ) => Promise<DocumentStatus>
+        >()
+        .mockResolvedValue({
+            ...status("PROCESSING", "QUEUED"),
+            current_run: {
+                ...status("PROCESSING", "QUEUED").current_run,
+                previous_run_id: previousRunId,
+            },
+        });
+
+    render(
+        <DocumentStatusPanel api={{ getStatus }} documentId={DOCUMENT_ID} />,
+        { wrapper: QueryWrapper },
+    );
+
+    expect(await screen.findByText("Previous processing run ID")).toBeVisible();
+    expect(screen.getByText(previousRunId)).toBeVisible();
+});
+
 test("polls active states and stops for every terminal run state", () => {
     expect(statusPollInterval(undefined)).toBe(2_000);
     expect(statusPollInterval("QUEUED")).toBe(2_000);
@@ -136,6 +162,7 @@ function status(
         status_changed_at: "2026-09-15T08:00:00Z",
         current_run: {
             id: "22222222-2222-4222-8222-222222222222",
+            previous_run_id: null,
             status: runState,
             queued_at: "2026-09-15T08:00:00Z",
             started_at: null,

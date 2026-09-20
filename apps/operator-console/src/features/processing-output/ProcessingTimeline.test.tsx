@@ -8,6 +8,7 @@ test("shows active processing before output is persisted", () => {
         <ProcessingTimeline
             run={{
                 id: "run-42",
+                previous_run_id: null,
                 status: "RUNNING",
                 queued_at: "2026-09-16T12:00:00Z",
                 started_at: "2026-09-16T12:00:01Z",
@@ -30,6 +31,7 @@ test("shows completed and skipped stages after a successful run", () => {
         <ProcessingTimeline
             run={{
                 id: "run-42",
+                previous_run_id: null,
                 status: "COMPLETED",
                 queued_at: "2026-09-16T12:00:00Z",
                 started_at: "2026-09-16T12:00:01Z",
@@ -89,6 +91,7 @@ test("shows the review handoff after an incomplete invoice", () => {
         <ProcessingTimeline
             run={{
                 id: "run-42",
+                previous_run_id: null,
                 status: "REVIEW_REQUIRED",
                 queued_at: "2026-09-16T12:00:00Z",
                 started_at: "2026-09-16T12:00:01Z",

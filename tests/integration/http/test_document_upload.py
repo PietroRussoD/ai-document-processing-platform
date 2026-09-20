@@ -110,6 +110,7 @@ async def test_accepts_and_replays_a_pdf_upload(
         "status_changed_at": first["accepted_at"],
         "current_run": {
             "id": first["processing_run_id"],
+            "previous_run_id": None,
             "status": "QUEUED",
             "queued_at": first["accepted_at"],
             "started_at": None,
