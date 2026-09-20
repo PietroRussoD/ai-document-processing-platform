@@ -252,12 +252,18 @@ execution is introduced; it is not simulated by the current domain model.
 
 ## Persistence Model
 
-One document can have multiple processing runs, allowing an explicit future
-reprocessing operation without overwriting execution history:
+One document can have multiple processing runs. A controlled reprocessing
+operation creates a replacement run that points at its immutable predecessor
+without overwriting execution history. The operation itself is persisted as an
+audit record with its operator, reason and idempotency key:
 
 ```mermaid
 erDiagram
     DOCUMENTS ||--o{ PROCESSING_RUNS : has
+    PROCESSING_RUNS ||--o{ PROCESSING_RUNS : previous_run
+    DOCUMENTS ||--o{ REPROCESSING_OPERATIONS : records
+    PROCESSING_RUNS ||--o{ REPROCESSING_OPERATIONS : source
+    PROCESSING_RUNS ||--o{ REPROCESSING_OPERATIONS : replacement
     DOCUMENTS {
         uuid id PK
         string content_sha256
@@ -267,14 +273,27 @@ erDiagram
     PROCESSING_RUNS {
         uuid id PK
         uuid document_id FK
+        uuid previous_run_id FK
         string status
         int attempt_count
         int version
     }
+    REPROCESSING_OPERATIONS {
+        uuid id PK
+        uuid document_id FK
+        uuid source_run_id FK
+        uuid replacement_run_id FK
+        string requested_by
+        string reason
+        string idempotency_key UK
+    }
 ```
 
 Deleting a document as part of an explicit retention operation cascades to its
-processing runs. Ordinary processing never deletes either record.
+processing runs and reprocessing operations. Ordinary processing never deletes
+or mutates completed evidence. PostgreSQL also permits at most one active run
+per document, so concurrent replacement workflows cannot compete for the same
+document.
 
 ## Local Blob Lifecycle
 

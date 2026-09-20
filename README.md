@@ -75,6 +75,8 @@ correction and local-model verification extension is documented separately in
 the [v0.4 verification runbook](docs/runbooks/v0.4-verification.md).
 Operational telemetry verification is documented in the
 [v0.5 verification runbook](docs/runbooks/v0.5-verification.md).
+Controlled reprocessing and immutable run lineage are documented in the
+[v0.6 verification runbook](docs/runbooks/v0.6-verification.md).
 
 The current durable decisions are recorded in
 [ADR 0001](docs/decisions/0001-pragmatic-ports-and-adapters.md),
@@ -86,6 +88,8 @@ with bounded request correlation covered by
 [ADR 0005](docs/decisions/0005-use-bounded-http-correlation-identifiers.md) and
 structured application logging by
 [ADR 0006](docs/decisions/0006-emit-allowlisted-json-application-logs.md).
+Controlled reprocessing and immutable run lineage are defined by
+[ADR 0007](docs/decisions/0007-create-immutable-reprocessing-lineage.md).
 
 ## Repository Layout
 
@@ -129,6 +133,7 @@ The API is available at `http://localhost:8000`. Current endpoints:
 - document ingestion: `POST http://localhost:8000/api/v1/documents`;
 - document status: `GET http://localhost:8000/api/v1/documents/{document_id}`;
 - review resolution: `POST http://localhost:8000/api/v1/documents/{document_id}/review-resolution`;
+- controlled reprocessing: `POST http://localhost:8000/api/v1/documents/{document_id}/reprocessing-requests`;
 - OpenAPI document: `GET http://localhost:8000/openapi.json`;
 - interactive API documentation: `http://localhost:8000/docs`.
 
