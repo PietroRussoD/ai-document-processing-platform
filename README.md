@@ -83,6 +83,8 @@ Operational telemetry verification is documented in the
 [v0.5 verification runbook](docs/runbooks/v0.5-verification.md).
 Controlled reprocessing and immutable run lineage are documented in the
 [v0.6 verification runbook](docs/runbooks/v0.6-verification.md).
+Failure recording and recovery through a replacement run are documented in the
+[v0.7 verification runbook](docs/runbooks/v0.7-verification.md).
 
 The current durable decisions are recorded in
 [ADR 0001](docs/decisions/0001-pragmatic-ports-and-adapters.md),
@@ -96,6 +98,8 @@ structured application logging by
 [ADR 0006](docs/decisions/0006-emit-allowlisted-json-application-logs.md).
 Controlled reprocessing and immutable run lineage are defined by
 [ADR 0007](docs/decisions/0007-create-immutable-reprocessing-lineage.md).
+Terminal workflow failure evidence is defined by
+[ADR 0008](docs/decisions/0008-record-safe-terminal-workflow-failure-evidence.md).
 
 ## Repository Layout
 

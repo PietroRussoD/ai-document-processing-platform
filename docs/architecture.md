@@ -4,13 +4,14 @@
 
 The platform accepts synthetic business documents and processes them
 asynchronously for validation and review. `v0.1` implemented the ingestion
-boundary; `v0.5` adds bounded operational telemetry to text extraction, OCR
-fallback, canonical-text selection, deterministic classification, invoice
-extraction, invoice validation, authenticated review resolution and immutable
-field-level corrections. It is designed as a local-first system: a clean default
-run does not require cloud credentials or a paid AI provider.
+boundary; `v0.7` adds safe terminal-failure reconciliation to bounded
+operational telemetry, text extraction, OCR fallback, canonical-text selection,
+deterministic classification, invoice extraction, invoice validation,
+authenticated review resolution and immutable field-level corrections. It is
+designed as a local-first system: a clean default run does not require cloud
+credentials or a paid AI provider.
 
-## Implemented Components (`v0.5`)
+## Implemented Components (`v0.7`)
 
 ```mermaid
 flowchart LR
@@ -212,6 +213,35 @@ TanStack Query pauses ordinary interval refetching when the page is in the
 background. The feature stops polling when automated processing reaches
 `COMPLETED`, `FAILED`, `CANCELLED` or `REVIEW_REQUIRED`; retry states remain
 observable.
+
+## Terminal Workflow Failures
+
+Temporal activity retries are bounded. When an activity reaches a terminal
+`ActivityError`, the workflow first invokes a dedicated recording activity.
+That transaction stores only a bounded failing stage and failure code, then
+transitions the processing run and document to `FAILED`. The workflow rethrows
+the error afterwards, so Temporal history truthfully remains failed rather
+than presenting a recovered completion.
+
+```mermaid
+sequenceDiagram
+    participant Temporal
+    participant Worker
+    participant Activity
+    participant DB as PostgreSQL
+
+    Temporal->>Worker: Execute workflow activity
+    Worker->>Activity: Execute bounded extraction
+    Activity-->>Temporal: Exhausted activity retry policy
+    Temporal->>Worker: Terminal ActivityError
+    Worker->>DB: Record stage/code and mark document + run FAILED
+    Worker-->>Temporal: Rethrow terminal error
+```
+
+Raw exception messages, stack traces, document text and storage paths remain
+out of the business-state model and public status projection. The authenticated
+reprocessing flow creates a separate queued run that references the failed run;
+it does not restart or mutate the failure evidence.
 
 ## Domain Lifecycles
 
@@ -475,3 +505,5 @@ tests/e2e/           API and browser journeys
 - [ADR 0004: Expose Low-Cardinality Prometheus Metrics](decisions/0004-expose-low-cardinality-prometheus-metrics.md)
 - [ADR 0005: Use Bounded HTTP Correlation Identifiers](decisions/0005-use-bounded-http-correlation-identifiers.md)
 - [ADR 0006: Emit Allowlisted JSON Application Logs](decisions/0006-emit-allowlisted-json-application-logs.md)
+- [ADR 0007: Create Immutable Processing-Run Lineage for Controlled Reprocessing](decisions/0007-create-immutable-reprocessing-lineage.md)
+- [ADR 0008: Record Safe Terminal Workflow Failure Evidence](decisions/0008-record-safe-terminal-workflow-failure-evidence.md)
