@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from document_platform.domain.processing import ProcessingStage
 from document_platform.settings import Settings
 
 
@@ -15,6 +16,7 @@ def test_uses_safe_local_defaults(
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("DOCUMENT_PLATFORM_ENVIRONMENT", raising=False)
     monkeypatch.delenv("DOCUMENT_PLATFORM_LOG_LEVEL", raising=False)
+    monkeypatch.delenv("DOCUMENT_PLATFORM_FAULT_INJECTION_STAGE", raising=False)
 
     settings = Settings()
 
@@ -37,6 +39,26 @@ def test_uses_safe_local_defaults(
     assert settings.dispatcher_poll_seconds == 2.0
     assert settings.review_operator_token is None
     assert settings.review_operator_id == "local-reviewer"
+    assert settings.fault_injection_stage is None
+
+
+def test_allows_the_documented_fault_injection_only_in_local_environment() -> None:
+    settings = Settings(fault_injection_stage=ProcessingStage.EMBEDDED_TEXT_EXTRACTION)
+
+    assert settings.fault_injection_stage is ProcessingStage.EMBEDDED_TEXT_EXTRACTION
+
+
+def test_rejects_fault_injection_outside_the_local_environment() -> None:
+    with pytest.raises(ValidationError, match="only in the local environment"):
+        Settings(
+            environment="test",
+            fault_injection_stage=ProcessingStage.EMBEDDED_TEXT_EXTRACTION,
+        )
+
+
+def test_rejects_an_unsupported_fault_injection_stage() -> None:
+    with pytest.raises(ValidationError, match="supports only"):
+        Settings(fault_injection_stage=ProcessingStage.CLASSIFICATION)
 
 
 def test_rejects_an_unknown_environment(monkeypatch: pytest.MonkeyPatch) -> None:

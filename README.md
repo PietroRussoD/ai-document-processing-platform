@@ -195,6 +195,22 @@ console stops polling after either automated outcome. A configured local review
 operator can then approve or reject the review-required document. Resolution is
 atomic, immutable and idempotent for the same decision, reviewer and note.
 
+### Local Failure Demonstration
+
+To exercise terminal retry handling without an upstream dependency, start only
+the worker with the local fault injection enabled:
+
+```bash
+DOCUMENT_PLATFORM_FAULT_INJECTION_STAGE=EMBEDDED_TEXT_EXTRACTION \
+  uv run python -m document_platform.worker
+```
+
+The embedded-text activity fails on each of Temporal's three attempts. The
+workflow then records `ACTIVITY_RETRY_EXHAUSTED`, marks the processing run and
+document as `FAILED`, and remains failed in Temporal. Unset the variable before
+starting a normal worker, then use the authenticated reprocessing endpoint to
+create a new run.
+
 Set these local-only values before resolving a review through the API or console:
 
 ```bash

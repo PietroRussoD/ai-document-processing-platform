@@ -20,7 +20,10 @@ from document_platform.adapters.inbound.temporal import (
 )
 from document_platform.adapters.outbound.filesystem import LocalBlobStore
 from document_platform.adapters.outbound.ocr import TesseractPdfOcrExtractor
-from document_platform.adapters.outbound.pdf import PyMuPdfTextExtractor
+from document_platform.adapters.outbound.pdf import (
+    LocalFaultInjectingPdfTextExtractor,
+    PyMuPdfTextExtractor,
+)
 from document_platform.adapters.outbound.postgresql import SqlAlchemyUnitOfWork
 from document_platform.adapters.outbound.postgresql.database import create_database
 from document_platform.application.commands import (
@@ -35,11 +38,13 @@ from document_platform.application.commands import (
     StartProcessingRunHandler,
     ValidateInvoiceHandler,
 )
+from document_platform.application.ports import PdfTextExtractor
 from document_platform.domain.processing import (
     DeterministicInvoiceExtractionPolicy,
     DocumentClassificationPolicy,
     EmbeddedTextQualityPolicy,
     InvoiceValidationPolicy,
+    ProcessingStage,
     ProcessingTextSelectionPolicy,
 )
 from document_platform.logging_configuration import configure_json_logging
@@ -64,6 +69,13 @@ async def run_worker(settings: Settings) -> None:
                 clock=lambda: datetime.now(UTC),
             )
         )
+        pdf_text_extractor: PdfTextExtractor = PyMuPdfTextExtractor(
+            max_pages=settings.max_document_pages,
+            max_characters=settings.max_extracted_text_characters,
+        )
+        if settings.fault_injection_stage is ProcessingStage.EMBEDDED_TEXT_EXTRACTION:
+            pdf_text_extractor = LocalFaultInjectingPdfTextExtractor()
+
         extract_activity = ExtractDocumentTextActivity(
             ExtractDocumentTextHandler(
                 unit_of_work_factory=unit_of_work_factory,
@@ -71,10 +83,7 @@ async def run_worker(settings: Settings) -> None:
                     root=settings.storage_root,
                     max_bytes=settings.max_document_bytes,
                 ),
-                pdf_text_extractor=PyMuPdfTextExtractor(
-                    max_pages=settings.max_document_pages,
-                    max_characters=settings.max_extracted_text_characters,
-                ),
+                pdf_text_extractor=pdf_text_extractor,
                 embedded_text_quality_policy=EmbeddedTextQualityPolicy(
                     settings.minimum_embedded_text_characters
                 ),

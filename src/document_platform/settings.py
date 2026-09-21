@@ -1,10 +1,12 @@
 """Typed process configuration."""
 
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
-from pydantic import Field, PostgresDsn, SecretStr, field_validator
+from pydantic import Field, PostgresDsn, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from document_platform.domain.processing import ProcessingStage
 
 type Environment = Literal["local", "test", "production"]
 type LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -44,6 +46,17 @@ class Settings(BaseSettings):
     dispatcher_poll_seconds: Annotated[float, Field(gt=0, le=60)] = 2.0
     review_operator_token: SecretStr | None = None
     review_operator_id: Annotated[str, Field(min_length=1, max_length=200)] = "local-reviewer"
+    fault_injection_stage: ProcessingStage | None = None
+
+    @model_validator(mode="after")
+    def validate_fault_injection(self) -> Self:
+        if self.fault_injection_stage is None:
+            return self
+        if self.environment != "local":
+            raise ValueError("fault_injection_stage is supported only in the local environment")
+        if self.fault_injection_stage is not ProcessingStage.EMBEDDED_TEXT_EXTRACTION:
+            raise ValueError("fault_injection_stage supports only EMBEDDED_TEXT_EXTRACTION")
+        return self
 
     @field_validator("review_operator_token")
     @classmethod
