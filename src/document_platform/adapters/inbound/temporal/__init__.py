@@ -18,6 +18,9 @@ from document_platform.adapters.inbound.temporal.extract_invoice_activity import
 from document_platform.adapters.inbound.temporal.extract_ocr_text_activity import (
     ExtractOcrTextActivity,
 )
+from document_platform.adapters.inbound.temporal.record_processing_run_failure_activity import (
+    RecordProcessingRunFailureActivity,
+)
 from document_platform.adapters.inbound.temporal.select_processing_text_activity import (
     SelectProcessingTextActivity,
 )
@@ -35,6 +38,7 @@ __all__ = [
     "ClassifyDocumentActivity",
     "CompleteProcessingRunActivity",
     "ExtractOcrTextActivity",
+    "RecordProcessingRunFailureActivity",
     "SelectProcessingTextActivity",
     "StartProcessingRunActivity",
     "ValidateInvoiceActivity",

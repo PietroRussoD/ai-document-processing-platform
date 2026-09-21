@@ -157,7 +157,8 @@
           "PROCESSING",
           "REVIEW_REQUIRED",
           "APPROVED",
-          "REJECTED"
+          "REJECTED",
+          "FAILED"
         ],
         "title": "DocumentStatus",
         "type": "string"

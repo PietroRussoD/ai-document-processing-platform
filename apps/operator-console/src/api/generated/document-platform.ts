@@ -185,7 +185,7 @@ export interface components {
          * DocumentStatus
          * @enum {string}
          */
-        DocumentStatus: "UPLOADED" | "PROCESSING" | "REVIEW_REQUIRED" | "APPROVED" | "REJECTED";
+        DocumentStatus: "UPLOADED" | "PROCESSING" | "REVIEW_REQUIRED" | "APPROVED" | "REJECTED" | "FAILED";
         /** DocumentStatusResponse */
         DocumentStatusResponse: {
             /**

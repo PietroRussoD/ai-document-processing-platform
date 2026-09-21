@@ -13,6 +13,7 @@ from document_platform.adapters.inbound.temporal import (
     ExtractDocumentTextActivity,
     ExtractInvoiceActivity,
     ExtractOcrTextActivity,
+    RecordProcessingRunFailureActivity,
     SelectProcessingTextActivity,
     StartProcessingRunActivity,
     ValidateInvoiceActivity,
@@ -29,6 +30,7 @@ from document_platform.application.commands import (
     ExtractDocumentTextHandler,
     ExtractInvoiceHandler,
     ExtractOcrTextHandler,
+    RecordProcessingRunFailureHandler,
     SelectProcessingTextHandler,
     StartProcessingRunHandler,
     ValidateInvoiceHandler,
@@ -137,6 +139,12 @@ async def run_worker(settings: Settings) -> None:
                 clock=lambda: datetime.now(UTC),
             )
         )
+        failure_activity = RecordProcessingRunFailureActivity(
+            RecordProcessingRunFailureHandler(
+                unit_of_work_factory=unit_of_work_factory,
+                clock=lambda: datetime.now(UTC),
+            )
+        )
         worker = Worker(
             client,
             task_queue=settings.temporal_task_queue,
@@ -151,6 +159,7 @@ async def run_worker(settings: Settings) -> None:
                 invoice_validation_activity.validate_invoice,
                 invoice_validation_application_activity.apply_invoice_validation,
                 completion_activity.complete_processing_run,
+                failure_activity.record_processing_run_failure,
             ],
         )
         await worker.run()

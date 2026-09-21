@@ -34,10 +34,12 @@ immutable run linked to its predecessor; it cannot rewrite past evidence or
 create a concurrent active run for the same document.
 
 Current `v0.7.0` development makes processing failure states operationally
-truthful. It will persist safe terminal-failure evidence, reconcile exhausted
-Temporal retries with PostgreSQL, and add queryable active, review and failed
-work queues. Retention, malware scanning and production deployment remain
-separate decisions until their concrete boundaries are designed and tested.
+truthful. Terminal Temporal activity failures now persist safe stage/code
+evidence and reconcile the processing run and document with PostgreSQL before
+the workflow remains failed. Queryable active, review and failed work queues
+remain the next increment. Retention, malware scanning and production
+deployment remain separate decisions until their concrete boundaries are
+designed and tested.
 
 ## Implemented Technology
 

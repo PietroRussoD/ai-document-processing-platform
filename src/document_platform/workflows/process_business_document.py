@@ -1,9 +1,11 @@
 """Durable orchestration for one business-document processing run."""
 
 from datetime import timedelta
+from typing import cast
 
 from temporalio import workflow
 from temporalio.common import RetryPolicy
+from temporalio.exceptions import ActivityError, RetryState
 
 from document_platform.application.temporal_contracts import (
     APPLY_INVOICE_VALIDATION_ACTIVITY,
@@ -13,10 +15,15 @@ from document_platform.application.temporal_contracts import (
     EXTRACT_INVOICE_ACTIVITY,
     EXTRACT_OCR_TEXT_ACTIVITY,
     PROCESS_BUSINESS_DOCUMENT_WORKFLOW,
+    RECORD_PROCESSING_RUN_FAILURE_ACTIVITY,
     SELECT_PROCESSING_TEXT_ACTIVITY,
     START_PROCESSING_RUN_ACTIVITY,
     VALIDATE_INVOICE_ACTIVITY,
 )
+from document_platform.domain.processing import ProcessingFailureCode, ProcessingStage
+
+_ACTIVITY_RETRY_POLICY = RetryPolicy(maximum_attempts=3)
+_FAILURE_RECORDING_RETRY_POLICY = RetryPolicy(maximum_attempts=3)
 
 
 @workflow.defn(name=PROCESS_BUSINESS_DOCUMENT_WORKFLOW)
@@ -27,55 +34,90 @@ class ProcessBusinessDocumentWorkflow:
             START_PROCESSING_RUN_ACTIVITY,
             processing_run_id,
             start_to_close_timeout=timedelta(seconds=30),
-            retry_policy=RetryPolicy(maximum_attempts=3),
+            retry_policy=_ACTIVITY_RETRY_POLICY,
         )
-        await workflow.execute_activity(
+        await _execute_processing_stage(
             EXTRACT_DOCUMENT_TEXT_ACTIVITY,
             processing_run_id,
-            start_to_close_timeout=timedelta(minutes=2),
-            retry_policy=RetryPolicy(maximum_attempts=3),
+            ProcessingStage.EMBEDDED_TEXT_EXTRACTION,
+            timeout=timedelta(minutes=2),
         )
-        await workflow.execute_activity(
+        await _execute_processing_stage(
             EXTRACT_OCR_TEXT_ACTIVITY,
             processing_run_id,
-            start_to_close_timeout=timedelta(minutes=5),
-            retry_policy=RetryPolicy(maximum_attempts=3),
+            ProcessingStage.OCR_TEXT_EXTRACTION,
+            timeout=timedelta(minutes=5),
         )
-        await workflow.execute_activity(
+        await _execute_processing_stage(
             SELECT_PROCESSING_TEXT_ACTIVITY,
             processing_run_id,
-            start_to_close_timeout=timedelta(seconds=30),
-            retry_policy=RetryPolicy(maximum_attempts=3),
+            ProcessingStage.TEXT_SELECTION,
+            timeout=timedelta(seconds=30),
         )
-        document_type = await workflow.execute_activity(
-            CLASSIFY_DOCUMENT_ACTIVITY,
-            processing_run_id,
-            start_to_close_timeout=timedelta(seconds=30),
-            retry_policy=RetryPolicy(maximum_attempts=3),
+        document_type = cast(
+            str,
+            await _execute_processing_stage(
+                CLASSIFY_DOCUMENT_ACTIVITY,
+                processing_run_id,
+                ProcessingStage.CLASSIFICATION,
+                timeout=timedelta(seconds=30),
+            ),
         )
         if document_type == "INVOICE":
-            await workflow.execute_activity(
+            await _execute_processing_stage(
                 EXTRACT_INVOICE_ACTIVITY,
                 processing_run_id,
-                start_to_close_timeout=timedelta(seconds=30),
-                retry_policy=RetryPolicy(maximum_attempts=3),
+                ProcessingStage.INVOICE_EXTRACTION,
+                timeout=timedelta(seconds=30),
             )
-            await workflow.execute_activity(
+            await _execute_processing_stage(
                 VALIDATE_INVOICE_ACTIVITY,
                 processing_run_id,
-                start_to_close_timeout=timedelta(seconds=30),
-                retry_policy=RetryPolicy(maximum_attempts=3),
+                ProcessingStage.INVOICE_VALIDATION,
+                timeout=timedelta(seconds=30),
             )
-            await workflow.execute_activity(
+            await _execute_processing_stage(
                 APPLY_INVOICE_VALIDATION_ACTIVITY,
                 processing_run_id,
-                start_to_close_timeout=timedelta(seconds=30),
-                retry_policy=RetryPolicy(maximum_attempts=3),
+                ProcessingStage.VALIDATION_APPLICATION,
+                timeout=timedelta(seconds=30),
             )
         else:
-            await workflow.execute_activity(
+            await _execute_processing_stage(
                 COMPLETE_PROCESSING_RUN_ACTIVITY,
                 processing_run_id,
-                start_to_close_timeout=timedelta(seconds=30),
-                retry_policy=RetryPolicy(maximum_attempts=3),
+                ProcessingStage.COMPLETION,
+                timeout=timedelta(seconds=30),
             )
+
+
+async def _execute_processing_stage(
+    activity_name: str,
+    processing_run_id: str,
+    stage: ProcessingStage,
+    *,
+    timeout: timedelta,
+) -> object:
+    try:
+        return await workflow.execute_activity(
+            activity_name,
+            processing_run_id,
+            start_to_close_timeout=timeout,
+            retry_policy=_ACTIVITY_RETRY_POLICY,
+        )
+    except ActivityError as error:
+        await workflow.execute_activity(
+            RECORD_PROCESSING_RUN_FAILURE_ACTIVITY,
+            args=[processing_run_id, stage.value, classify_activity_failure(error).value],
+            start_to_close_timeout=timedelta(seconds=30),
+            retry_policy=_FAILURE_RECORDING_RETRY_POLICY,
+        )
+        raise
+
+
+def classify_activity_failure(error: ActivityError) -> ProcessingFailureCode:
+    if error.retry_state is RetryState.NON_RETRYABLE_FAILURE:
+        return ProcessingFailureCode.NON_RETRYABLE_ACTIVITY_FAILURE
+    if error.retry_state is RetryState.TIMEOUT:
+        return ProcessingFailureCode.ACTIVITY_TIMEOUT
+    return ProcessingFailureCode.ACTIVITY_RETRY_EXHAUSTED
