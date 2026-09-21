@@ -28,12 +28,16 @@ application logs. An optional local Prometheus/Grafana profile provides a
 version-controlled dashboard without pretending to be a production monitoring
 deployment.
 
-`v0.6.0` adds controlled reprocessing and an Operations Console backed by
+`v0.6.0` added controlled reprocessing and an Operations Console backed by
 persisted run data. An authenticated reprocessing request creates a new,
 immutable run linked to its predecessor; it cannot rewrite past evidence or
-create a concurrent active run for the same document. Notifications, retention,
-malware scanning and production deployment remain separate decisions until
-their concrete boundaries are designed and tested.
+create a concurrent active run for the same document.
+
+Current `v0.7.0` development makes processing failure states operationally
+truthful. It will persist safe terminal-failure evidence, reconcile exhausted
+Temporal retries with PostgreSQL, and add queryable active, review and failed
+work queues. Retention, malware scanning and production deployment remain
+separate decisions until their concrete boundaries are designed and tested.
 
 ## Implemented Technology
 
