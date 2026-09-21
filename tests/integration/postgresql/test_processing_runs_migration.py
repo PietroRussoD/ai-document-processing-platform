@@ -21,6 +21,8 @@ EXPECTED_COLUMNS = {
     "started_at",
     "status_changed_at",
     "finished_at",
+    "failure_stage",
+    "failure_code",
     "attempt_count",
     "version",
 }

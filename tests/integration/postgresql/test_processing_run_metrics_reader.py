@@ -15,7 +15,13 @@ from document_platform.adapters.outbound.postgresql.repositories import (
     SqlAlchemyProcessingRunRepository,
 )
 from document_platform.domain.documents import Document
-from document_platform.domain.processing import ProcessingRun, ProcessingRunStatus
+from document_platform.domain.processing import (
+    ProcessingFailure,
+    ProcessingFailureCode,
+    ProcessingRun,
+    ProcessingRunStatus,
+    ProcessingStage,
+)
 from document_platform.settings import Settings
 
 QUEUED_AT = datetime(2000, 1, 1, tzinfo=UTC)
@@ -68,7 +74,13 @@ def _runs_for_every_status() -> tuple[ProcessingRun, ...]:
     failed = (
         _queued_run()
         .start(at=QUEUED_AT + timedelta(seconds=1))
-        .fail(at=QUEUED_AT + timedelta(seconds=2))
+        .fail(
+            at=QUEUED_AT + timedelta(seconds=2),
+            failure=ProcessingFailure(
+                stage=ProcessingStage.EMBEDDED_TEXT_EXTRACTION,
+                code=ProcessingFailureCode.ACTIVITY_RETRY_EXHAUSTED,
+            ),
+        )
     )
     cancelled = _queued_run().cancel(at=QUEUED_AT + timedelta(seconds=1))
     return (queued, running, waiting_retry, review_required, completed, failed, cancelled)

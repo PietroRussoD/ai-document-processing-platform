@@ -17,7 +17,13 @@ from document_platform.application.ports import (
     ProcessingRunAlreadyExists,
 )
 from document_platform.domain.documents import Document
-from document_platform.domain.processing import ProcessingRun, ProcessingRunStatus
+from document_platform.domain.processing import (
+    ProcessingFailure,
+    ProcessingFailureCode,
+    ProcessingRun,
+    ProcessingRunStatus,
+    ProcessingStage,
+)
 from document_platform.settings import Settings
 
 QUEUED_AT = datetime(2026, 9, 13, 14, 0, tzinfo=UTC)
@@ -105,6 +111,35 @@ async def test_adds_and_loads_processing_run_lineage(migrated_postgres_url: str)
         await database.dispose()
 
     assert loaded == replacement_run
+
+
+@pytest.mark.anyio
+async def test_adds_and_loads_terminal_failure_evidence(migrated_postgres_url: str) -> None:
+    database = database_for(migrated_postgres_url)
+    document = document_with_id(UUID("f4040404-0404-4404-8404-040404040404"))
+    failed_run = (
+        run_with_id(UUID("f5050505-0505-4505-8505-050505050505"), document.id)
+        .start(at=QUEUED_AT + timedelta(seconds=1))
+        .fail(
+            at=QUEUED_AT + timedelta(seconds=2),
+            failure=ProcessingFailure(
+                stage=ProcessingStage.EMBEDDED_TEXT_EXTRACTION,
+                code=ProcessingFailureCode.ACTIVITY_RETRY_EXHAUSTED,
+            ),
+        )
+    )
+
+    try:
+        await add_document(database, document)
+        async with database.sessions.begin() as session:
+            await SqlAlchemyProcessingRunRepository(session).add(failed_run)
+
+        async with database.sessions() as session:
+            loaded = await SqlAlchemyProcessingRunRepository(session).get(failed_run.id)
+    finally:
+        await database.dispose()
+
+    assert loaded == failed_run
 
 
 @pytest.mark.anyio

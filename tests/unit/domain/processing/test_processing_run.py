@@ -6,10 +6,14 @@ from uuid import UUID
 import pytest
 
 from document_platform.domain.processing import (
+    InvalidProcessingFailure,
     InvalidProcessingRun,
     InvalidProcessingRunTransition,
+    ProcessingFailure,
+    ProcessingFailureCode,
     ProcessingRun,
     ProcessingRunStatus,
+    ProcessingStage,
 )
 
 RUN_ID = UUID("60a5ab35-fd9f-41bf-a007-91b07df38fec")
@@ -151,11 +155,60 @@ def test_finishes_a_running_run(operation: str, expected_status: ProcessingRunSt
     finished = (
         running.complete(at=finished_at)
         if operation == "complete"
-        else running.fail(at=finished_at)
+        else running.fail(
+            at=finished_at,
+            failure=ProcessingFailure(
+                stage=ProcessingStage.EMBEDDED_TEXT_EXTRACTION,
+                code=ProcessingFailureCode.ACTIVITY_RETRY_EXHAUSTED,
+            ),
+        )
     )
 
     assert finished.status is expected_status
     assert finished.finished_at == finished_at
+
+
+def test_records_only_bounded_evidence_for_a_terminal_failure() -> None:
+    failure = ProcessingFailure(
+        stage=ProcessingStage.EMBEDDED_TEXT_EXTRACTION,
+        code=ProcessingFailureCode.ACTIVITY_RETRY_EXHAUSTED,
+    )
+
+    failed = (
+        queued_run()
+        .start(at=QUEUED_AT + timedelta(seconds=1))
+        .fail(
+            at=QUEUED_AT + timedelta(seconds=2),
+            failure=failure,
+        )
+    )
+
+    assert failed.failure == failure
+
+
+def test_rejects_failed_runs_without_failure_evidence() -> None:
+    running = queued_run().start(at=QUEUED_AT + timedelta(seconds=1))
+
+    with pytest.raises(InvalidProcessingRun, match="failure evidence"):
+        ProcessingRun(
+            id=running.id,
+            document_id=running.document_id,
+            status=ProcessingRunStatus.FAILED,
+            queued_at=running.queued_at,
+            started_at=running.started_at,
+            status_changed_at=QUEUED_AT + timedelta(seconds=2),
+            finished_at=QUEUED_AT + timedelta(seconds=2),
+            attempt_count=running.attempt_count,
+            version=running.version + 1,
+        )
+
+
+def test_rejects_unbounded_failure_evidence() -> None:
+    with pytest.raises(InvalidProcessingFailure, match="ProcessingStage"):
+        ProcessingFailure(
+            stage="embedded text extraction",  # type: ignore[arg-type]
+            code=ProcessingFailureCode.ACTIVITY_RETRY_EXHAUSTED,
+        )
 
 
 def test_rejects_skipping_directly_from_queued_to_completed() -> None:

@@ -18,7 +18,10 @@ from document_platform.application.ports import UnitOfWork
 from document_platform.domain.documents import Document, DocumentStatus
 from document_platform.domain.processing import (
     ConflictingReprocessingIdempotencyKey,
+    ProcessingFailure,
+    ProcessingFailureCode,
     ProcessingRun,
+    ProcessingStage,
     ReprocessingOperation,
     WorkflowStartRequest,
 )
@@ -139,7 +142,13 @@ def failed_source_run() -> ProcessingRun:
             queued_at=ACCEPTED_AT,
         )
         .start(at=ACCEPTED_AT + timedelta(seconds=1))
-        .fail(at=ACCEPTED_AT + timedelta(seconds=2))
+        .fail(
+            at=ACCEPTED_AT + timedelta(seconds=2),
+            failure=ProcessingFailure(
+                stage=ProcessingStage.EMBEDDED_TEXT_EXTRACTION,
+                code=ProcessingFailureCode.ACTIVITY_RETRY_EXHAUSTED,
+            ),
+        )
     )
 
 

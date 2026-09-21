@@ -18,7 +18,13 @@ from document_platform.application.ports import (
     ConcurrentProcessingRunUpdate,
     ProcessingRunAlreadyExists,
 )
-from document_platform.domain.processing import ProcessingRun, ProcessingRunStatus
+from document_platform.domain.processing import (
+    ProcessingFailure,
+    ProcessingFailureCode,
+    ProcessingRun,
+    ProcessingRunStatus,
+    ProcessingStage,
+)
 
 ACTIVE_PROCESSING_RUN_CONSTRAINT = "uq_processing_runs_document_id_active"
 
@@ -72,6 +78,8 @@ class SqlAlchemyProcessingRunRepository:
                     started_at=run.started_at,
                     status_changed_at=run.status_changed_at,
                     finished_at=run.finished_at,
+                    failure_stage=run.failure.stage.value if run.failure is not None else None,
+                    failure_code=run.failure.code.value if run.failure is not None else None,
                     attempt_count=run.attempt_count,
                     version=run.version,
                 )
@@ -91,6 +99,8 @@ def _to_record(run: ProcessingRun) -> ProcessingRunRecord:
         started_at=run.started_at,
         status_changed_at=run.status_changed_at,
         finished_at=run.finished_at,
+        failure_stage=run.failure.stage.value if run.failure is not None else None,
+        failure_code=run.failure.code.value if run.failure is not None else None,
         attempt_count=run.attempt_count,
         version=run.version,
     )
@@ -108,4 +118,16 @@ def _to_domain(record: ProcessingRunRecord) -> ProcessingRun:
         finished_at=record.finished_at,
         attempt_count=record.attempt_count,
         version=record.version,
+        failure=_to_failure(record),
+    )
+
+
+def _to_failure(record: ProcessingRunRecord) -> ProcessingFailure | None:
+    if record.failure_stage is None and record.failure_code is None:
+        return None
+    if record.failure_stage is None or record.failure_code is None:
+        raise ValueError("processing-run failure evidence must be complete")
+    return ProcessingFailure(
+        stage=ProcessingStage(record.failure_stage),
+        code=ProcessingFailureCode(record.failure_code),
     )

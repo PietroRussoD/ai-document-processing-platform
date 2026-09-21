@@ -50,6 +50,12 @@ from document_platform.domain.processing.invoice_validation import (
     InvoiceValidationIssue,
     InvoiceValidationPolicy,
 )
+from document_platform.domain.processing.processing_failure import (
+    InvalidProcessingFailure,
+    ProcessingFailure,
+    ProcessingFailureCode,
+    ProcessingStage,
+)
 from document_platform.domain.processing.processing_run import (
     InvalidProcessingRun,
     InvalidProcessingRunTransition,
@@ -105,6 +111,10 @@ __all__ = [
     "InvoiceValidationPolicy",
     "ProcessingRun",
     "ProcessingRunStatus",
+    "InvalidProcessingFailure",
+    "ProcessingFailure",
+    "ProcessingFailureCode",
+    "ProcessingStage",
     "InvalidReprocessingOperation",
     "ReprocessingOperation",
     "InvalidReviewResolution",

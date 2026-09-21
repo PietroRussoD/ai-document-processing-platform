@@ -6,6 +6,8 @@ from enum import StrEnum
 from typing import Self
 from uuid import UUID
 
+from document_platform.domain.processing.processing_failure import ProcessingFailure
+
 
 class ProcessingRunStatus(StrEnum):
     QUEUED = "QUEUED"
@@ -78,6 +80,7 @@ class ProcessingRun:
     attempt_count: int
     version: int
     previous_run_id: UUID | None = None
+    failure: ProcessingFailure | None = None
 
     def __post_init__(self) -> None:
         if self.id.int == 0:
@@ -112,6 +115,10 @@ class ProcessingRun:
             raise InvalidProcessingRun("a queued run must not have started")
         if self.status in _STARTED_STATUSES and self.started_at is None:
             raise InvalidProcessingRun(f"{self.status} requires started_at")
+        if self.failure is not None and type(self.failure) is not ProcessingFailure:
+            raise InvalidProcessingRun("failure must be ProcessingFailure evidence")
+        if (self.status is ProcessingRunStatus.FAILED) != (self.failure is not None):
+            raise InvalidProcessingRun("failure evidence must exist only for a failed run")
         if (self.status in _TERMINAL_STATUSES) != (self.finished_at is not None):
             raise InvalidProcessingRun("finished_at must exist only for a terminal status")
         if self.started_at is None and self.attempt_count != 0:
@@ -177,8 +184,13 @@ class ProcessingRun:
     def complete(self, *, at: datetime) -> Self:
         return self._transition_to(ProcessingRunStatus.COMPLETED, at=at, mark_finished=True)
 
-    def fail(self, *, at: datetime) -> Self:
-        return self._transition_to(ProcessingRunStatus.FAILED, at=at, mark_finished=True)
+    def fail(self, *, at: datetime, failure: ProcessingFailure) -> Self:
+        return self._transition_to(
+            ProcessingRunStatus.FAILED,
+            at=at,
+            mark_finished=True,
+            failure=failure,
+        )
 
     def cancel(self, *, at: datetime) -> Self:
         return self._transition_to(ProcessingRunStatus.CANCELLED, at=at, mark_finished=True)
@@ -195,6 +207,7 @@ class ProcessingRun:
         mark_started: bool = False,
         increment_attempt: bool = False,
         mark_finished: bool = False,
+        failure: ProcessingFailure | None = None,
     ) -> Self:
         if target not in _ALLOWED_TRANSITIONS[self.status]:
             raise InvalidProcessingRunTransition(
@@ -213,6 +226,7 @@ class ProcessingRun:
             finished_at=at if mark_finished else self.finished_at,
             attempt_count=self.attempt_count + int(increment_attempt),
             version=self.version + 1,
+            failure=failure,
         )
 
 

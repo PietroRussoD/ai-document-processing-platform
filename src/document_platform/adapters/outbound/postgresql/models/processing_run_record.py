@@ -46,6 +46,11 @@ class ProcessingRunRecord(Base):
             name="terminal_status_has_time",
         ),
         CheckConstraint(
+            "(status = 'FAILED' AND failure_stage IS NOT NULL AND failure_code IS NOT NULL) "
+            "OR (status <> 'FAILED' AND failure_stage IS NULL AND failure_code IS NULL)",
+            name="failure_evidence_consistent",
+        ),
+        CheckConstraint(
             "(started_at IS NULL AND attempt_count = 0) "
             "OR (started_at IS NOT NULL AND attempt_count >= 1)",
             name="attempt_count_consistent",
@@ -89,5 +94,7 @@ class ProcessingRunRecord(Base):
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     status_changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    failure_stage: Mapped[str | None] = mapped_column(String(64))
+    failure_code: Mapped[str | None] = mapped_column(String(64))
     attempt_count: Mapped[int] = mapped_column(Integer)
     version: Mapped[int] = mapped_column(Integer)
