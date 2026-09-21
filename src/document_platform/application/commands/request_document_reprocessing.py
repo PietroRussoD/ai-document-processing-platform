@@ -142,7 +142,11 @@ def _ensure_replay_matches(
 
 
 def _prepare_document_for_reprocessing(document: Document, at: datetime) -> Document:
-    if document.status in {DocumentStatus.APPROVED, DocumentStatus.REJECTED}:
+    if document.status in {
+        DocumentStatus.APPROVED,
+        DocumentStatus.REJECTED,
+        DocumentStatus.FAILED,
+    }:
         return document.reopen_for_reprocessing(at=at)
     if document.status is DocumentStatus.UPLOADED:
         return document.start_processing(at=at)

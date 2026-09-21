@@ -18,6 +18,7 @@ class DocumentStatus(StrEnum):
     REVIEW_REQUIRED = "REVIEW_REQUIRED"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
+    FAILED = "FAILED"
 
 
 class InvalidDocument(ValueError):
@@ -30,10 +31,13 @@ class InvalidDocumentTransition(ValueError):
 
 _ALLOWED_TRANSITIONS: dict[DocumentStatus, frozenset[DocumentStatus]] = {
     DocumentStatus.UPLOADED: frozenset({DocumentStatus.PROCESSING}),
-    DocumentStatus.PROCESSING: frozenset({DocumentStatus.REVIEW_REQUIRED, DocumentStatus.APPROVED}),
+    DocumentStatus.PROCESSING: frozenset(
+        {DocumentStatus.REVIEW_REQUIRED, DocumentStatus.APPROVED, DocumentStatus.FAILED}
+    ),
     DocumentStatus.REVIEW_REQUIRED: frozenset({DocumentStatus.APPROVED, DocumentStatus.REJECTED}),
     DocumentStatus.APPROVED: frozenset({DocumentStatus.PROCESSING}),
     DocumentStatus.REJECTED: frozenset({DocumentStatus.PROCESSING}),
+    DocumentStatus.FAILED: frozenset({DocumentStatus.PROCESSING}),
 }
 
 
@@ -112,12 +116,19 @@ class Document:
     def reject(self, *, at: datetime) -> Self:
         return self._transition_to(DocumentStatus.REJECTED, at=at)
 
+    def fail(self, *, at: datetime) -> Self:
+        return self._transition_to(DocumentStatus.FAILED, at=at)
+
     def reopen_for_reprocessing(self, *, at: datetime) -> Self:
         self._require_terminal_status(operation="reopen for reprocessing")
         return self._transition_to(DocumentStatus.PROCESSING, at=at)
 
     def _require_terminal_status(self, *, operation: str) -> None:
-        if self.status not in {DocumentStatus.APPROVED, DocumentStatus.REJECTED}:
+        if self.status not in {
+            DocumentStatus.APPROVED,
+            DocumentStatus.REJECTED,
+            DocumentStatus.FAILED,
+        }:
             raise InvalidDocumentTransition(f"cannot {operation} from {self.status}")
 
     def _transition_to(self, target: DocumentStatus, *, at: datetime) -> Self:

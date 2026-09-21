@@ -115,6 +115,19 @@ def test_reopens_a_terminal_document_for_reprocessing(final_status: DocumentStat
     assert reopened.version == 4
 
 
+def test_reopens_a_failed_document_for_reprocessing() -> None:
+    failed = (
+        accepted_document()
+        .start_processing(at=ACCEPTED_AT + timedelta(seconds=1))
+        .fail(at=ACCEPTED_AT + timedelta(seconds=2))
+    )
+
+    reopened = failed.reopen_for_reprocessing(at=ACCEPTED_AT + timedelta(seconds=3))
+
+    assert reopened.status is DocumentStatus.PROCESSING
+    assert reopened.version == 3
+
+
 @pytest.mark.parametrize("status", [DocumentStatus.UPLOADED, DocumentStatus.PROCESSING])
 def test_rejects_reprocessing_for_a_nonterminal_document(status: DocumentStatus) -> None:
     document = accepted_document()

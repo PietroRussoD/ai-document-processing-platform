@@ -57,7 +57,11 @@ _ALLOWED_TRANSITIONS: dict[ProcessingRunStatus, frozenset[ProcessingRunStatus]] 
         }
     ),
     ProcessingRunStatus.WAITING_RETRY: frozenset(
-        {ProcessingRunStatus.RUNNING, ProcessingRunStatus.CANCELLED}
+        {
+            ProcessingRunStatus.RUNNING,
+            ProcessingRunStatus.FAILED,
+            ProcessingRunStatus.CANCELLED,
+        }
     ),
     ProcessingRunStatus.REVIEW_REQUIRED: frozenset(
         {ProcessingRunStatus.RUNNING, ProcessingRunStatus.COMPLETED}

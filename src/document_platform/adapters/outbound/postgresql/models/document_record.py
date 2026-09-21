@@ -20,7 +20,8 @@ class DocumentRecord(Base):
         CheckConstraint("content_sha256 ~ '^[0-9a-f]{64}$'", name="content_sha256_format"),
         CheckConstraint("length(btrim(storage_key)) > 0", name="storage_key_not_blank"),
         CheckConstraint(
-            "status IN ('UPLOADED', 'PROCESSING', 'REVIEW_REQUIRED', 'APPROVED', 'REJECTED')",
+            "status IN ('UPLOADED', 'PROCESSING', 'REVIEW_REQUIRED', 'APPROVED', 'REJECTED', "
+            "'FAILED')",
             name="status_valid",
         ),
         CheckConstraint("status_changed_at >= accepted_at", name="timestamps_ordered"),

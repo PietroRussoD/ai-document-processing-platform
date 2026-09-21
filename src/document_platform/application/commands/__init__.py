@@ -60,6 +60,16 @@ from document_platform.application.commands.extract_ocr_text import (
     ExtractOcrTextHandler,
     OcrTextExtractionResult,
 )
+from document_platform.application.commands.record_processing_run_failure import (
+    ConflictingProcessingRunFailure,
+    InvalidProcessingFailureDocument,
+    InvalidProcessingRunFailure,
+    ProcessingRunFailureDocumentNotFound,
+    ProcessingRunFailureNotFound,
+    ProcessingRunFailureRecorded,
+    RecordProcessingRunFailure,
+    RecordProcessingRunFailureHandler,
+)
 from document_platform.application.commands.register_document import (
     InconsistentIdempotencyRecord,
     RegisterDocument,
@@ -153,6 +163,14 @@ __all__ = [
     "RegisterDocument",
     "RegisterDocumentHandler",
     "RegisteredDocument",
+    "ConflictingProcessingRunFailure",
+    "InvalidProcessingFailureDocument",
+    "InvalidProcessingRunFailure",
+    "ProcessingRunFailureDocumentNotFound",
+    "ProcessingRunFailureNotFound",
+    "ProcessingRunFailureRecorded",
+    "RecordProcessingRunFailure",
+    "RecordProcessingRunFailureHandler",
     "DocumentReprocessingRequested",
     "InvalidReprocessingDocumentState",
     "ReprocessingDocumentNotFound",
