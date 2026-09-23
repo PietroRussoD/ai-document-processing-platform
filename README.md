@@ -103,6 +103,8 @@ Controlled reprocessing and immutable run lineage are defined by
 [ADR 0007](docs/decisions/0007-create-immutable-reprocessing-lineage.md).
 Terminal workflow failure evidence is defined by
 [ADR 0008](docs/decisions/0008-record-safe-terminal-workflow-failure-evidence.md).
+Safe document retention and blob garbage-collection boundaries are defined by
+[ADR 0009](docs/decisions/0009-use-explicit-safe-document-retention.md).
 
 ## Repository Layout
 
