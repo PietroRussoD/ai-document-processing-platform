@@ -194,8 +194,11 @@ the selected document changes. Transport types come from the versioned OpenAPI
 contract; unexpected technical error details are not rendered to operators.
 The work-queue view queries one bounded `ACTIVE`, `REVIEW` or `FAILED` page at a
 time, refreshes it periodically or on request, and opens the existing persisted
-status view for a selected document. Review and recovery actions continue to use
-their existing endpoints rather than mutating queue rows directly.
+status view for a selected document. The selected document ID is reflected in
+the `documentId` query parameter, so a detail can be reopened directly and
+browser history restores the previous selection. Review and recovery actions
+continue to use their existing endpoints rather than mutating queue rows
+directly.
 The result panel polls the same persisted status snapshot and renders the
 available processing stages without receiving document text.
 

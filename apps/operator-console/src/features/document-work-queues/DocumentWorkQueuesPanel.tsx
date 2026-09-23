@@ -5,7 +5,7 @@ import {
     ChevronRight,
     RefreshCw,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
     createDocumentApi,
@@ -42,7 +42,7 @@ export function DocumentWorkQueuesPanel({
     const [queue, setQueue] = useState<DocumentWorkQueue>("ACTIVE");
     const [offset, setOffset] = useState(0);
     const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(
-        null,
+        () => new URL(window.location.href).searchParams.get("documentId"),
     );
     const workQueueQuery = useQuery({
         queryKey: ["document-work-queue", queue, offset],
@@ -50,10 +50,30 @@ export function DocumentWorkQueuesPanel({
         refetchInterval: 15_000,
     });
 
+    useEffect(() => {
+        function syncSelectedDocument() {
+            setSelectedDocumentId(
+                new URL(window.location.href).searchParams.get("documentId"),
+            );
+        }
+
+        window.addEventListener("popstate", syncSelectedDocument);
+        return () =>
+            window.removeEventListener("popstate", syncSelectedDocument);
+    }, []);
+
     function selectQueue(nextQueue: DocumentWorkQueue) {
         setQueue(nextQueue);
         setOffset(0);
         setSelectedDocumentId(null);
+        updateDocumentUrl(null);
+    }
+
+    function toggleDocumentDetails(documentId: string) {
+        const nextDocumentId =
+            selectedDocumentId === documentId ? null : documentId;
+        setSelectedDocumentId(nextDocumentId);
+        updateDocumentUrl(nextDocumentId);
     }
 
     return (
@@ -175,11 +195,7 @@ export function DocumentWorkQueuesPanel({
                                     selectedDocumentId === item.document_id
                                 }
                                 onSelect={() =>
-                                    setSelectedDocumentId((current) =>
-                                        current === item.document_id
-                                            ? null
-                                            : item.document_id,
-                                    )
+                                    toggleDocumentDetails(item.document_id)
                                 }
                             />
                         ))}
@@ -252,6 +268,24 @@ export function DocumentWorkQueuesPanel({
             </div>
         </section>
     );
+}
+
+function updateDocumentUrl(documentId: string | null) {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("documentId") === documentId) {
+        return;
+    }
+    if (documentId === null) {
+        url.searchParams.delete("documentId");
+    } else {
+        url.searchParams.set("documentId", documentId);
+    }
+    const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+    if (documentId === null) {
+        window.history.replaceState({}, "", nextUrl);
+    } else {
+        window.history.pushState({}, "", nextUrl);
+    }
 }
 
 function QueueRow({

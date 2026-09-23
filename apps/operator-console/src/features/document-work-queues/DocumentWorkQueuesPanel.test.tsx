@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { type PropsWithChildren } from "react";
-import { expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 
 import {
     type DocumentApi,
@@ -13,6 +13,10 @@ import { DocumentWorkQueuesPanel } from "./DocumentWorkQueuesPanel";
 const documentId = "11111111-1111-4111-8111-111111111111";
 const runId = "22222222-2222-4222-8222-222222222222";
 const acceptedAt = "2026-09-22T12:00:00Z";
+
+beforeEach(() => {
+    window.history.replaceState({}, "", "/");
+});
 
 test("shows an active document and opens its persisted detail", async () => {
     const item = queueItem({
@@ -30,10 +34,41 @@ test("shows an active document and opens its persisted detail", async () => {
     expect(screen.getByText("PROCESSING")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "View details" }));
 
+    expect(new URL(window.location.href).searchParams.get("documentId")).toBe(
+        documentId,
+    );
     expect(await screen.findByText("Persisted status")).toBeVisible();
     expect(api.getStatus).toHaveBeenCalledWith(
         documentId,
         expect.any(AbortSignal),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Hide details" }));
+    expect(new URL(window.location.href).searchParams.has("documentId")).toBe(
+        false,
+    );
+    expect(screen.queryByText("Persisted status")).not.toBeInTheDocument();
+});
+
+test("opens a document detail from a direct URL and follows browser history", async () => {
+    window.history.replaceState({}, "", `/?documentId=${documentId}`);
+    const api = createApi({
+        getStatus: vi.fn().mockResolvedValue(documentStatus()),
+    });
+
+    renderPanel(api);
+
+    expect(await screen.findByText("Persisted status")).toBeVisible();
+    expect(api.getStatus).toHaveBeenCalledWith(
+        documentId,
+        expect.any(AbortSignal),
+    );
+
+    window.history.replaceState({}, "", "/");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+
+    await waitFor(() =>
+        expect(screen.queryByText("Persisted status")).not.toBeInTheDocument(),
     );
 });
 
