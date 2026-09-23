@@ -51,5 +51,6 @@ mutate the failed run.
   leakage.
 - Failure history remains immutable and linked to any replacement run.
 - The error is rethrown, preserving Temporal's execution semantics and history.
-- A future notification or work-queue feature can consume the bounded failure
-  evidence rather than parsing logs.
+- The operator work queue consumes the bounded failure evidence directly from
+  PostgreSQL rather than parsing logs; future notifications can use the same
+  safe fields.
