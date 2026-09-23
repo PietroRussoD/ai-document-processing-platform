@@ -34,8 +34,9 @@ immutable run linked to its predecessor; it cannot rewrite past evidence or
 create a concurrent active run for the same document.
 
 Current `v0.7.0` development makes processing failure states operationally
-truthful. Terminal Temporal activity failures now persist safe stage/code
-evidence and reconcile the processing run and document with PostgreSQL before
+truthful; the candidate scope is summarized in the
+[v0.7.0 release notes](docs/releases/v0.7.0.md). Terminal Temporal activity
+failures now persist safe stage/code evidence and reconcile the processing run and document with PostgreSQL before
 the workflow remains failed. The status API and console expose the bounded
 failure stage and code for the current run. A paginated API now exposes active,
 review and failed work queues as metadata-only summaries. The operator console
