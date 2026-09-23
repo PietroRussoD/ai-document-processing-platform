@@ -61,7 +61,7 @@ async def test_exposes_build_and_route_metrics_without_request_identifiers() -> 
     assert health_response.status_code == 200
     assert metrics_response.status_code == 200
     assert metrics_response.headers["content-type"].startswith("text/plain")
-    assert 'document_platform_build_info{version="0.7.0.dev0"} 1.0' in (metrics_response.text)
+    assert 'document_platform_build_info{version="0.7.0"} 1.0' in (metrics_response.text)
     assert (
         "document_platform_http_requests_total"
         '{method="GET",route="/health/live",status_class="2xx"} 1.0' in metrics_response.text
