@@ -142,6 +142,7 @@ uv run uvicorn document_platform.bootstrap:app --reload --no-access-log
 The API is available at `http://localhost:8000`. Current endpoints:
 
 - liveness: `GET http://localhost:8000/health/live`;
+- readiness: `GET http://localhost:8000/health/ready`;
 - Prometheus metrics: `GET http://localhost:8000/metrics`;
 - document ingestion: `POST http://localhost:8000/api/v1/documents`;
 - operator queue: `GET http://localhost:8000/api/v1/documents?queue=ACTIVE|REVIEW|FAILED&limit=25&offset=0`;

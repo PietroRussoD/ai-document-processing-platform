@@ -33,6 +33,9 @@ PostgreSQL is authoritative for documents, processing runs, upload idempotency
 records, immutable processing outputs and user-facing status projections.
 Filesystem storage owns uploaded document blobs. Temporal owns durable workflow
 execution history while PostgreSQL remains authoritative for business state.
+Liveness reports only that the API process is responding; readiness also checks
+PostgreSQL with a lightweight query and does not claim that Temporal workers are
+available.
 
 ## Local Model Evaluation
 

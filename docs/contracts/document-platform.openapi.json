@@ -905,6 +905,32 @@
         "title": "ProcessingTextSource",
         "type": "string"
       },
+      "ReadinessResponse": {
+        "properties": {
+          "database": {
+            "enum": [
+              "UP",
+              "DOWN"
+            ],
+            "title": "Database",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "UP",
+              "DOWN"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "database"
+        ],
+        "title": "ReadinessResponse",
+        "type": "object"
+      },
       "RequestDocumentReprocessingRequest": {
         "properties": {
           "reason": {
@@ -2050,6 +2076,37 @@
           }
         },
         "summary": "Check whether the API process is running",
+        "tags": [
+          "Health"
+        ]
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "getReadiness",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Check whether the API can serve database-backed requests",
         "tags": [
           "Health"
         ]
