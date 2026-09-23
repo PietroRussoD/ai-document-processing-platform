@@ -51,6 +51,13 @@ async def test_reads_status_counts_and_oldest_queued_run(migrated_postgres_url: 
     assert result.oldest_queued_at == QUEUED_AT
     for status in ProcessingRunStatus:
         assert result.counts_by_status.get(status, 0) == before.counts_by_status.get(status, 0) + 1
+    failure_category = (
+        ProcessingStage.EMBEDDED_TEXT_EXTRACTION,
+        ProcessingFailureCode.ACTIVITY_RETRY_EXHAUSTED,
+    )
+    assert result.failure_counts_by_category.get(failure_category, 0) == (
+        before.failure_counts_by_category.get(failure_category, 0) + 1
+    )
 
 
 def _runs_for_every_status() -> tuple[ProcessingRun, ...]:

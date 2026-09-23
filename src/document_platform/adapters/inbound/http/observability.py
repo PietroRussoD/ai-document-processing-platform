@@ -50,6 +50,12 @@ class HttpMetrics:
             ("status",),
             registry=self.registry,
         )
+        self._processing_run_failures = Gauge(
+            "document_platform_processing_run_failures",
+            "Persisted failed processing runs grouped by bounded stage and failure code.",
+            ("stage", "code"),
+            registry=self.registry,
+        )
         self._oldest_queued_age = Gauge(
             "document_platform_processing_queue_oldest_age_seconds",
             "Age in seconds of the oldest queued processing run.",
@@ -79,6 +85,9 @@ class HttpMetrics:
             self._processing_run_count.labels(status=status).set(
                 snapshot.counts_by_status.get(status, 0)
             )
+        self._processing_run_failures.clear()
+        for (stage, code), count in snapshot.failure_counts_by_category.items():
+            self._processing_run_failures.labels(stage=stage, code=code).set(count)
         oldest_queued_at = snapshot.oldest_queued_at
         if oldest_queued_at is None:
             self._oldest_queued_age.set(0)

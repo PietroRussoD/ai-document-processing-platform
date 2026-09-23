@@ -8,7 +8,11 @@ from httpx import ASGITransport, AsyncClient
 
 from document_platform.application.ports import ProcessingRunMetricsSnapshot
 from document_platform.bootstrap import create_app
-from document_platform.domain.processing import ProcessingRunStatus
+from document_platform.domain.processing import (
+    ProcessingFailureCode,
+    ProcessingRunStatus,
+    ProcessingStage,
+)
 from document_platform.settings import Settings
 
 
@@ -31,6 +35,12 @@ async def test_exposes_build_and_route_metrics_without_request_identifiers() -> 
                     ProcessingRunStatus.COMPLETED: 3,
                 },
                 oldest_queued_at=datetime.now(UTC) - timedelta(minutes=5),
+                failure_counts_by_category={
+                    (
+                        ProcessingStage.EMBEDDED_TEXT_EXTRACTION,
+                        ProcessingFailureCode.ACTIVITY_RETRY_EXHAUSTED,
+                    ): 2
+                },
             )
         ),
     )
@@ -39,6 +49,14 @@ async def test_exposes_build_and_route_metrics_without_request_identifiers() -> 
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         health_response = await client.get("/health/live")
         metrics_response = await client.get("/metrics")
+        application.state.processing_run_metrics_reader = StubProcessingRunMetricsReader(
+            ProcessingRunMetricsSnapshot(
+                counts_by_status={},
+                oldest_queued_at=None,
+                failure_counts_by_category={},
+            )
+        )
+        cleared_metrics_response = await client.get("/metrics")
 
     assert health_response.status_code == 200
     assert metrics_response.status_code == 200
@@ -50,6 +68,11 @@ async def test_exposes_build_and_route_metrics_without_request_identifiers() -> 
     )
     assert 'document_platform_processing_runs{status="QUEUED"} 2.0' in metrics_response.text
     assert 'document_platform_processing_runs{status="COMPLETED"} 3.0' in metrics_response.text
+    assert (
+        'document_platform_processing_run_failures{code="ACTIVITY_RETRY_EXHAUSTED",'
+        'stage="EMBEDDED_TEXT_EXTRACTION"} 2.0' in metrics_response.text
+    )
+    assert "document_platform_processing_run_failures{" not in cleared_metrics_response.text
     assert "document_platform_processing_queue_oldest_age_seconds" in metrics_response.text
     assert (
         "document_platform_http_requests_total"

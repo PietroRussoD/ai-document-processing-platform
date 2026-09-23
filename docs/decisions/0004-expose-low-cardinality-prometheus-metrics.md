@@ -25,8 +25,10 @@ handling and does not participate in document or workflow transactions.
 
 Each scrape also refreshes a read-only PostgreSQL snapshot of current
 processing-run counts by the bounded status enum and the age of the oldest
-queued run. This is the authoritative backlog view after an application restart;
-it is not a historical event counter.
+queued run. It also reports persisted failed runs grouped by the bounded failure
+stage and code enums. These snapshots are reconstructed from PostgreSQL after an
+application restart; the failure breakdown includes immutable failed runs in
+reprocessing lineage and is not an unresolved-work count or event counter.
 
 The metrics endpoint is deliberately outside the versioned `/api/v1` business
 API and outside OpenAPI. An optional Compose profile provides a pinned local
@@ -39,6 +41,8 @@ access control, network policy, alerting or storage.
 
 - Local operators can scrape stable process telemetry immediately.
 - Metrics contain no document-derived values or high-cardinality identifiers.
+- Failure metrics use only bounded stage and code enums; stale category series
+  are cleared on each scrape.
 - A restart resets HTTP counters, while the processing backlog snapshot is
   reconstructed from PostgreSQL on the next scrape.
 - Current status counts are not historical throughput or outcome-event totals;
