@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Annotated, Any, Literal, cast
 from uuid import UUID
 
-from fastapi import APIRouter, File, Header, Request, UploadFile, status
+from fastapi import APIRouter, File, Header, Query, Request, UploadFile, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from document_platform.adapters.inbound.http.problems import ProblemDetails
@@ -26,7 +26,11 @@ from document_platform.application.commands import (
 from document_platform.application.commands.accept_document_upload import (
     validate_upload_metadata,
 )
-from document_platform.application.queries import GetDocumentStatusHandler
+from document_platform.application.ports import DocumentWorkQueue
+from document_platform.application.queries import (
+    GetDocumentStatusHandler,
+    ListDocumentWorkQueueHandler,
+)
 from document_platform.domain.documents import DocumentStatus
 from document_platform.domain.processing import (
     BusinessDocumentType,
@@ -190,6 +194,31 @@ class DocumentStatusResponse(BaseModel):
     current_run: ProcessingRunStatusResponse
 
 
+class DocumentWorkQueueItemResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    document_id: UUID
+    original_filename: str
+    status: DocumentStatus
+    accepted_at: datetime
+    status_changed_at: datetime
+    processing_run_id: UUID
+    processing_run_status: ProcessingRunStatus
+    queued_at: datetime
+    started_at: datetime | None
+    attempt_count: int
+    failure: ProcessingFailureMetadataResponse | None
+
+
+class DocumentWorkQueuePageResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    items: tuple[DocumentWorkQueueItemResponse, ...]
+    total: int
+    limit: int
+    offset: int
+
+
 class InvoiceNumberReviewCorrectionRequest(BaseModel):
     field: Literal[InvoiceReviewField.INVOICE_NUMBER]
     corrected_value: str = Field(min_length=1, max_length=128)
@@ -278,6 +307,22 @@ def _problem_response(description: str) -> dict[str, Any]:
             }
         },
     }
+
+
+@router.get(
+    "",
+    operation_id="listDocumentWorkQueue",
+    summary="List a page from an operator document work queue",
+)
+async def list_document_work_queue(
+    request: Request,
+    queue: Annotated[DocumentWorkQueue, Query()],
+    limit: int = Query(default=25, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+) -> DocumentWorkQueuePageResponse:
+    handler = cast(ListDocumentWorkQueueHandler, request.app.state.list_document_work_queue)
+    page = await handler(queue, limit=limit, offset=offset)
+    return DocumentWorkQueuePageResponse.model_validate(page)
 
 
 @router.get(

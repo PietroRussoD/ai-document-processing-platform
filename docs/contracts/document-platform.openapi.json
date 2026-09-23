@@ -222,6 +222,126 @@
         "title": "DocumentStatusResponse",
         "type": "object"
       },
+      "DocumentWorkQueue": {
+        "enum": [
+          "ACTIVE",
+          "REVIEW",
+          "FAILED"
+        ],
+        "title": "DocumentWorkQueue",
+        "type": "string"
+      },
+      "DocumentWorkQueueItemResponse": {
+        "properties": {
+          "accepted_at": {
+            "format": "date-time",
+            "title": "Accepted At",
+            "type": "string"
+          },
+          "attempt_count": {
+            "title": "Attempt Count",
+            "type": "integer"
+          },
+          "document_id": {
+            "format": "uuid",
+            "title": "Document Id",
+            "type": "string"
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessingFailureMetadataResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "original_filename": {
+            "title": "Original Filename",
+            "type": "string"
+          },
+          "processing_run_id": {
+            "format": "uuid",
+            "title": "Processing Run Id",
+            "type": "string"
+          },
+          "processing_run_status": {
+            "$ref": "#/components/schemas/ProcessingRunStatus"
+          },
+          "queued_at": {
+            "format": "date-time",
+            "title": "Queued At",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DocumentStatus"
+          },
+          "status_changed_at": {
+            "format": "date-time",
+            "title": "Status Changed At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "document_id",
+          "original_filename",
+          "status",
+          "accepted_at",
+          "status_changed_at",
+          "processing_run_id",
+          "processing_run_status",
+          "queued_at",
+          "started_at",
+          "attempt_count",
+          "failure"
+        ],
+        "title": "DocumentWorkQueueItemResponse",
+        "type": "object"
+      },
+      "DocumentWorkQueuePageResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentWorkQueueItemResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "DocumentWorkQueuePageResponse",
+        "type": "object"
+      },
       "EmbeddedTextQuality": {
         "enum": [
           "SUFFICIENT",
@@ -1081,6 +1201,68 @@
   "openapi": "3.1.0",
   "paths": {
     "/api/v1/documents": {
+      "get": {
+        "operationId": "listDocumentWorkQueue",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "queue",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/DocumentWorkQueue"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentWorkQueuePageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List a page from an operator document work queue",
+        "tags": [
+          "Documents"
+        ]
+      },
       "post": {
         "operationId": "acceptDocumentUpload",
         "parameters": [

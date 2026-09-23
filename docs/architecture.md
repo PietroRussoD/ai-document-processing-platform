@@ -179,6 +179,9 @@ before configurable parallelism is introduced with operational evidence.
 Status queries use a dedicated read-model port. Its PostgreSQL adapter joins the
 document with its most recently queued processing run and returns only the fields
 required by the public API; it does not load aggregates or open a write transaction.
+The same adapter exposes paginated `ACTIVE`, `REVIEW` and `FAILED` work queues,
+selecting each document's latest run and returning metadata only. Queue listing
+is bounded to 100 rows per request and ordered by document acceptance time.
 When processing output is available, the same snapshot includes extraction
 counts, quality decisions, selection, classification, structured invoice fields
 and validation reason codes. It deliberately excludes extracted text, original

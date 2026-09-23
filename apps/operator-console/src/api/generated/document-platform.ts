@@ -11,7 +11,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List a page from an operator document work queue */
+        get: operations["listDocumentWorkQueue"];
         put?: never;
         /** Accept a PDF for asynchronous processing */
         post: operations["acceptDocumentUpload"];
@@ -215,6 +216,59 @@ export interface components {
              * Format: date-time
              */
             status_changed_at: string;
+        };
+        /**
+         * DocumentWorkQueue
+         * @enum {string}
+         */
+        DocumentWorkQueue: "ACTIVE" | "REVIEW" | "FAILED";
+        /** DocumentWorkQueueItemResponse */
+        DocumentWorkQueueItemResponse: {
+            /**
+             * Accepted At
+             * Format: date-time
+             */
+            accepted_at: string;
+            /** Attempt Count */
+            attempt_count: number;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            failure: components["schemas"]["ProcessingFailureMetadataResponse"] | null;
+            /** Original Filename */
+            original_filename: string;
+            /**
+             * Processing Run Id
+             * Format: uuid
+             */
+            processing_run_id: string;
+            processing_run_status: components["schemas"]["ProcessingRunStatus"];
+            /**
+             * Queued At
+             * Format: date-time
+             */
+            queued_at: string;
+            /** Started At */
+            started_at: string | null;
+            status: components["schemas"]["DocumentStatus"];
+            /**
+             * Status Changed At
+             * Format: date-time
+             */
+            status_changed_at: string;
+        };
+        /** DocumentWorkQueuePageResponse */
+        DocumentWorkQueuePageResponse: {
+            /** Items */
+            items: components["schemas"]["DocumentWorkQueueItemResponse"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Total */
+            total: number;
         };
         /**
          * EmbeddedTextQuality
@@ -536,6 +590,39 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    listDocumentWorkQueue: {
+        parameters: {
+            query: {
+                queue: components["schemas"]["DocumentWorkQueue"];
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentWorkQueuePageResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     acceptDocumentUpload: {
         parameters: {
             query?: never;

@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from document_platform.adapters.outbound.postgresql.models import (
@@ -20,6 +20,9 @@ from document_platform.adapters.outbound.postgresql.models import (
 from document_platform.application.ports import (
     ClassificationMetadataView,
     DocumentStatusView,
+    DocumentWorkQueue,
+    DocumentWorkQueueItem,
+    DocumentWorkQueuePage,
     InvoiceExtractionMetadataView,
     InvoiceReviewCorrectionMetadataView,
     InvoiceValidationMetadataView,
@@ -177,6 +180,66 @@ class SqlAlchemyDocumentStatusReader:
                 ),
             ),
         )
+
+    async def list_queue(
+        self, queue: DocumentWorkQueue, *, limit: int, offset: int
+    ) -> DocumentWorkQueuePage:
+        status_filter = {
+            DocumentWorkQueue.ACTIVE: ("UPLOADED", "PROCESSING"),
+            DocumentWorkQueue.REVIEW: ("REVIEW_REQUIRED",),
+            DocumentWorkQueue.FAILED: ("FAILED",),
+        }[queue]
+        latest_run_id = (
+            select(ProcessingRunRecord.id)
+            .where(ProcessingRunRecord.document_id == DocumentRecord.id)
+            .order_by(ProcessingRunRecord.queued_at.desc(), ProcessingRunRecord.id.desc())
+            .limit(1)
+            .correlate(DocumentRecord)
+            .scalar_subquery()
+        )
+        conditions = DocumentRecord.status.in_(status_filter)
+        statement = (
+            select(DocumentRecord, ProcessingRunRecord)
+            .join(ProcessingRunRecord, ProcessingRunRecord.id == latest_run_id)
+            .where(conditions)
+            .order_by(DocumentRecord.accepted_at.desc(), DocumentRecord.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        count_statement = (
+            select(func.count())
+            .select_from(DocumentRecord)
+            .join(ProcessingRunRecord, ProcessingRunRecord.id == latest_run_id)
+            .where(conditions)
+        )
+        async with self._sessions() as session:
+            rows = (await session.execute(statement)).all()
+            total = await session.scalar(count_statement)
+
+        items = tuple(
+            DocumentWorkQueueItem(
+                document_id=document.id,
+                original_filename=document.original_filename,
+                status=DocumentStatus(document.status),
+                accepted_at=document.accepted_at,
+                status_changed_at=document.status_changed_at,
+                processing_run_id=run.id,
+                processing_run_status=ProcessingRunStatus(run.status),
+                queued_at=run.queued_at,
+                started_at=run.started_at,
+                attempt_count=run.attempt_count,
+                failure=(
+                    ProcessingFailureMetadataView(
+                        stage=ProcessingStage(run.failure_stage),
+                        code=ProcessingFailureCode(run.failure_code),
+                    )
+                    if run.failure_stage is not None and run.failure_code is not None
+                    else None
+                ),
+            )
+            for document, run in rows
+        )
+        return DocumentWorkQueuePage(items=items, total=total or 0, limit=limit, offset=offset)
 
 
 def _to_processing_output(

@@ -37,8 +37,9 @@ Current `v0.7.0` development makes processing failure states operationally
 truthful. Terminal Temporal activity failures now persist safe stage/code
 evidence and reconcile the processing run and document with PostgreSQL before
 the workflow remains failed. The status API and console expose the bounded
-failure stage and code for the current run. Queryable active, review and failed work queues
-remain the next increment. Retention, malware scanning and production
+failure stage and code for the current run. A paginated API now exposes active,
+review and failed work queues as metadata-only summaries; the operator-console
+queue views remain the next increment. Retention, malware scanning and production
 deployment remain separate decisions until their concrete boundaries are
 designed and tested.
 
@@ -142,6 +143,7 @@ The API is available at `http://localhost:8000`. Current endpoints:
 - liveness: `GET http://localhost:8000/health/live`;
 - Prometheus metrics: `GET http://localhost:8000/metrics`;
 - document ingestion: `POST http://localhost:8000/api/v1/documents`;
+- operator queue: `GET http://localhost:8000/api/v1/documents?queue=ACTIVE|REVIEW|FAILED&limit=25&offset=0`;
 - document status: `GET http://localhost:8000/api/v1/documents/{document_id}`;
 - review resolution: `POST http://localhost:8000/api/v1/documents/{document_id}/review-resolution`;
 - controlled reprocessing: `POST http://localhost:8000/api/v1/documents/{document_id}/reprocessing-requests`;

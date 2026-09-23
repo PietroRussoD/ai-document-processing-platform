@@ -67,6 +67,9 @@ async def test_accepts_and_replays_a_pdf_upload(
             replay_response = await _post_document(client, content=content)
             first = cast(AcceptedDocumentBody, first_response.json())
             status_response = await client.get(f"/api/v1/documents/{first['document_id']}")
+            queue_response = await client.get(
+                "/api/v1/documents", params={"queue": "ACTIVE", "limit": 10, "offset": 0}
+            )
 
         replay = cast(AcceptedDocumentBody, replay_response.json())
         async with database.sessions() as session:
@@ -98,6 +101,9 @@ async def test_accepts_and_replays_a_pdf_upload(
     assert replay["document_id"] == first["document_id"]
     assert replay["processing_run_id"] == first["processing_run_id"]
     assert status_response.status_code == 200
+    assert queue_response.status_code == 200
+    assert queue_response.json()["total"] >= 1
+    assert first["document_id"] in {item["document_id"] for item in queue_response.json()["items"]}
     assert status_response.json() == {
         "id": first["document_id"],
         "original_filename": "supplier-invoice.pdf",
@@ -260,3 +266,8 @@ def test_exposes_a_stable_document_upload_contract() -> None:
     assert status_operation["tags"] == ["Documents"]
     assert set(status_operation["responses"]) >= {"200", "404", "422"}
     assert set(status_operation["responses"]["404"]["content"]) == {"application/problem+json"}
+
+    queue_operation = openapi["paths"]["/api/v1/documents"]["get"]
+    assert queue_operation["operationId"] == "listDocumentWorkQueue"
+    assert queue_operation["tags"] == ["Documents"]
+    assert set(queue_operation["responses"]) >= {"200", "422"}

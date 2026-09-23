@@ -37,7 +37,10 @@ from document_platform.application.commands import (
     ResolveDocumentReviewHandler,
 )
 from document_platform.application.ports import ProcessingRunMetricsReader
-from document_platform.application.queries import GetDocumentStatusHandler
+from document_platform.application.queries import (
+    GetDocumentStatusHandler,
+    ListDocumentWorkQueueHandler,
+)
 from document_platform.logging_configuration import configure_json_logging
 from document_platform.settings import Settings
 
@@ -65,9 +68,9 @@ def create_app(
         register_document=register_document,
         max_bytes=active_settings.max_document_bytes,
     )
-    get_document_status = GetDocumentStatusHandler(
-        SqlAlchemyDocumentStatusReader(database.sessions)
-    )
+    document_status_reader = SqlAlchemyDocumentStatusReader(database.sessions)
+    get_document_status = GetDocumentStatusHandler(document_status_reader)
+    list_document_work_queue = ListDocumentWorkQueueHandler(document_status_reader)
     resolve_document_review = ResolveDocumentReviewHandler(
         unit_of_work_factory=lambda: SqlAlchemyUnitOfWork(database.sessions),
         clock=lambda: datetime.now(UTC),
@@ -98,6 +101,7 @@ def create_app(
     application.state.database = database
     application.state.accept_document_upload = accept_document_upload
     application.state.get_document_status = get_document_status
+    application.state.list_document_work_queue = list_document_work_queue
     application.state.resolve_document_review = resolve_document_review
     application.state.request_document_reprocessing = request_document_reprocessing
     application.state.http_metrics = HttpMetrics(application_version=application_version)

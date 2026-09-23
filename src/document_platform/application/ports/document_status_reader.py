@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
+from enum import StrEnum
 from typing import Protocol
 from uuid import UUID
 
@@ -138,5 +139,40 @@ class DocumentStatusView:
     current_run: ProcessingRunStatusView
 
 
+class DocumentWorkQueue(StrEnum):
+    ACTIVE = "ACTIVE"
+    REVIEW = "REVIEW"
+    FAILED = "FAILED"
+
+
+@dataclass(frozen=True, slots=True)
+class DocumentWorkQueueItem:
+    document_id: UUID
+    original_filename: str
+    status: DocumentStatus
+    accepted_at: datetime
+    status_changed_at: datetime
+    processing_run_id: UUID
+    processing_run_status: ProcessingRunStatus
+    queued_at: datetime
+    started_at: datetime | None
+    attempt_count: int
+    failure: ProcessingFailureMetadataView | None
+
+
+@dataclass(frozen=True, slots=True)
+class DocumentWorkQueuePage:
+    items: tuple[DocumentWorkQueueItem, ...]
+    total: int
+    limit: int
+    offset: int
+
+
 class DocumentStatusReader(Protocol):
     async def get(self, document_id: UUID) -> DocumentStatusView | None: ...
+
+
+class DocumentWorkQueueReader(Protocol):
+    async def list_queue(
+        self, queue: DocumentWorkQueue, *, limit: int, offset: int
+    ) -> DocumentWorkQueuePage: ...
