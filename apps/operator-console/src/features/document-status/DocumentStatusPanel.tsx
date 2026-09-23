@@ -115,7 +115,9 @@ export function DocumentStatusPanel({
                     <>
                         <Value
                             label="Failure stage"
-                            value={formatStatus(document.current_run.failure.stage)}
+                            value={formatStatus(
+                                document.current_run.failure.stage,
+                            )}
                         />
                         <Value
                             label="Failure code"

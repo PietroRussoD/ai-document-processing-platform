@@ -9,6 +9,8 @@ const reviewResolutionFormStory =
     "/iframe.html?id=document-review-reviewresolutionform--ready&viewMode=story";
 const documentReprocessingStory =
     "/iframe.html?id=document-reprocessing-documentreprocessingpanel--ready&viewMode=story";
+const documentWorkQueuesStory =
+    "/iframe.html?id=document-work-queues-documentworkqueuespanel--active-queue&viewMode=story";
 const feedbackMessageStory =
     "/iframe.html?id=ui-feedbackmessage--warning&viewMode=story";
 const primaryButtonStory = "/iframe.html?id=ui-button--primary&viewMode=story";
@@ -70,6 +72,36 @@ test("document reprocessing form has no browser-detected accessibility violation
         .analyze();
 
     expect(results.violations).toEqual([]);
+});
+
+test("document work queues have no browser-detected accessibility violations", async ({
+    page,
+}) => {
+    await page.goto(documentWorkQueuesStory);
+    await expect(
+        page.getByRole("heading", { name: "Document work queues" }),
+    ).toBeVisible();
+    await expect(page.getByText("supplier-invoice-1042.pdf")).toBeVisible();
+
+    const results = await new AxeBuilder({ page })
+        .disableRules(["landmark-one-main", "page-has-heading-one"])
+        .analyze();
+
+    expect(results.violations).toEqual([]);
+});
+
+test("document work queues fit a narrow viewport", async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 720 });
+    await page.goto(documentWorkQueuesStory);
+    await expect(
+        page.getByRole("heading", { name: "Document work queues" }),
+    ).toBeVisible();
+
+    const hasHorizontalOverflow = await page.evaluate(
+        () => document.documentElement.scrollWidth > window.innerWidth,
+    );
+
+    expect(hasHorizontalOverflow).toBe(false);
 });
 
 test("feedback message has no browser-detected accessibility violations", async ({

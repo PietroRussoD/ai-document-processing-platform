@@ -9,6 +9,24 @@ const acceptedDocument = {
     replayed: false,
 };
 
+test("lists a bounded document work queue and forwards cancellation", async () => {
+    const page = { items: [], total: 0, limit: 25, offset: 0 } as const;
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse(page));
+    const controller = new AbortController();
+
+    const result = await createDocumentApi(fetcher).listWorkQueue(
+        "FAILED",
+        25,
+        controller.signal,
+    );
+
+    expect(result).toEqual(page);
+    expect(fetcher).toHaveBeenCalledWith(
+        "/api/v1/documents?queue=FAILED&limit=25&offset=25",
+        { signal: controller.signal },
+    );
+});
+
 test("uploads a PDF as multipart data with its idempotency key", async () => {
     const fetcher = vi
         .fn<typeof fetch>()

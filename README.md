@@ -38,8 +38,9 @@ truthful. Terminal Temporal activity failures now persist safe stage/code
 evidence and reconcile the processing run and document with PostgreSQL before
 the workflow remains failed. The status API and console expose the bounded
 failure stage and code for the current run. A paginated API now exposes active,
-review and failed work queues as metadata-only summaries; the operator-console
-queue views remain the next increment. Retention, malware scanning and production
+review and failed work queues as metadata-only summaries. The operator console
+can browse these queues, refresh them and open the existing document detail and
+review flows. Retention, malware scanning and production
 deployment remain separate decisions until their concrete boundaries are
 designed and tested.
 

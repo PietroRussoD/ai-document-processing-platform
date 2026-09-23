@@ -1,6 +1,7 @@
 import type { paths } from "./generated/document-platform";
 
 type UploadOperation = paths["/api/v1/documents"]["post"];
+type WorkQueueOperation = paths["/api/v1/documents"]["get"];
 type StatusOperation = paths["/api/v1/documents/{document_id}"]["get"];
 type ReviewResolutionOperation =
     paths["/api/v1/documents/{document_id}/review-resolution"]["post"];
@@ -9,6 +10,10 @@ type ReprocessingOperation =
 
 export type AcceptedDocument =
     UploadOperation["responses"][202]["content"]["application/json"];
+export type DocumentWorkQueue =
+    WorkQueueOperation["parameters"]["query"]["queue"];
+export type DocumentWorkQueuePage =
+    WorkQueueOperation["responses"][200]["content"]["application/json"];
 export type DocumentStatus =
     StatusOperation["responses"][200]["content"]["application/json"];
 export type ReviewResolutionRequest =
@@ -33,6 +38,23 @@ export type DocumentApi = ReturnType<typeof createDocumentApi>;
 
 export function createDocumentApi(fetcher: typeof fetch = globalThis.fetch) {
     return {
+        async listWorkQueue(
+            queue: DocumentWorkQueue,
+            offset = 0,
+            signal?: AbortSignal,
+        ): Promise<DocumentWorkQueuePage> {
+            const parameters = new URLSearchParams({
+                queue,
+                limit: "25",
+                offset: String(offset),
+            });
+            const response = await fetcher(
+                `/api/v1/documents?${parameters.toString()}`,
+                { signal },
+            );
+            return readResponse<DocumentWorkQueuePage>(response);
+        },
+
         async upload(
             document: File,
             idempotencyKey: string,

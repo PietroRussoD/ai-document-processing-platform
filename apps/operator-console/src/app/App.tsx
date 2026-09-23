@@ -1,5 +1,6 @@
 import { FileText } from "lucide-react";
 
+import { DocumentWorkQueuesPanel } from "../features/document-work-queues/DocumentWorkQueuesPanel";
 import { DocumentUploadPanel } from "../features/document-upload/DocumentUploadPanel";
 
 export function App() {
@@ -68,6 +69,7 @@ export function App() {
                         </ul>
                     </aside>
                 </div>
+                <DocumentWorkQueuesPanel />
             </main>
         </div>
     );
