@@ -5,9 +5,9 @@ data from business documents.
 
 ## Status
 
-The [`v0.6.0` tagged release](https://github.com/PietroRussoD/ai-document-processing-platform/tree/v0.6.0),
-documented in the [release notes](docs/releases/v0.6.0.md), adds controlled
-reprocessing to the durable document-processing and review flow.
+The [`v0.7.0` tagged release](https://github.com/PietroRussoD/ai-document-processing-platform/tree/v0.7.0),
+documented in the [release notes](docs/releases/v0.7.0.md), adds operational
+failure handling to the durable document-processing and review flow.
 The worker performs bounded embedded-text extraction, local OCR fallback,
 canonical-text selection, deterministic document classification and invoice
 validation. A complete invoice is automatically approved; an incomplete one is
