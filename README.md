@@ -36,7 +36,8 @@ create a concurrent active run for the same document.
 Current `v0.7.0` development makes processing failure states operationally
 truthful. Terminal Temporal activity failures now persist safe stage/code
 evidence and reconcile the processing run and document with PostgreSQL before
-the workflow remains failed. Queryable active, review and failed work queues
+the workflow remains failed. The status API and console expose the bounded
+failure stage and code for the current run. Queryable active, review and failed work queues
 remain the next increment. Retention, malware scanning and production
 deployment remain separate decisions until their concrete boundaries are
 designed and tested.
@@ -244,7 +245,8 @@ the original identifiers with `replayed: true`; reusing the key for different
 content returns `409 Conflict`.
 
 The status endpoint returns public document metadata and the most recently queued
-processing run. Its optional `processing_output` contains only extraction counts,
+processing run, including bounded stage/code evidence when that run has failed.
+Its optional `processing_output` contains only extraction counts,
 quality decisions, canonical-text selection, classification, invoice fields and
 validation reason codes. Internal storage paths and extracted text are never
 exposed by the HTTP contract.

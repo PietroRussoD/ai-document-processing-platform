@@ -38,7 +38,10 @@ from document_platform.domain.processing import (
     InvoiceValidation,
     InvoiceValidationDecision,
     OcrExtractionMethod,
+    ProcessingFailure,
+    ProcessingFailureCode,
     ProcessingRun,
+    ProcessingStage,
     ProcessingTextSelectionReason,
     ProcessingTextSource,
     ReviewResolution,
@@ -104,6 +107,7 @@ async def test_returns_the_document_with_its_most_recent_run(
     assert result.current_run.id == latest_run_id
     assert result.current_run.previous_run_id == first_run_id
     assert result.current_run.queued_at == latest_run.queued_at
+    assert result.current_run.failure is None
     assert result.current_run.processing_output is None
     assert missing is None
 
@@ -208,6 +212,55 @@ async def test_returns_processing_output_metadata_without_document_text(
     assert output.invoice_validation.decision is InvoiceValidationDecision.AUTO_APPROVE
     assert output.invoice_validation.issues == ()
     assert not hasattr(output.embedded_text, "text")
+
+
+@pytest.mark.anyio
+async def test_returns_bounded_terminal_failure_metadata(
+    migrated_postgres_url: str,
+) -> None:
+    database = create_database(
+        Settings(environment="test", database_url=PostgresDsn(migrated_postgres_url))
+    )
+    document_id = uuid4()
+    run_id = uuid4()
+    document = (
+        Document.accept_pdf(
+            document_id=document_id,
+            original_filename="failed-invoice.pdf",
+            size_bytes=42_000,
+            page_count=2,
+            content_sha256="e" * 64,
+            storage_key="blobs/sha256/ee/" + "e" * 64,
+            accepted_at=ACCEPTED_AT,
+        )
+        .start_processing(at=ACCEPTED_AT)
+        .fail(at=ACCEPTED_AT + timedelta(seconds=2))
+    )
+    run = (
+        ProcessingRun.queue(run_id=run_id, document_id=document_id, queued_at=ACCEPTED_AT)
+        .start(at=ACCEPTED_AT + timedelta(seconds=1))
+        .fail(
+            at=ACCEPTED_AT + timedelta(seconds=2),
+            failure=ProcessingFailure(
+                stage=ProcessingStage.EMBEDDED_TEXT_EXTRACTION,
+                code=ProcessingFailureCode.ACTIVITY_RETRY_EXHAUSTED,
+            ),
+        )
+    )
+
+    try:
+        async with database.sessions.begin() as session:
+            await SqlAlchemyDocumentRepository(session).add(document)
+            await SqlAlchemyProcessingRunRepository(session).add(run)
+
+        result = await SqlAlchemyDocumentStatusReader(database.sessions).get(document_id)
+    finally:
+        await database.dispose()
+
+    assert result is not None
+    assert result.current_run.failure is not None
+    assert result.current_run.failure.stage is ProcessingStage.EMBEDDED_TEXT_EXTRACTION
+    assert result.current_run.failure.code is ProcessingFailureCode.ACTIVITY_RETRY_EXHAUSTED
 
 
 @pytest.mark.anyio

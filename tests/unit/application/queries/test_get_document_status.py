@@ -48,6 +48,7 @@ def document_view() -> DocumentStatusView:
             status_changed_at=ACCEPTED_AT,
             finished_at=None,
             attempt_count=0,
+            failure=None,
             processing_output=None,
             review_resolution=None,
         ),

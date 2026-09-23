@@ -24,6 +24,7 @@ from document_platform.application.ports import (
     InvoiceReviewCorrectionMetadataView,
     InvoiceValidationMetadataView,
     OcrExtractionMetadataView,
+    ProcessingFailureMetadataView,
     ProcessingOutputView,
     ProcessingRunStatusView,
     ReviewResolutionMetadataView,
@@ -40,7 +41,9 @@ from document_platform.domain.processing import (
     InvoiceValidationDecision,
     InvoiceValidationIssue,
     OcrExtractionMethod,
+    ProcessingFailureCode,
     ProcessingRunStatus,
+    ProcessingStage,
     ProcessingTextSelectionReason,
     ProcessingTextSource,
     ReviewResolutionDecision,
@@ -143,6 +146,14 @@ class SqlAlchemyDocumentStatusReader:
                 status_changed_at=run.status_changed_at,
                 finished_at=run.finished_at,
                 attempt_count=run.attempt_count,
+                failure=(
+                    ProcessingFailureMetadataView(
+                        stage=ProcessingStage(run.failure_stage),
+                        code=ProcessingFailureCode(run.failure_code),
+                    )
+                    if run.failure_stage is not None and run.failure_code is not None
+                    else None
+                ),
                 processing_output=_to_processing_output(
                     embedded_text=embedded_text,
                     ocr_text=ocr_text,

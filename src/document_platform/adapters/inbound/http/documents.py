@@ -38,7 +38,9 @@ from document_platform.domain.processing import (
     InvoiceValidationDecision,
     InvoiceValidationIssue,
     OcrExtractionMethod,
+    ProcessingFailureCode,
     ProcessingRunStatus,
+    ProcessingStage,
     ProcessingTextSelectionReason,
     ProcessingTextSource,
     ReviewResolutionDecision,
@@ -150,6 +152,13 @@ class InvoiceReviewCorrectionMetadataResponse(BaseModel):
         return str(value)
 
 
+class ProcessingFailureMetadataResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    stage: ProcessingStage
+    code: ProcessingFailureCode
+
+
 class ProcessingRunStatusResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -161,6 +170,7 @@ class ProcessingRunStatusResponse(BaseModel):
     status_changed_at: datetime
     finished_at: datetime | None
     attempt_count: int
+    failure: ProcessingFailureMetadataResponse | None
     processing_output: ProcessingOutputResponse | None
     review_resolution: ReviewResolutionMetadataResponse | None
 

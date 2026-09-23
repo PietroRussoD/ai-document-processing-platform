@@ -40,6 +40,7 @@ export const Ready: Story = {
             status_changed_at: "2026-09-20T11:00:02Z",
             finished_at: "2026-09-20T11:00:02Z",
             attempt_count: 1,
+            failure: null,
             processing_output: null,
             review_resolution: null,
         },

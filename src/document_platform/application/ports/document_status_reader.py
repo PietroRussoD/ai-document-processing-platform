@@ -16,7 +16,9 @@ from document_platform.domain.processing import (
     InvoiceValidationDecision,
     InvoiceValidationIssue,
     OcrExtractionMethod,
+    ProcessingFailureCode,
     ProcessingRunStatus,
+    ProcessingStage,
     ProcessingTextSelectionReason,
     ProcessingTextSource,
     ReviewResolutionDecision,
@@ -86,6 +88,12 @@ class ProcessingOutputView:
 
 
 @dataclass(frozen=True, slots=True)
+class ProcessingFailureMetadataView:
+    stage: ProcessingStage
+    code: ProcessingFailureCode
+
+
+@dataclass(frozen=True, slots=True)
 class InvoiceReviewCorrectionMetadataView:
     field: InvoiceReviewField
     corrected_value: str | date | Decimal
@@ -111,6 +119,7 @@ class ProcessingRunStatusView:
     status_changed_at: datetime
     finished_at: datetime | None
     attempt_count: int
+    failure: ProcessingFailureMetadataView | None
     processing_output: ProcessingOutputView | None
     review_resolution: ReviewResolutionMetadataView | None
 

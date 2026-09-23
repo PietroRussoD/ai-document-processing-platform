@@ -340,6 +340,16 @@ export interface components {
          * @enum {string}
          */
         OcrExtractionMethod: "TESSERACT";
+        /**
+         * ProcessingFailureCode
+         * @enum {string}
+         */
+        ProcessingFailureCode: "LEGACY_UNCLASSIFIED" | "ACTIVITY_RETRY_EXHAUSTED" | "NON_RETRYABLE_ACTIVITY_FAILURE" | "ACTIVITY_TIMEOUT";
+        /** ProcessingFailureMetadataResponse */
+        ProcessingFailureMetadataResponse: {
+            code: components["schemas"]["ProcessingFailureCode"];
+            stage: components["schemas"]["ProcessingStage"];
+        };
         /** ProcessingOutputResponse */
         ProcessingOutputResponse: {
             classification: components["schemas"]["ClassificationMetadataResponse"] | null;
@@ -358,6 +368,7 @@ export interface components {
         ProcessingRunStatusResponse: {
             /** Attempt Count */
             attempt_count: number;
+            failure: components["schemas"]["ProcessingFailureMetadataResponse"] | null;
             /** Finished At */
             finished_at: string | null;
             /**
@@ -383,6 +394,11 @@ export interface components {
              */
             status_changed_at: string;
         };
+        /**
+         * ProcessingStage
+         * @enum {string}
+         */
+        ProcessingStage: "UNKNOWN_LEGACY" | "START" | "EMBEDDED_TEXT_EXTRACTION" | "OCR_TEXT_EXTRACTION" | "TEXT_SELECTION" | "CLASSIFICATION" | "INVOICE_EXTRACTION" | "INVOICE_VALIDATION" | "VALIDATION_APPLICATION" | "COMPLETION";
         /**
          * ProcessingTextSelectionReason
          * @enum {string}

@@ -136,6 +136,33 @@ test("shows the preceding run for a reprocessing lineage", async () => {
     expect(screen.getByText(previousRunId)).toBeVisible();
 });
 
+test("shows bounded failure evidence for a failed run", async () => {
+    const failed = status("FAILED", "FAILED");
+    const getStatus = vi.fn().mockResolvedValue({
+        ...failed,
+        current_run: {
+            ...failed.current_run,
+            failure: {
+                stage: "EMBEDDED_TEXT_EXTRACTION",
+                code: "ACTIVITY_RETRY_EXHAUSTED",
+            },
+        },
+    });
+
+    render(
+        <DocumentStatusPanel api={{ getStatus }} documentId={DOCUMENT_ID} />,
+        { wrapper: QueryWrapper },
+    );
+
+    expect(
+        await screen.findByText(
+            "Processing stopped after a terminal technical failure.",
+        ),
+    ).toBeVisible();
+    expect(screen.getByText("Embedded Text Extraction")).toBeVisible();
+    expect(screen.getByText("ACTIVITY_RETRY_EXHAUSTED")).toBeVisible();
+});
+
 test("polls active states and stops for every terminal run state", () => {
     expect(statusPollInterval(undefined)).toBe(2_000);
     expect(statusPollInterval("QUEUED")).toBe(2_000);
@@ -169,6 +196,7 @@ function status(
             status_changed_at: "2026-09-15T08:00:00Z",
             finished_at: null,
             attempt_count: 2,
+            failure: null,
             processing_output: null,
             review_resolution: null,
         },

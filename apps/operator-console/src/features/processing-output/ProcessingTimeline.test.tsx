@@ -15,6 +15,7 @@ test("shows active processing before output is persisted", () => {
                 status_changed_at: "2026-09-16T12:00:01Z",
                 finished_at: null,
                 attempt_count: 1,
+                failure: null,
                 processing_output: null,
                 review_resolution: null,
             }}
@@ -38,6 +39,7 @@ test("shows completed and skipped stages after a successful run", () => {
                 status_changed_at: "2026-09-16T12:00:05Z",
                 finished_at: "2026-09-16T12:00:05Z",
                 attempt_count: 1,
+                failure: null,
                 processing_output: {
                     embedded_text: {
                         method: "PYMUPDF",
@@ -98,6 +100,7 @@ test("shows the review handoff after an incomplete invoice", () => {
                 status_changed_at: "2026-09-16T12:00:07Z",
                 finished_at: null,
                 attempt_count: 1,
+                failure: null,
                 processing_output: {
                     embedded_text: {
                         method: "PYMUPDF",

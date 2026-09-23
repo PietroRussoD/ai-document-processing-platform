@@ -82,6 +82,11 @@ export function DocumentStatusPanel({
                     Processing requires an operator review.
                 </FeedbackMessage>
             ) : null}
+            {document.current_run.failure !== null ? (
+                <FeedbackMessage className="mt-4" tone="danger">
+                    Processing stopped after a terminal technical failure.
+                </FeedbackMessage>
+            ) : null}
             <dl className="mt-4 grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
                 <StatusValue label="Document status" status={document.status} />
                 <StatusValue
@@ -105,6 +110,19 @@ export function DocumentStatusPanel({
                         value={document.current_run.previous_run_id}
                         technical
                     />
+                ) : null}
+                {document.current_run.failure !== null ? (
+                    <>
+                        <Value
+                            label="Failure stage"
+                            value={formatStatus(document.current_run.failure.stage)}
+                        />
+                        <Value
+                            label="Failure code"
+                            value={document.current_run.failure.code}
+                            technical
+                        />
+                    </>
                 ) : null}
             </dl>
             <ProcessingOutputPanel
@@ -169,7 +187,7 @@ function Value({
     );
 }
 
-function formatStatus(status: VisibleStatus): string {
+function formatStatus(status: string): string {
     return status
         .toLowerCase()
         .split("_")

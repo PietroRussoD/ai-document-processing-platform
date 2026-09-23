@@ -146,6 +146,7 @@ function reviewRequiredRun(): DocumentStatus["current_run"] {
         status_changed_at: "2026-09-17T17:00:02Z",
         finished_at: null,
         attempt_count: 1,
+        failure: null,
         processing_output: null,
         review_resolution: null,
     };

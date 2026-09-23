@@ -532,6 +532,32 @@
         "title": "OcrExtractionMethod",
         "type": "string"
       },
+      "ProcessingFailureCode": {
+        "enum": [
+          "LEGACY_UNCLASSIFIED",
+          "ACTIVITY_RETRY_EXHAUSTED",
+          "NON_RETRYABLE_ACTIVITY_FAILURE",
+          "ACTIVITY_TIMEOUT"
+        ],
+        "title": "ProcessingFailureCode",
+        "type": "string"
+      },
+      "ProcessingFailureMetadataResponse": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ProcessingFailureCode"
+          },
+          "stage": {
+            "$ref": "#/components/schemas/ProcessingStage"
+          }
+        },
+        "required": [
+          "stage",
+          "code"
+        ],
+        "title": "ProcessingFailureMetadataResponse",
+        "type": "object"
+      },
       "ProcessingOutputResponse": {
         "properties": {
           "classification": {
@@ -625,6 +651,16 @@
             "title": "Attempt Count",
             "type": "integer"
           },
+          "failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProcessingFailureMetadataResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "finished_at": {
             "anyOf": [
               {
@@ -709,11 +745,28 @@
           "status_changed_at",
           "finished_at",
           "attempt_count",
+          "failure",
           "processing_output",
           "review_resolution"
         ],
         "title": "ProcessingRunStatusResponse",
         "type": "object"
+      },
+      "ProcessingStage": {
+        "enum": [
+          "UNKNOWN_LEGACY",
+          "START",
+          "EMBEDDED_TEXT_EXTRACTION",
+          "OCR_TEXT_EXTRACTION",
+          "TEXT_SELECTION",
+          "CLASSIFICATION",
+          "INVOICE_EXTRACTION",
+          "INVOICE_VALIDATION",
+          "VALIDATION_APPLICATION",
+          "COMPLETION"
+        ],
+        "title": "ProcessingStage",
+        "type": "string"
       },
       "ProcessingTextSelectionReason": {
         "enum": [

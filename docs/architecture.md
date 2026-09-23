@@ -239,7 +239,8 @@ sequenceDiagram
 ```
 
 Raw exception messages, stack traces, document text and storage paths remain
-out of the business-state model and public status projection. The authenticated
+out of the business-state model and public status projection. The status API
+and console expose only the bounded stage and code for the current run. The authenticated
 reprocessing flow creates a separate queued run that references the failed run;
 it does not restart or mutate the failure evidence.
 

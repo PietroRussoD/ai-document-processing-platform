@@ -51,6 +51,7 @@ test("retrieves document status and forwards cancellation", async () => {
             status_changed_at: acceptedDocument.accepted_at,
             finished_at: null,
             attempt_count: 0,
+            failure: null,
             processing_output: null,
             review_resolution: null,
         },

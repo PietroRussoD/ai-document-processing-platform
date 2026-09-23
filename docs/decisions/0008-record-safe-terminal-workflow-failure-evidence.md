@@ -31,6 +31,8 @@ Raw exception messages, stack traces, provider responses, document text and
 storage paths are not persisted in the business-state model or returned by the
 status endpoint. The workflow is then still failed in Temporal; PostgreSQL does
 not pretend that the workflow completed successfully.
+The current-run status projection exposes only the bounded stage and code;
+the console renders those values for an operator.
 
 The initial mapping records `ACTIVITY_RETRY_EXHAUSTED`. The enums are designed
 to allow future safe codes without changing the public failure-model shape.
