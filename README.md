@@ -5,6 +5,9 @@ data from business documents.
 
 ## Status
 
+Development is now targeting `v0.8.0`; the package reports `0.8.0.dev0` until
+that release is cut.
+
 The [`v0.7.0` tagged release](https://github.com/PietroRussoD/ai-document-processing-platform/tree/v0.7.0),
 documented in the [release notes](docs/releases/v0.7.0.md), adds operational
 failure handling to the durable document-processing and review flow.
