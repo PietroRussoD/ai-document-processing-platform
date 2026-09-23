@@ -21,6 +21,10 @@ from document_platform.application.ports.document_repository import (
     DocumentAlreadyExists,
     DocumentRepository,
 )
+from document_platform.application.ports.document_retention_reader import (
+    DocumentRetentionReader,
+    DocumentRetentionSnapshot,
+)
 from document_platform.application.ports.document_status_reader import (
     ClassificationMetadataView,
     DocumentStatusReader,
@@ -129,6 +133,8 @@ __all__ = [
     "DocumentRepository",
     "DocumentOcrExtractionAlreadyExists",
     "DocumentOcrExtractionRepository",
+    "DocumentRetentionReader",
+    "DocumentRetentionSnapshot",
     "DocumentClassificationAlreadyExists",
     "DocumentClassificationRepository",
     "DocumentStatusReader",

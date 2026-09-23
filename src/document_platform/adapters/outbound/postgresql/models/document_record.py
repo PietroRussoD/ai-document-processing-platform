@@ -28,6 +28,7 @@ class DocumentRecord(Base):
         CheckConstraint("version >= 0", name="version_not_negative"),
         Index("ix_documents_content_sha256", "content_sha256"),
         Index("ix_documents_status_accepted_at", "status", "accepted_at"),
+        Index("ix_documents_status_status_changed_at", "status", "status_changed_at"),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True)

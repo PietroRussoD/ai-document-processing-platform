@@ -154,6 +154,17 @@ The API is available at `http://localhost:8000`. Current endpoints:
 - OpenAPI document: `GET http://localhost:8000/openapi.json`;
 - interactive API documentation: `http://localhost:8000/docs`.
 
+Preview documents eligible for retention without modifying the database or
+local blob storage:
+
+```bash
+uv run python -m document_platform.retention --retention-days 90
+```
+
+The preview includes only `APPROVED`, `REJECTED` and `FAILED` documents whose
+`status_changed_at` is strictly earlier than the cutoff. It reports counts and
+stored byte totals; deletion and blob cleanup are not implemented.
+
 Run the operator console in a second terminal:
 
 ```bash
