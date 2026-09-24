@@ -2,7 +2,7 @@ name: ai-document-processing-platform
 
 services:
   api:
-    profiles: ["app"]
+    profiles: ["app", "processing"]
     image: document-platform-api:dev
     depends_on:
       migrate:
@@ -19,6 +19,20 @@ services:
       start_period: 10s
     volumes:
       - document-platform-data:/app/data
+
+  dispatcher:
+    profiles: ["processing"]
+    image: document-platform-api:dev
+    command: ["python", "-m", "document_platform.dispatcher"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      temporal:
+        condition: service_healthy
+    environment:
+      DOCUMENT_PLATFORM_DATABASE_URL: postgresql+asyncpg://document_platform:local-development-only@postgres:5432/document_platform
+      DOCUMENT_PLATFORM_TEMPORAL_TARGET_HOST: temporal:7233
+    restart: unless-stopped
 
   grafana:
     profiles: ["observability"]
@@ -68,7 +82,7 @@ services:
       - document-platform-prometheus:/prometheus
 
   migrate:
-    profiles: ["app"]
+    profiles: ["app", "processing"]
     build: .
     image: document-platform-api:dev
     command: ["alembic", "upgrade", "head"]
@@ -96,7 +110,7 @@ services:
       - document-platform-postgres:/var/lib/postgresql
 
   temporal-postgres:
-    profiles: ["temporal"]
+    profiles: ["temporal", "processing"]
     image: postgres:16.11
     environment:
       POSTGRES_DB: temporal
@@ -112,7 +126,7 @@ services:
       - document-platform-temporal-postgres:/var/lib/postgresql
 
   temporal:
-    profiles: ["temporal"]
+    profiles: ["temporal", "processing"]
     image: temporalio/auto-setup:1.28.1
     depends_on:
       temporal-postgres:
@@ -125,17 +139,39 @@ services:
       POSTGRES_SEEDS: temporal-postgres
     ports:
       - "${TEMPORAL_PORT:-7233}:7233"
+    healthcheck:
+      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "temporal:7233", "--command-timeout", "2s"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
 
   temporal-ui:
-    profiles: ["temporal"]
+    profiles: ["temporal", "processing"]
     image: temporalio/ui:2.26.2
     depends_on:
       temporal:
-        condition: service_started
+        condition: service_healthy
     environment:
       TEMPORAL_ADDRESS: temporal:7233
     ports:
       - "${TEMPORAL_UI_PORT:-8233}:8080"
+
+  worker:
+    profiles: ["processing"]
+    image: document-platform-api:dev
+    command: ["python", "-m", "document_platform.worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      temporal:
+        condition: service_healthy
+    environment:
+      DOCUMENT_PLATFORM_DATABASE_URL: postgresql+asyncpg://document_platform:local-development-only@postgres:5432/document_platform
+      DOCUMENT_PLATFORM_TEMPORAL_TARGET_HOST: temporal:7233
+    restart: unless-stopped
+    volumes:
+      - document-platform-data:/app/data
 
 volumes:
   document-platform-data:

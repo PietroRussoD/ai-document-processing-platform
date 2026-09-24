@@ -187,6 +187,20 @@ use `docker compose down` without `-v` so database and document volumes remain.
 The dispatcher and worker are not started by this profile, so uploads can be
 registered but will not be processed until those separate processes are running.
 
+For the complete local processing path, start the separate `processing` profile:
+
+```bash
+docker compose --profile processing up --build -d
+docker compose --profile processing ps
+```
+
+This adds Temporal, its database and UI, the dispatcher and the worker. The
+dispatcher waits for migrations and a healthy Temporal server; the worker also
+shares the API's document volume. The Temporal UI is at `http://localhost:8233`.
+Set `API_PORT`, `POSTGRES_PORT`, `TEMPORAL_PORT` or `TEMPORAL_UI_PORT` if a host
+port is occupied. This is a local-only stack with development credentials and
+no public ingress or production authentication configuration.
+
 Preview documents eligible for retention without modifying the database or
 local blob storage:
 
@@ -232,16 +246,17 @@ target with `VITE_API_PROXY_TARGET` when required.
 ### Temporal Handoff Environment
 
 The optional local Temporal profile is independent from the application
-PostgreSQL instance. Start it when working on workflow handoff or inspecting
-workflow execution history:
+PostgreSQL instance. Start it alone when working on workflow handoff or
+inspecting workflow execution history outside the full `processing` profile:
 
 ```bash
 docker compose --profile temporal up -d
 ```
 
 Temporal listens on `localhost:7233`; its local UI is available at
-`http://localhost:8233`. The dispatcher is a separate process so HTTP uploads
-remain available when Temporal is being restarted:
+`http://localhost:8233`. When running the API on the host instead of in the
+`processing` profile, start the dispatcher separately so HTTP uploads remain
+available when Temporal is being restarted:
 
 ```bash
 uv run python -m document_platform.dispatcher
