@@ -370,6 +370,9 @@ A read-only local inventory lists canonical published blob metadata and counts
 `.upload` files in `temporary` and `incoming` separately. It caps scanned
 directory entries and marks partial results as truncated; it does not follow
 symlinks, compare against database references or delete files.
+The separate `blob_audit` command compares older published entries against
+PostgreSQL in a bounded batch and reports only aggregate potential-orphan
+counts. It cannot authorize deletion because an upload may race the audit.
 
 ## PDF Acceptance Boundary
 

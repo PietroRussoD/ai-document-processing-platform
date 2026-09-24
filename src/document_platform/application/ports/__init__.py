@@ -1,6 +1,9 @@
 """Contracts implemented by outbound adapters."""
 
-from document_platform.application.ports.blob_reference_reader import BlobReferenceReader
+from document_platform.application.ports.blob_reference_reader import (
+    BlobIdentity,
+    BlobReferenceReader,
+)
 from document_platform.application.ports.blob_store import (
     BlobIntegrityConflict,
     BlobNotFound,
@@ -120,6 +123,7 @@ from document_platform.application.ports.workflow_starter import WorkflowStarter
 
 __all__ = [
     "BlobIntegrityConflict",
+    "BlobIdentity",
     "BlobNotFound",
     "BlobReferenceReader",
     "BlobStore",

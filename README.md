@@ -174,6 +174,19 @@ implemented and concurrency-tested. Deletion commits each batch separately;
 after an interrupted run, repeat the command to process remaining eligible
 documents. Its summary counts only documents deleted during that run.
 
+Report possible unreferenced local blobs without modifying storage:
+
+```bash
+uv run python -m document_platform.blob_audit --min-age-hours 24 --scan-limit 1000
+```
+
+The report checks canonical published blobs older than the specified age
+against PostgreSQL and prints aggregate counts only. It counts staged
+`.upload` files in `temporary` and `incoming` separately. `scan_truncated=true`
+means the results cover only part of storage. Even a complete report is not
+permission to delete files: uploads and the audit do not share a per-blob lock
+yet.
+
 Run the operator console in a second terminal:
 
 ```bash
