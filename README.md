@@ -204,6 +204,20 @@ is occupied. Published application, database and Temporal ports bind to
 `127.0.0.1`. This stack uses development credentials and does not provide
 production authentication or deployment configuration.
 
+After starting the `processing` profile, verify the complete path through the
+console's reverse proxy:
+
+```bash
+uv sync --all-groups
+uv run python scripts/verify_processing_compose.py
+```
+
+Use `--base-url http://127.0.0.1:18088` if the console was started with
+`CONSOLE_PORT=18088`. The command creates one synthetic PDF and retains its
+document record in the local database. It checks upload, embedded-text
+extraction, invoice classification and the final review-required status. This
+is a manual local smoke test, not part of the default CI pipeline.
+
 Preview documents eligible for retention without modifying the database or
 local blob storage:
 
