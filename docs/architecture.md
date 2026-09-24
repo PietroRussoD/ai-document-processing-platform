@@ -366,6 +366,11 @@ an integrity conflict rather than overwritten. Temporary files are removed on
 success and handled failures; crash-orphan reconciliation is a later operational
 capability.
 
+A read-only local inventory lists canonical published blob metadata and counts
+`.upload` files in `temporary` and `incoming` separately. It caps scanned
+directory entries and marks partial results as truncated; it does not follow
+symlinks, compare against database references or delete files.
+
 ## PDF Acceptance Boundary
 
 The upload boundary treats the declared media type as untrusted. A seekable,
