@@ -194,12 +194,15 @@ docker compose --profile processing up --build -d
 docker compose --profile processing ps
 ```
 
-This adds Temporal, its database and UI, the dispatcher and the worker. The
-dispatcher waits for migrations and a healthy Temporal server; the worker also
-shares the API's document volume. The Temporal UI is at `http://localhost:8233`.
-Set `API_PORT`, `POSTGRES_PORT`, `TEMPORAL_PORT` or `TEMPORAL_UI_PORT` if a host
-port is occupied. This is a local-only stack with development credentials and
-no public ingress or production authentication configuration.
+This adds Temporal, its database and UI, the dispatcher, worker and a built
+operator console. Open the console at `http://localhost:8088`; its `/api`
+requests are proxied to the API within Compose. The dispatcher waits for
+migrations and a healthy Temporal server; the worker shares the API's document
+volume. The Temporal UI is at `http://localhost:8233`. Set `CONSOLE_PORT`,
+`API_PORT`, `POSTGRES_PORT`, `TEMPORAL_PORT` or `TEMPORAL_UI_PORT` if a host port
+is occupied. Published application, database and Temporal ports bind to
+`127.0.0.1`. This stack uses development credentials and does not provide
+production authentication or deployment configuration.
 
 Preview documents eligible for retention without modifying the database or
 local blob storage:
@@ -239,9 +242,10 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Vite serves the console at `http://localhost:5173` and proxies `/api` requests
-to the backend at `http://localhost:8000` by default. Override the development
-target with `VITE_API_PROXY_TARGET` when required.
+Vite serves the development console at `http://localhost:5173` and proxies
+`/api` requests to the backend at `http://localhost:8000` by default. Override
+the development target with `VITE_API_PROXY_TARGET` when required. The Compose
+console is a separate static build served by unprivileged NGINX, not Vite.
 
 ### Temporal Handoff Environment
 

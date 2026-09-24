@@ -519,7 +519,7 @@ tests/e2e/           API and browser journeys
 | Text extraction | Embedded/OCR extraction and persisted canonical source selection | OCR quality calibration and language policy |
 | Document classification | Deterministic canonical-text keyword policy | Evaluated local model policy |
 | Workflow execution | Temporal development server with local worker | Managed/self-hosted Temporal later |
-| Application container | Multi-stage non-root Python image; opt-in Compose `app` and complete local `processing` profiles with migration and Temporal readiness gates, shared document volume | Production deployment configuration outside local Compose |
+| Application containers | Multi-stage non-root Python image; static React build served by unprivileged NGINX with `/api` proxy; opt-in Compose `app` and local `processing` profiles with migration and Temporal readiness gates, shared document volume | Production deployment configuration outside local Compose |
 | Review authentication | Configured local static bearer token | Enterprise identity and authorization provider |
 | Operational telemetry | Prometheus metrics, provisioned local Grafana dashboard and allowlisted JSON logs with bounded HTTP correlation | Production monitoring, access policy and alerting |
 
