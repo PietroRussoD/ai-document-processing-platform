@@ -6,6 +6,9 @@ from document_platform.application.commands.accept_document_upload import (
     InvalidStagedUpload,
     UnsupportedDocumentMediaType,
 )
+from document_platform.application.commands.apply_document_retention import (
+    ApplyDocumentRetentionHandler,
+)
 from document_platform.application.commands.apply_invoice_validation import (
     ApplyInvoiceValidation,
     ApplyInvoiceValidationHandler,
@@ -121,6 +124,7 @@ from document_platform.application.commands.validate_invoice import (
 __all__ = [
     "AcceptDocumentUpload",
     "AcceptDocumentUploadHandler",
+    "ApplyDocumentRetentionHandler",
     "ApplyInvoiceValidation",
     "ApplyInvoiceValidationHandler",
     "ClaimWorkflowStartRequests",

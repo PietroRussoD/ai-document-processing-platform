@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from document_platform.application.commands import ApplyDocumentRetentionHandler
 from document_platform.application.ports import DocumentRetentionSnapshot
 from document_platform.application.queries import (
     InvalidRetentionPeriod,
@@ -20,6 +21,16 @@ class StubDocumentRetentionReader:
         self.cutoffs: list[datetime] = []
 
     async def summarize_candidates(self, *, cutoff: datetime) -> DocumentRetentionSnapshot:
+        self.cutoffs.append(cutoff)
+        return self.snapshot
+
+
+class StubDocumentRetentionDeleter:
+    def __init__(self, snapshot: DocumentRetentionSnapshot) -> None:
+        self.snapshot = snapshot
+        self.cutoffs: list[datetime] = []
+
+    async def delete_candidates(self, *, cutoff: datetime) -> DocumentRetentionSnapshot:
         self.cutoffs.append(cutoff)
         return self.snapshot
 
@@ -64,3 +75,44 @@ async def test_rejects_a_naive_clock() -> None:
         await handler(retention_days=30)
 
     assert reader.cutoffs == []
+
+
+@pytest.mark.anyio
+async def test_applies_retention_using_the_calculated_cutoff() -> None:
+    snapshot = DocumentRetentionSnapshot(
+        counts_by_status={DocumentStatus.FAILED: 2},
+        total_size_bytes=800,
+    )
+    deleter = StubDocumentRetentionDeleter(snapshot)
+
+    report = await ApplyDocumentRetentionHandler(deleter, clock=lambda: NOW)(retention_days=30)
+
+    assert report.cutoff == NOW - timedelta(days=30)
+    assert report.snapshot == snapshot
+    assert deleter.cutoffs == [report.cutoff]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("retention_days", [0, -1])
+async def test_apply_rejects_non_positive_retention_period(retention_days: int) -> None:
+    deleter = StubDocumentRetentionDeleter(DocumentRetentionSnapshot({}, 0))
+    handler = ApplyDocumentRetentionHandler(deleter, clock=lambda: NOW)
+
+    with pytest.raises(InvalidRetentionPeriod, match="must be positive"):
+        await handler(retention_days=retention_days)
+
+    assert deleter.cutoffs == []
+
+
+@pytest.mark.anyio
+async def test_apply_rejects_a_naive_clock() -> None:
+    deleter = StubDocumentRetentionDeleter(DocumentRetentionSnapshot({}, 0))
+    handler = ApplyDocumentRetentionHandler(
+        deleter,
+        clock=lambda: datetime(2026, 9, 23, 12, 0),
+    )
+
+    with pytest.raises(InvalidRetentionPeriod, match="timezone-aware"):
+        await handler(retention_days=30)
+
+    assert deleter.cutoffs == []

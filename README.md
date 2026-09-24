@@ -166,7 +166,10 @@ uv run python -m document_platform.retention --retention-days 90
 
 The preview includes only `APPROVED`, `REJECTED` and `FAILED` documents whose
 `status_changed_at` is strictly earlier than the cutoff. It reports counts and
-stored byte totals; deletion and blob cleanup are not implemented.
+stored byte totals. To delete eligible document records and their database-
+owned processing evidence, add `--apply`. This does not delete filesystem
+blobs; blob garbage collection remains disabled until upload coordination is
+implemented and concurrency-tested.
 
 Run the operator console in a second terminal:
 

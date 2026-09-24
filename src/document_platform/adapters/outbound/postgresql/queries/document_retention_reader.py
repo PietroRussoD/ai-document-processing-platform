@@ -7,13 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from document_platform.adapters.outbound.postgresql.models import DocumentRecord
 from document_platform.application.ports import DocumentRetentionSnapshot
-from document_platform.domain.documents import DocumentStatus
-
-_ELIGIBLE_STATUSES = (
-    DocumentStatus.APPROVED,
-    DocumentStatus.REJECTED,
-    DocumentStatus.FAILED,
-)
+from document_platform.domain.documents import RETENTION_ELIGIBLE_STATUSES, DocumentStatus
 
 
 class SqlAlchemyDocumentRetentionReader:
@@ -28,7 +22,7 @@ class SqlAlchemyDocumentRetentionReader:
                 func.coalesce(func.sum(DocumentRecord.size_bytes), 0),
             )
             .where(
-                DocumentRecord.status.in_(_ELIGIBLE_STATUSES),
+                DocumentRecord.status.in_(RETENTION_ELIGIBLE_STATUSES),
                 DocumentRecord.status_changed_at < cutoff,
             )
             .group_by(DocumentRecord.status)

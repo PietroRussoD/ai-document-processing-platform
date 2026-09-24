@@ -5,9 +5,14 @@ from uuid import uuid4
 
 import pytest
 from pydantic import PostgresDsn
+from sqlalchemy import select
 
 from document_platform.adapters.outbound.postgresql.database import create_database
-from document_platform.adapters.outbound.postgresql.queries import SqlAlchemyDocumentRetentionReader
+from document_platform.adapters.outbound.postgresql.models import DocumentRecord
+from document_platform.adapters.outbound.postgresql.queries import (
+    SqlAlchemyDocumentRetentionDeleter,
+    SqlAlchemyDocumentRetentionReader,
+)
 from document_platform.adapters.outbound.postgresql.repositories import SqlAlchemyDocumentRepository
 from document_platform.domain.documents import Document, DocumentStatus
 from document_platform.settings import Settings
@@ -49,6 +54,53 @@ async def test_summarizes_only_old_terminal_documents(migrated_postgres_url: str
         DocumentStatus.REJECTED: 1,
         DocumentStatus.FAILED: 1,
     }
+
+
+@pytest.mark.anyio
+async def test_deletes_only_old_terminal_documents_and_reports_aggregate(
+    migrated_postgres_url: str,
+) -> None:
+    database = create_database(
+        Settings(environment="test", database_url=PostgresDsn(migrated_postgres_url))
+    )
+    cutoff = CUTOFF - timedelta(days=31)
+    documents = (
+        _terminal_document(DocumentStatus.APPROVED, 100, cutoff - timedelta(seconds=1)),
+        _terminal_document(DocumentStatus.REJECTED, 200, cutoff - timedelta(days=1)),
+        _terminal_document(DocumentStatus.FAILED, 300, cutoff - timedelta(days=2)),
+        _terminal_document(DocumentStatus.REVIEW_REQUIRED, 400, cutoff - timedelta(days=3)),
+        _terminal_document(DocumentStatus.PROCESSING, 500, cutoff - timedelta(days=4)),
+        _terminal_document(DocumentStatus.APPROVED, 600, cutoff + timedelta(seconds=1)),
+        _terminal_document(DocumentStatus.APPROVED, 700, cutoff),
+    )
+    try:
+        async with database.sessions.begin() as session:
+            repository = SqlAlchemyDocumentRepository(session)
+            for document in documents:
+                await repository.add(document)
+
+        snapshot = await SqlAlchemyDocumentRetentionDeleter(database.sessions).delete_candidates(
+            cutoff=cutoff
+        )
+        async with database.sessions() as session:
+            remaining = set(
+                await session.scalars(
+                    select(DocumentRecord.id).where(
+                        DocumentRecord.id.in_([document.id for document in documents])
+                    )
+                )
+            )
+    finally:
+        await database.dispose()
+
+    assert snapshot.document_count == 3
+    assert snapshot.total_size_bytes == 600
+    assert snapshot.counts_by_status == {
+        DocumentStatus.APPROVED: 1,
+        DocumentStatus.REJECTED: 1,
+        DocumentStatus.FAILED: 1,
+    }
+    assert remaining == {document.id for document in documents[3:]}
 
 
 def _terminal_document(

@@ -21,6 +21,9 @@ from document_platform.application.ports.document_repository import (
     DocumentAlreadyExists,
     DocumentRepository,
 )
+from document_platform.application.ports.document_retention_deleter import (
+    DocumentRetentionDeleter,
+)
 from document_platform.application.ports.document_retention_reader import (
     DocumentRetentionReader,
     DocumentRetentionSnapshot,
@@ -131,6 +134,7 @@ __all__ = [
     "DocumentTextSelectionAlreadyExists",
     "DocumentTextSelectionRepository",
     "DocumentRepository",
+    "DocumentRetentionDeleter",
     "DocumentOcrExtractionAlreadyExists",
     "DocumentOcrExtractionRepository",
     "DocumentRetentionReader",
