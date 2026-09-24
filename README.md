@@ -169,9 +169,23 @@ docker run --rm --entrypoint id document-platform-api:dev
 
 The runtime uses UID/GID `10001`, includes English Tesseract data and has a
 writable `/app/data` directory. The default command starts the API; the image
-also contains the worker module and Alembic migrations. It is not yet wired
-into Compose. Starting it without a reachable database permits a liveness
-smoke test but not a passing readiness check or document processing.
+also contains the worker module and Alembic migrations.
+
+To run the containerized API with PostgreSQL, migrations and persistent local
+document storage:
+
+```bash
+docker compose --profile app up --build -d api
+docker compose --profile app ps
+```
+
+The API is at `http://localhost:8000`; set `API_PORT` if that host port is in
+use. Compose waits for healthy PostgreSQL, applies Alembic migrations, then
+starts the API. Its healthcheck calls `/health/ready`. Stop only the API with
+`docker compose --profile app stop api`. To stop the entire Compose project,
+use `docker compose down` without `-v` so database and document volumes remain.
+The dispatcher and worker are not started by this profile, so uploads can be
+registered but will not be processed until those separate processes are running.
 
 Preview documents eligible for retention without modifying the database or
 local blob storage:

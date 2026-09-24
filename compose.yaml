@@ -1,6 +1,25 @@
 name: ai-document-processing-platform
 
 services:
+  api:
+    profiles: ["app"]
+    image: document-platform-api:dev
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DOCUMENT_PLATFORM_DATABASE_URL: postgresql+asyncpg://document_platform:local-development-only@postgres:5432/document_platform
+    ports:
+      - "${API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2).close()"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    volumes:
+      - document-platform-data:/app/data
+
   grafana:
     profiles: ["observability"]
     image: grafana/grafana:13.2.2
@@ -47,6 +66,17 @@ services:
     volumes:
       - ./ops/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - document-platform-prometheus:/prometheus
+
+  migrate:
+    profiles: ["app"]
+    build: .
+    image: document-platform-api:dev
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DOCUMENT_PLATFORM_DATABASE_URL: postgresql+asyncpg://document_platform:local-development-only@postgres:5432/document_platform
 
   postgres:
     image: postgres:18.6
@@ -108,6 +138,7 @@ services:
       - "${TEMPORAL_UI_PORT:-8233}:8080"
 
 volumes:
+  document-platform-data:
   document-platform-grafana:
   document-platform-postgres:
   document-platform-prometheus:
