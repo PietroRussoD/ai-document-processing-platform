@@ -43,9 +43,10 @@ failed. The status API and console expose the bounded failure stage and code
 for the current run. A paginated API exposes active, review and failed work
 queues as metadata-only summaries. The operator console can browse these
 queues, refresh them and open the existing document detail and review flows.
-See the [v0.7.0 release notes](docs/releases/v0.7.0.md). Retention, malware
-scanning and production deployment remain separate decisions until their
-concrete boundaries are designed and tested.
+See the [v0.7.0 release notes](docs/releases/v0.7.0.md). The current `v0.8.0`
+development work adds explicit, dry-run-first database retention in bounded
+batches. Physical blob deletion remains disabled; malware scanning and
+production deployment are not implemented.
 
 ## Implemented Technology
 
@@ -61,7 +62,7 @@ concrete boundaries are designed and tested.
 
 - further local-model comparison after a broader corpus and policy design;
 - optional S3-compatible storage and external-provider comparison;
-- notifications and retention workflows.
+- notifications and reference-safe physical blob garbage collection.
 
 The synthetic, versioned invoice-extraction baseline is documented in
 [`docs/evaluation.md`](docs/evaluation.md).
@@ -169,7 +170,9 @@ The preview includes only `APPROVED`, `REJECTED` and `FAILED` documents whose
 stored byte totals. To delete eligible document records and their database-
 owned processing evidence, add `--apply`. This does not delete filesystem
 blobs; blob garbage collection remains disabled until upload coordination is
-implemented and concurrency-tested.
+implemented and concurrency-tested. Deletion commits each batch separately;
+after an interrupted run, repeat the command to process remaining eligible
+documents. Its summary counts only documents deleted during that run.
 
 Run the operator console in a second terminal:
 
