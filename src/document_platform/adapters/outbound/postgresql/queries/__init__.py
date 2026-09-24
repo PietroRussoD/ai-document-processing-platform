@@ -1,5 +1,8 @@
 """PostgreSQL read-model implementations."""
 
+from document_platform.adapters.outbound.postgresql.queries.blob_reference_reader import (
+    SqlAlchemyBlobReferenceReader,
+)
 from document_platform.adapters.outbound.postgresql.queries.document_retention_deleter import (
     SqlAlchemyDocumentRetentionDeleter,
 )
@@ -14,6 +17,7 @@ from document_platform.adapters.outbound.postgresql.queries.processing_run_metri
 )
 
 __all__ = [
+    "SqlAlchemyBlobReferenceReader",
     "SqlAlchemyDocumentRetentionReader",
     "SqlAlchemyDocumentRetentionDeleter",
     "SqlAlchemyDocumentStatusReader",
