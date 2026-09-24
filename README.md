@@ -158,6 +158,21 @@ The API is available at `http://localhost:8000`. Current endpoints:
 - OpenAPI document: `GET http://localhost:8000/openapi.json`;
 - interactive API documentation: `http://localhost:8000/docs`.
 
+### Backend Image
+
+Build the shared API/worker image from the locked production dependencies:
+
+```bash
+docker build -t document-platform-api:dev .
+docker run --rm --entrypoint id document-platform-api:dev
+```
+
+The runtime uses UID/GID `10001`, includes English Tesseract data and has a
+writable `/app/data` directory. The default command starts the API; the image
+also contains the worker module and Alembic migrations. It is not yet wired
+into Compose. Starting it without a reachable database permits a liveness
+smoke test but not a passing readiness check or document processing.
+
 Preview documents eligible for retention without modifying the database or
 local blob storage:
 
