@@ -120,6 +120,50 @@ async def test_deletes_only_old_terminal_documents_and_reports_aggregate(
 
 
 @pytest.mark.anyio
+async def test_deletes_candidates_across_multiple_batches(migrated_postgres_url: str) -> None:
+    database = create_database(
+        Settings(environment="test", database_url=PostgresDsn(migrated_postgres_url))
+    )
+    cutoff = datetime(2023, 1, 1, tzinfo=UTC)
+    documents = (
+        _terminal_document(DocumentStatus.APPROVED, 10, cutoff - timedelta(days=5)),
+        _terminal_document(DocumentStatus.REJECTED, 20, cutoff - timedelta(days=4)),
+        _terminal_document(DocumentStatus.FAILED, 30, cutoff - timedelta(days=3)),
+        _terminal_document(DocumentStatus.APPROVED, 40, cutoff - timedelta(days=2)),
+        _terminal_document(DocumentStatus.REJECTED, 50, cutoff - timedelta(days=1)),
+        _terminal_document(DocumentStatus.APPROVED, 60, CUTOFF + timedelta(days=1)),
+    )
+    try:
+        async with database.sessions.begin() as session:
+            repository = SqlAlchemyDocumentRepository(session)
+            for document in documents:
+                await repository.add(document)
+
+        snapshot = await SqlAlchemyDocumentRetentionDeleter(
+            database.sessions, batch_size=2
+        ).delete_candidates(cutoff=cutoff)
+        async with database.sessions() as session:
+            remaining = set(
+                await session.scalars(
+                    select(DocumentRecord.id).where(
+                        DocumentRecord.id.in_([document.id for document in documents])
+                    )
+                )
+            )
+    finally:
+        await database.dispose()
+
+    assert snapshot.document_count == 5
+    assert snapshot.total_size_bytes == 150
+    assert snapshot.counts_by_status == {
+        DocumentStatus.APPROVED: 2,
+        DocumentStatus.REJECTED: 2,
+        DocumentStatus.FAILED: 1,
+    }
+    assert remaining == {documents[-1].id}
+
+
+@pytest.mark.anyio
 async def test_deletes_document_with_processing_and_reprocessing_evidence(
     migrated_postgres_url: str,
 ) -> None:
@@ -228,7 +272,7 @@ def _terminal_document(
     size_bytes: int,
     status_changed_at: datetime,
 ) -> Document:
-    accepted_at = min(OLD_ACCEPTED_AT, status_changed_at)
+    accepted_at = min(OLD_ACCEPTED_AT, status_changed_at - timedelta(days=1))
     document = Document.accept_pdf(
         document_id=uuid4(),
         original_filename=f"synthetic-{uuid4()}.pdf",

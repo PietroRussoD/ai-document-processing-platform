@@ -26,9 +26,9 @@ transition or background timer.
   `FAILED`, and its `status_changed_at` is older than the calculated cutoff.
   `UPLOADED`, `PROCESSING` and `REVIEW_REQUIRED` documents are never eligible.
 - Deleting an eligible document removes its document-owned processing and
-  reprocessing records through the existing database cascades. The operation
-  emits a bounded audit summary without retaining filenames, document content
-  or raw errors.
+  reprocessing records through the existing database cascades. Deletion runs in
+  bounded, independently committed database batches. The operation emits an
+  aggregate summary without retaining filenames, document content or raw errors.
 - Physical blob deletion is a separate garbage-collection operation. It must
   verify that no document references the blob and serialize upload and cleanup
   operations for the same content hash through a shared database-backed blob
@@ -45,6 +45,9 @@ transition or background timer.
 - Processing evidence is intentionally removed with its parent document; the
   aggregate audit summary records the cleanup outcome without preserving
   document identifiers or filenames.
+- If an applied run fails, earlier batches remain deleted. Re-running with the
+  same retention period safely processes remaining eligible documents; its
+  summary covers only the documents deleted by that run.
 - Blob-catalog coordination is a prerequisite for physical garbage collection
   and must have concurrency tests before deletion is enabled.
 - This local portfolio policy is not a legal retention recommendation for a
