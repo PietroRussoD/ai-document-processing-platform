@@ -28,6 +28,10 @@ class BlobAuditReport:
     potential_orphan_bytes: int
     temporary_uploads: int
     incoming_uploads: int
+    old_temporary_uploads: int
+    old_incoming_uploads: int
+    recent_staged_uploads: int
+    old_staged_upload_bytes: int
     unrecognized_entries: int
 
 
@@ -44,6 +48,9 @@ async def summarize_blob_candidates(
     older_than = now - timedelta(hours=min_age_hours)
     inventory = LocalStorageInventory(settings.storage_root).scan(limit=scan_limit)
     old_blobs = [blob for blob in inventory.published_blobs if blob.modified_at < older_than]
+    old_staged_uploads = [
+        upload for upload in inventory.staged_uploads if upload.modified_at < older_than
+    ]
     identities = frozenset(BlobIdentity(blob.key, blob.content_sha256) for blob in old_blobs)
 
     database = create_database(settings)
@@ -69,6 +76,10 @@ async def summarize_blob_candidates(
         potential_orphan_bytes=sum(blob.size_bytes for blob in candidates),
         temporary_uploads=inventory.temporary_uploads,
         incoming_uploads=inventory.incoming_uploads,
+        old_temporary_uploads=sum(upload.location == "temporary" for upload in old_staged_uploads),
+        old_incoming_uploads=sum(upload.location == "incoming" for upload in old_staged_uploads),
+        recent_staged_uploads=len(inventory.staged_uploads) - len(old_staged_uploads),
+        old_staged_upload_bytes=sum(upload.size_bytes for upload in old_staged_uploads),
         unrecognized_entries=inventory.unrecognized_entries,
     )
 
@@ -115,6 +126,10 @@ async def _print_report(*, min_age_hours: int, scan_limit: int) -> None:
                 "potential_orphan_bytes": report.potential_orphan_bytes,
                 "temporary_uploads": report.temporary_uploads,
                 "incoming_uploads": report.incoming_uploads,
+                "old_temporary_uploads": report.old_temporary_uploads,
+                "old_incoming_uploads": report.old_incoming_uploads,
+                "recent_staged_uploads": report.recent_staged_uploads,
+                "old_staged_upload_bytes": report.old_staged_upload_bytes,
                 "unrecognized_entries": report.unrecognized_entries,
             },
             sort_keys=True,

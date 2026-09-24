@@ -5,6 +5,7 @@ from document_platform.adapters.outbound.filesystem.local_storage_inventory impo
     LocalStorageInventory,
     LocalStorageInventorySnapshot,
     PublishedBlobEntry,
+    StagedUploadEntry,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "LocalStorageInventory",
     "LocalStorageInventorySnapshot",
     "PublishedBlobEntry",
+    "StagedUploadEntry",
 ]

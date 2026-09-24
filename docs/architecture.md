@@ -372,7 +372,9 @@ directory entries and marks partial results as truncated; it does not follow
 symlinks, compare against database references or delete files.
 The separate `blob_audit` command compares older published entries against
 PostgreSQL in a bounded batch and reports only aggregate potential-orphan
-counts. It cannot authorize deletion because an upload may race the audit.
+counts. It also separates recent staged uploads from those older than the same
+age threshold, without exposing their names. Neither observation can authorize
+deletion because an upload may race the audit.
 
 ## PDF Acceptance Boundary
 
@@ -401,7 +403,8 @@ registration. Invalid PDFs therefore never enter durable blob storage. The
 filesystem cannot participate in the PostgreSQL transaction: a database failure
 after publication may leave an unreferenced content-addressed blob. Immediate
 deletion would be unsafe under deduplication and concurrent uploads, so an
-age-bounded reference-aware reconciler will remove such orphans.
+age-bounded audit reports possible orphans only. Physical deletion remains
+disabled until uploads and cleanup share a database-backed per-blob lock.
 
 ## Upload Idempotency
 

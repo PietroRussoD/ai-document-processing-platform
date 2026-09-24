@@ -24,6 +24,10 @@ def test_prints_aggregate_report_without_blob_keys(
         potential_orphan_bytes=123,
         temporary_uploads=0,
         incoming_uploads=0,
+        old_temporary_uploads=0,
+        old_incoming_uploads=0,
+        recent_staged_uploads=0,
+        old_staged_upload_bytes=0,
         unrecognized_entries=0,
     )
 
@@ -54,6 +58,10 @@ def test_prints_aggregate_report_without_blob_keys(
         "potential_orphan_bytes": 123,
         "temporary_uploads": 0,
         "incoming_uploads": 0,
+        "old_temporary_uploads": 0,
+        "old_incoming_uploads": 0,
+        "recent_staged_uploads": 0,
+        "old_staged_upload_bytes": 0,
         "unrecognized_entries": 0,
     }
 

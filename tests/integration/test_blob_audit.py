@@ -39,9 +39,20 @@ async def test_reports_only_old_unreferenced_blobs_without_deleting_files(
         os.utime(path, (modified_at, modified_at))
         stored.append(blob)
 
-    (root / "temporary" / "pending.upload").write_bytes(b"pending")
-    (root / "incoming").mkdir()
-    (root / "incoming" / "request.upload").write_bytes(b"request")
+    staged_files = (
+        ("temporary", "old.upload", b"old-temp", 48),
+        ("temporary", "recent.upload", b"recent-temp", 1),
+        ("incoming", "old.upload", b"old-incoming", 48),
+        ("incoming", "boundary.upload", b"boundary", 24),
+        ("incoming", "recent.upload", b"recent-incoming", 1),
+    )
+    for location, name, content, age_hours in staged_files:
+        directory = root / location
+        directory.mkdir(exist_ok=True)
+        path = directory / name
+        path.write_bytes(content)
+        modified_at = (now - timedelta(hours=age_hours)).timestamp()
+        os.utime(path, (modified_at, modified_at))
     database = create_database(settings)
     try:
         referenced_blob = stored[0]
@@ -69,8 +80,12 @@ async def test_reports_only_old_unreferenced_blobs_without_deleting_files(
     assert report.recent_blobs == 1
     assert report.potential_orphans == 1
     assert report.potential_orphan_bytes == stored[1].size_bytes
-    assert report.temporary_uploads == 1
-    assert report.incoming_uploads == 1
+    assert report.temporary_uploads == 2
+    assert report.incoming_uploads == 3
+    assert report.old_temporary_uploads == 1
+    assert report.old_incoming_uploads == 1
+    assert report.recent_staged_uploads == 3
+    assert report.old_staged_upload_bytes == len(b"old-temp") + len(b"old-incoming")
     assert not report.scan_truncated
     assert all((root / blob.key).is_file() for blob in stored)
 

@@ -7,6 +7,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Literal
 
 _PREFIX = re.compile(r"[0-9a-f]{2}")
 _DIGEST = re.compile(r"[0-9a-f]{64}")
@@ -21,13 +22,27 @@ class PublishedBlobEntry:
 
 
 @dataclass(frozen=True, slots=True)
+class StagedUploadEntry:
+    location: Literal["temporary", "incoming"]
+    size_bytes: int
+    modified_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
 class LocalStorageInventorySnapshot:
     published_blobs: tuple[PublishedBlobEntry, ...]
-    temporary_uploads: int
-    incoming_uploads: int
+    staged_uploads: tuple[StagedUploadEntry, ...]
     unrecognized_entries: int
     scanned_entries: int
     truncated: bool
+
+    @property
+    def temporary_uploads(self) -> int:
+        return sum(upload.location == "temporary" for upload in self.staged_uploads)
+
+    @property
+    def incoming_uploads(self) -> int:
+        return sum(upload.location == "incoming" for upload in self.staged_uploads)
 
 
 class LocalStorageInventory:
@@ -39,8 +54,7 @@ class LocalStorageInventory:
             raise ValueError("limit must be positive")
 
         published_blobs: list[PublishedBlobEntry] = []
-        temporary_uploads = 0
-        incoming_uploads = 0
+        staged_uploads: list[StagedUploadEntry] = []
         unrecognized_entries = 0
         scanned_entries = 0
         truncated = False
@@ -56,8 +70,7 @@ class LocalStorageInventory:
         def snapshot() -> LocalStorageInventorySnapshot:
             return LocalStorageInventorySnapshot(
                 published_blobs=tuple(published_blobs),
-                temporary_uploads=temporary_uploads,
-                incoming_uploads=incoming_uploads,
+                staged_uploads=tuple(staged_uploads),
                 unrecognized_entries=unrecognized_entries,
                 scanned_entries=scanned_entries,
                 truncated=truncated,
@@ -99,10 +112,14 @@ class LocalStorageInventory:
                 if not entry.name.endswith(".upload") or not entry.is_file(follow_symlinks=False):
                     unrecognized_entries += 1
                     continue
-                if directory_name == "temporary":
-                    temporary_uploads += 1
-                else:
-                    incoming_uploads += 1
+                metadata = entry.stat(follow_symlinks=False)
+                staged_uploads.append(
+                    StagedUploadEntry(
+                        location=directory_name,
+                        size_bytes=metadata.st_size,
+                        modified_at=datetime.fromtimestamp(metadata.st_mtime, tz=UTC),
+                    )
+                )
 
         return snapshot()
 

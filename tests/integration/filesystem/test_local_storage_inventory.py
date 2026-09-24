@@ -8,7 +8,7 @@ from document_platform.adapters.outbound.filesystem import LocalBlobStore, Local
 
 
 @pytest.mark.anyio
-async def test_counts_published_and_in_progress_files_without_reading_them(tmp_path: Path) -> None:
+async def test_counts_published_and_staged_files_without_reading_them(tmp_path: Path) -> None:
     source = tmp_path / "source.pdf"
     source.write_bytes(b"synthetic invoice")
     stored = await LocalBlobStore(tmp_path, max_bytes=1_024).store(source)
@@ -25,6 +25,8 @@ async def test_counts_published_and_in_progress_files_without_reading_them(tmp_p
     assert snapshot.published_blobs[0].size_bytes == stored.size_bytes
     assert snapshot.temporary_uploads == 1
     assert snapshot.incoming_uploads == 1
+    assert {upload.size_bytes for upload in snapshot.staged_uploads} == {7}
+    assert all(upload.modified_at.tzinfo is not None for upload in snapshot.staged_uploads)
     assert snapshot.unrecognized_entries == 1
     assert snapshot.scanned_entries == 5
     assert not snapshot.truncated
