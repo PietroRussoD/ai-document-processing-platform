@@ -11,6 +11,10 @@ RUN pnpm build
 
 FROM nginxinc/nginx-unprivileged:1.29.8-alpine
 
+USER root
+RUN apk --no-cache upgrade
+USER 101:101
+
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 

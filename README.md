@@ -526,6 +526,24 @@ These require access to the advisory services and report only vulnerabilities
 known at the time of the query. They do not replace a vulnerability scan of
 freshly built images or a review of the exact release commit.
 
+For a final-image vulnerability scan, rebuild with `--pull`, export the exact
+images with `docker save`, then run Trivy against each archive. The scanner
+database is cached under ignored `artifacts/trivy-cache/`:
+
+```bash
+mkdir -p artifacts/trivy-cache
+docker build --pull -t document-platform-api:audit .
+docker build --pull -t document-platform-console:audit apps/operator-console
+docker save -o artifacts/api-audit.tar document-platform-api:audit
+docker save -o artifacts/console-audit.tar document-platform-console:audit
+docker run --rm -v "$PWD/artifacts:/artifacts" -v "$PWD/artifacts/trivy-cache:/root/.cache/trivy" aquasec/trivy:0.74.0 image --input /artifacts/api-audit.tar --scanners vuln --severity HIGH,CRITICAL --format json --output /artifacts/api-cves.json
+docker run --rm -v "$PWD/artifacts:/artifacts" -v "$PWD/artifacts/trivy-cache:/root/.cache/trivy" aquasec/trivy:0.74.0 image --input /artifacts/console-audit.tar --scanners vuln --severity HIGH,CRITICAL --format json --output /artifacts/console-cves.json
+```
+
+Inspect each report's `Results[].Vulnerabilities`; a successful scanner exit
+does not mean zero findings. These local reports are not part of CI. Remove the
+large image archives after review.
+
 CI scans the complete Git history for committed secrets with Gitleaks. Run the
 same check locally with:
 
