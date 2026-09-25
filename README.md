@@ -472,9 +472,18 @@ mkdir -p artifacts
 uv export --preview-features sbom-export --format cyclonedx1.5 --no-dev --locked --offline --quiet --output-file artifacts/python-runtime.cdx.json
 ```
 
-This preview `uv` export describes Python packages from `uv.lock`, not the
-frontend, OS packages or final container image. It is an inventory, not a
-vulnerability scan.
+The frontend job likewise exports production dependencies from
+`apps/operator-console/pnpm-lock.yaml` as the `frontend-runtime-sbom` artifact.
+Generate it locally from `apps/operator-console` with:
+
+```bash
+mkdir -p ../../artifacts
+pnpm sbom --sbom-format cyclonedx --sbom-type application --lockfile-only --prod > ../../artifacts/frontend-runtime.cdx.json
+```
+
+The preview `uv` export and pnpm lockfile export are package inventories, not
+vulnerability scans. They do not inventory OS packages or the final images;
+the frontend export also excludes build-only dependencies.
 
 CI scans the complete Git history for committed secrets with Gitleaks. Run the
 same check locally with:
