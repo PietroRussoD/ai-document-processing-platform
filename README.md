@@ -80,7 +80,8 @@ HTTP / React -> application use cases -> domain rules
 ```
 
 See [architecture documentation](docs/architecture.md),
-[local security and limitations](docs/security-and-limitations.md) and
+[local security and limitations](docs/security-and-limitations.md),
+[vulnerability reporting](SECURITY.md) and
 [architectural decisions](docs/decisions/). The repeatable release checks are
 documented in the [v0.2 verification runbook](docs/runbooks/v0.2-verification.md).
 The review-resolution flow is documented in the
