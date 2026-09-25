@@ -37,6 +37,7 @@ machine and the private Compose network, not a public HTTP service.
 | --- | --- |
 | Unauthorized local access | Most HTTP endpoints and Temporal UI have no authentication; Grafana and PostgreSQL use documented development credentials. No TLS, per-user authorization or tenant isolation exists. |
 | Hostile PDFs | Size, page and parser checks limit routine inputs, but there is no malware scan, dedicated parser sandbox or container CPU/memory budget. Do not upload untrusted files. |
+| Vulnerable image packages | A 2026-09-25 Trivy scan of the rebuilt API image on Debian Trixie still reported 1 CRITICAL and 78 HIGH package findings, including `libxml2` and Tesseract. These counts are point-in-time scanner results, not distinct exploitable paths. Rebuild, rescan and review exposure before any release; do not claim a clean image. |
 | Data at rest | Local named volumes are not application-encrypted and have no managed backup or recovery policy. Database retention does not remove blob bytes. |
 | Operational assurance | Readiness and local smoke tests are not production SLOs, alerting or a security review. The UI has accessibility checks but no formal WCAG conformance claim. |
 

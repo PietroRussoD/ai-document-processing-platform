@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.13-slim-bookworm AS builder
+FROM python:3.13-slim-trixie AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:0.12.18 /uv /uvx /bin/
 ENV UV_COMPILE_BYTECODE=1 \
@@ -12,7 +12,7 @@ COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
 RUN uv sync --locked --no-dev --no-editable
 
-FROM python:3.13-slim-bookworm
+FROM python:3.13-slim-trixie
 
 RUN apt-get update \
     && apt-get install --no-install-recommends -y tesseract-ocr tesseract-ocr-eng \
