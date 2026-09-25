@@ -79,7 +79,8 @@ HTTP / React -> application use cases -> domain rules
                   PostgreSQL  local storage
 ```
 
-See [architecture documentation](docs/architecture.md) and
+See [architecture documentation](docs/architecture.md),
+[local security and limitations](docs/security-and-limitations.md) and
 [architectural decisions](docs/decisions/). The repeatable release checks are
 documented in the [v0.2 verification runbook](docs/runbooks/v0.2-verification.md).
 The review-resolution flow is documented in the
@@ -395,6 +396,7 @@ age, request rate and p95 latency. Dashboard and datasource changes belong in
 `ops/observability/grafana`; UI edits are intentionally disabled because
 version-controlled files are authoritative. The Compose profile retains local
 time-series and Grafana data and is not a production monitoring setup.
+Both observability ports bind to `127.0.0.1` in Compose.
 
 The versioned API contract is stored at
 [`docs/contracts/document-platform.openapi.json`](docs/contracts/document-platform.openapi.json).
