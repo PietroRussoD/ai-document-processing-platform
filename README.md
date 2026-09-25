@@ -464,6 +464,18 @@ Tests enforce branch coverage of at least 85%. The same command writes a local
 HTML report to `htmlcov/index.html` and a machine-readable report to
 `coverage.xml`. CI retains both as the `backend-coverage` artifact for 14 days.
 
+CI also exports the locked Python runtime dependencies as a CycloneDX 1.5 SBOM
+in the `python-runtime-sbom` artifact. Generate the same file locally with:
+
+```bash
+mkdir -p artifacts
+uv export --preview-features sbom-export --format cyclonedx1.5 --no-dev --locked --offline --quiet --output-file artifacts/python-runtime.cdx.json
+```
+
+This preview `uv` export describes Python packages from `uv.lock`, not the
+frontend, OS packages or final container image. It is an inventory, not a
+vulnerability scan.
+
 CI scans the complete Git history for committed secrets with Gitleaks. Run the
 same check locally with:
 

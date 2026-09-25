@@ -48,6 +48,20 @@ jobs:
       - name: Install locked dependencies
         run: uv sync --all-groups --locked
 
+      - name: Generate Python runtime SBOM
+        run: |
+          mkdir -p artifacts
+          uv export --preview-features sbom-export --format cyclonedx1.5 --no-dev --locked --offline --quiet --output-file artifacts/python-runtime.cdx.json
+          jq -e '.bomFormat == "CycloneDX" and .specVersion == "1.5" and .metadata.component.name == "ai-document-processing-platform" and ([.components[].name] | index("fastapi") != null and index("pytest") == null)' artifacts/python-runtime.cdx.json
+
+      - name: Upload Python runtime SBOM
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: python-runtime-sbom
+          path: artifacts/python-runtime.cdx.json
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Lint
         run: uv run ruff check .
 
