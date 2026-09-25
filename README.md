@@ -485,6 +485,22 @@ The preview `uv` export and pnpm lockfile export are package inventories, not
 vulnerability scans. They do not inventory OS packages or the final images;
 the frontend export also excludes build-only dependencies.
 
+For an optional inventory of freshly built local images, use Docker Scout:
+
+```bash
+docker build -t document-platform-api:sbom .
+docker build -t document-platform-console:sbom apps/operator-console
+mkdir -p artifacts
+DOCKER_SCOUT_OFFLINE=true docker scout sbom --format cyclonedx --output artifacts/api-image.cdx.json local://document-platform-api:sbom
+DOCKER_SCOUT_OFFLINE=true docker scout sbom --format cyclonedx --output artifacts/console-image.cdx.json local://document-platform-console:sbom
+```
+
+`local://` prevents a registry fallback, and Scout's offline mode avoids
+outbound lookups during analysis. These scans are not part of default
+CI, are not attached to published images, and do not replace the lockfile
+inventories: bundled frontend JavaScript may not appear as separate packages
+in an image scan. Rebuild before scanning to avoid inventorying an old tag.
+
 CI scans the complete Git history for committed secrets with Gitleaks. Run the
 same check locally with:
 
