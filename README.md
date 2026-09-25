@@ -431,6 +431,19 @@ uv run pyright
 uv run pytest
 ```
 
+From a fresh checkout, run the locked backend/frontend checks, Compose
+configuration validation and package SBOM exports together with:
+
+```bash
+bash scripts/verify_clean_checkout.sh
+```
+
+This requires Python 3.13, `uv`, Node.js 24, pnpm 11.23, `jq` and a running
+Docker daemon for Testcontainers. It does not start the application stack or
+run browser accessibility checks, Gitleaks or image scans; those remain
+separate checks. One real OCR integration test is skipped if Tesseract is not
+installed. Generated reports and SBOMs stay in ignored paths.
+
 Run the frontend quality gates with:
 
 ```bash
