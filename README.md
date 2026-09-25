@@ -514,6 +514,18 @@ CI, are not attached to published images, and do not replace the lockfile
 inventories: bundled frontend JavaScript may not appear as separate packages
 in an image scan. Rebuild before scanning to avoid inventorying an old tag.
 
+Before a release, run advisory checks against both lockfiles:
+
+```bash
+uv audit --locked
+cd apps/operator-console
+pnpm audit
+```
+
+These require access to the advisory services and report only vulnerabilities
+known at the time of the query. They do not replace a vulnerability scan of
+freshly built images or a review of the exact release commit.
+
 CI scans the complete Git history for committed secrets with Gitleaks. Run the
 same check locally with:
 

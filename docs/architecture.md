@@ -364,7 +364,8 @@ Concurrent uploads of identical bytes converge on one immutable blob. A
 pre-existing object that does not match its content-derived key is treated as
 an integrity conflict rather than overwritten. Temporary files are removed on
 success and handled failures; crash-orphan reconciliation is a later operational
-capability.
+capability. Current auditing can report old staged files but does not remove
+them.
 
 A read-only local inventory lists canonical published blob metadata and counts
 `.upload` files in `temporary` and `incoming` separately. It caps scanned
