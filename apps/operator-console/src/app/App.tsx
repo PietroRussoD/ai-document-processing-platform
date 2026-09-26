@@ -2,8 +2,11 @@ import { FileText } from "lucide-react";
 
 import { DocumentWorkQueuesPanel } from "../features/document-work-queues/DocumentWorkQueuesPanel";
 import { DocumentUploadPanel } from "../features/document-upload/DocumentUploadPanel";
+import { SystemMapPage } from "../features/system-map/SystemMapPage";
 
 export function App() {
+    const isSystemMap = window.location.pathname === "/system-map";
+
     return (
         <div className="min-h-screen bg-app-canvas text-app-foreground">
             <a
@@ -13,7 +16,7 @@ export function App() {
                 Skip to main content
             </a>
             <header className="border-b border-app-border bg-app-surface">
-                <div className="mx-auto flex h-16 max-w-6xl items-center gap-3 px-4 sm:px-6">
+                <div className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
                     <span className="grid size-9 place-items-center rounded bg-app-foreground text-white">
                         <FileText
                             aria-hidden="true"
@@ -29,6 +32,25 @@ export function App() {
                             Operator console
                         </p>
                     </div>
+                    <nav
+                        aria-label="Console views"
+                        className="ml-auto flex gap-4 text-sm"
+                    >
+                        <a
+                            aria-current={isSystemMap ? undefined : "page"}
+                            className={`font-semibold hover:text-app-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus ${isSystemMap ? "text-app-muted" : "text-app-accent"}`}
+                            href="/"
+                        >
+                            Documents
+                        </a>
+                        <a
+                            aria-current={isSystemMap ? "page" : undefined}
+                            className={`font-semibold hover:text-app-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus ${isSystemMap ? "text-app-accent" : "text-app-muted"}`}
+                            href="/system-map"
+                        >
+                            System Map
+                        </a>
+                    </nav>
                 </div>
             </header>
 
@@ -36,40 +58,46 @@ export function App() {
                 id="main-content"
                 className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12"
             >
-                <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
-                    <section aria-labelledby="intake-heading">
-                        <div className="mb-6">
-                            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-app-accent">
-                                Document intake
-                            </p>
-                            <h1
-                                id="intake-heading"
-                                className="text-3xl font-semibold sm:text-4xl"
-                            >
-                                Upload a business document
-                            </h1>
-                        </div>
-                        <DocumentUploadPanel />
-                    </section>
+                {isSystemMap ? (
+                    <SystemMapPage />
+                ) : (
+                    <>
+                        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
+                            <section aria-labelledby="intake-heading">
+                                <div className="mb-6">
+                                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-app-accent">
+                                        Document intake
+                                    </p>
+                                    <h1
+                                        id="intake-heading"
+                                        className="text-3xl font-semibold sm:text-4xl"
+                                    >
+                                        Upload a business document
+                                    </h1>
+                                </div>
+                                <DocumentUploadPanel />
+                            </section>
 
-                    <aside
-                        className="border-l-2 border-app-border pl-5"
-                        aria-labelledby="requirements-heading"
-                    >
-                        <h2
-                            id="requirements-heading"
-                            className="text-sm font-semibold"
-                        >
-                            File requirements
-                        </h2>
-                        <ul className="mt-3 space-y-2 text-sm text-app-muted">
-                            <li>PDF format</li>
-                            <li>Up to 20 MiB</li>
-                            <li>Up to 50 pages</li>
-                        </ul>
-                    </aside>
-                </div>
-                <DocumentWorkQueuesPanel />
+                            <aside
+                                className="border-l-2 border-app-border pl-5"
+                                aria-labelledby="requirements-heading"
+                            >
+                                <h2
+                                    id="requirements-heading"
+                                    className="text-sm font-semibold"
+                                >
+                                    File requirements
+                                </h2>
+                                <ul className="mt-3 space-y-2 text-sm text-app-muted">
+                                    <li>PDF format</li>
+                                    <li>Up to 20 MiB</li>
+                                    <li>Up to 50 pages</li>
+                                </ul>
+                            </aside>
+                        </div>
+                        <DocumentWorkQueuesPanel />
+                    </>
+                )}
             </main>
         </div>
     );
