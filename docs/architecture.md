@@ -4,35 +4,40 @@
 
 The platform accepts synthetic business documents and processes them
 asynchronously for validation and review. `v0.1` implemented the ingestion
-boundary; `v0.7` adds safe terminal-failure reconciliation to bounded
+boundary; `v0.7` added safe terminal-failure reconciliation to bounded
 operational telemetry, text extraction, OCR fallback, canonical-text selection,
 deterministic classification, invoice extraction, invoice validation,
 authenticated review resolution and immutable field-level corrections. It is
 designed as a local-first system: a clean default run does not require cloud
 credentials or a paid AI provider.
 
-## Implemented Components (`v0.7`)
+## Runtime System Map
 
 ```mermaid
 flowchart LR
-    Console[React operator console] --> API[FastAPI HTTP adapter]
-    API --> Application[Application use cases]
-    Application --> Domain[Domain rules]
-    Application --> PostgreSQL[(PostgreSQL)]
-    Application --> Storage[Local filesystem]
-    Application --> Temporal[Temporal]
-    Temporal --> Worker[Workflow activities]
-    Worker --> Text[PyMuPDF and Tesseract]
-    API --> Metrics[Prometheus metrics]
-    Metrics --> Prometheus[Local Prometheus]
-    Prometheus --> Grafana[Provisioned Grafana dashboard]
-    API --> Logs[Allowlisted JSON logs]
+    Console[React console and NGINX proxy] -->|HTTP| API[FastAPI API]
+    API -->|commit document and pending start| PostgreSQL[(PostgreSQL)]
+    API -->|store validated PDF| Storage[(Local blob volume)]
+    Dispatcher[Workflow dispatcher] -->|claim pending start| PostgreSQL
+    Dispatcher -->|start workflow after commit| Temporal[Temporal]
+    Temporal -->|schedule activities| Worker[Temporal worker]
+    Worker -->|read PDF| Storage
+    Worker -->|persist outputs and state| PostgreSQL
+    Worker -->|extract text| PDF[PyMuPDF and Tesseract]
+    Prometheus[Prometheus] -.->|scrape /metrics| API
+    Grafana[Grafana] -.->|query| Prometheus
 ```
 
 PostgreSQL is authoritative for documents, processing runs, upload idempotency
 records, immutable processing outputs and user-facing status projections.
 Filesystem storage owns uploaded document blobs. Temporal owns durable workflow
 execution history while PostgreSQL remains authoritative for business state.
+The dispatcher starts workflows from committed PostgreSQL requests; the API
+does not start them inside the upload transaction. The console reads business
+state through the API, not directly from Temporal or PostgreSQL. Dashed edges
+are the optional local observability profile. The evaluation-only Ollama
+adapter is not part of this processing path.
+
 Liveness reports only that the API process is responding; readiness also checks
 PostgreSQL with a lightweight query and does not claim that Temporal workers are
 available.
@@ -74,7 +79,7 @@ must commit explicitly after all related writes succeed; leaving the context
 without a commit, including after an exception, rolls the transaction back.
 Document, initial processing run, upload-idempotency result and a pending
 workflow-start request are persisted atomically. The request uses the processing
-run ID to derive a stable future Temporal workflow ID. A dispatcher will start
+run ID to derive a stable Temporal workflow ID. A dispatcher starts
 that workflow only after the transaction commits.
 
 ## Durable Workflow Handoff
@@ -118,15 +123,16 @@ sequenceDiagram
     end
 ```
 
-`v0.4` currently implements durable request claiming, application dispatch and
-the Temporal activity set for text extraction, OCR, selection, classification,
-invoice extraction, validation and lifecycle application. The Temporal adapter starts the stable workflow ID
-with an existing-running workflow treated as the same successful handoff. A
-separate dispatcher process owns the Temporal connection and polling loop; it
-is deliberately independent from the HTTP API so network I/O never occurs
-inside the upload transaction. The worker transitions `UPLOADED -> PROCESSING`
-and `QUEUED -> RUNNING` atomically, then reads the immutable blob and persists
-one bounded PyMuPDF embedded-text extraction for that run. The extraction row
+The implementation has durable request claiming, application dispatch and
+Temporal activities for text extraction, OCR, selection, classification,
+invoice extraction, validation and lifecycle application. The Temporal adapter
+starts the stable workflow ID, treating an already-running workflow as the
+same successful handoff. A separate dispatcher process owns the Temporal
+connection and polling loop. It is independent from the HTTP API, so network
+I/O never occurs inside the upload transaction. The worker transitions
+`UPLOADED -> PROCESSING` and `QUEUED -> RUNNING` atomically, then reads the
+immutable blob and persists one bounded PyMuPDF embedded-text extraction for
+that run. The extraction row
 is the idempotency boundary for activity retries: a saved row is reused without
 reading or parsing the PDF again. Its persisted quality is a deterministic
 `SUFFICIENT` or `OCR_RECOMMENDED` decision based on a configured minimum count
