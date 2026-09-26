@@ -5,8 +5,8 @@ data from business documents.
 
 ## Status
 
-The `v0.8.0` release candidate reports package version `0.8.0`; it is not
-tagged yet.
+The `v0.8.0` packages report version `0.8.0`. This is a local demonstration
+release, not a production deployment.
 
 The [`v0.7.0` tagged release](https://github.com/PietroRussoD/ai-document-processing-platform/tree/v0.7.0),
 documented in the [release notes](docs/releases/v0.7.0.md), adds operational
@@ -46,8 +46,8 @@ queues, refresh them and open the existing document detail and review flows.
 See the [v0.7.0 release notes](docs/releases/v0.7.0.md). The current `v0.8.0`
 work adds bounded database retention, report-only blob auditing, an opt-in
 local processing stack and delivery/security checks. The
-[v0.8.0 candidate notes](docs/releases/v0.8.0.md) distinguish verified work
-from the remaining release gate. Physical blob deletion, malware scanning and
+[v0.8.0 release notes](docs/releases/v0.8.0.md) describe the verified scope
+and its limitations. Physical blob deletion, malware scanning and
 production deployment are not implemented.
 
 ## Implemented Technology
