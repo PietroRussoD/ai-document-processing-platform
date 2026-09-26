@@ -44,8 +44,10 @@ for the current run. A paginated API exposes active, review and failed work
 queues as metadata-only summaries. The operator console can browse these
 queues, refresh them and open the existing document detail and review flows.
 See the [v0.7.0 release notes](docs/releases/v0.7.0.md). The current `v0.8.0`
-development work adds explicit, dry-run-first database retention in bounded
-batches. Physical blob deletion remains disabled; malware scanning and
+work adds bounded database retention, report-only blob auditing, an opt-in
+local processing stack and delivery/security checks. The
+[v0.8.0 candidate notes](docs/releases/v0.8.0.md) distinguish verified work
+from the remaining release gate. Physical blob deletion, malware scanning and
 production deployment are not implemented.
 
 ## Implemented Technology
