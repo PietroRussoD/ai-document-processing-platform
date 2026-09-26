@@ -14,6 +14,9 @@ RUN uv sync --locked --no-dev --no-editable
 
 FROM python:3.13-slim-trixie
 
+# Runtime dependencies come from the builder's virtual environment.
+RUN python -m pip uninstall --yes --root-user-action=ignore pip
+
 RUN apt-get update \
     && apt-get install --no-install-recommends -y tesseract-ocr tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/* \
