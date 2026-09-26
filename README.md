@@ -5,8 +5,9 @@ data from business documents.
 
 ## Status
 
-The `v0.8.0` packages report version `0.8.0`. This is a local demonstration
-release, not a production deployment.
+Development now targets `v0.9.0`; the backend reports `0.9.0.dev0` until that
+release is cut. The tagged `v0.8.0` remains a local demonstration release,
+not a production deployment.
 
 The [`v0.7.0` tagged release](https://github.com/PietroRussoD/ai-document-processing-platform/tree/v0.7.0),
 documented in the [release notes](docs/releases/v0.7.0.md), adds operational
@@ -43,12 +44,12 @@ failed. The status API and console expose the bounded failure stage and code
 for the current run. A paginated API exposes active, review and failed work
 queues as metadata-only summaries. The operator console can browse these
 queues, refresh them and open the existing document detail and review flows.
-See the [v0.7.0 release notes](docs/releases/v0.7.0.md). The current `v0.8.0`
-work adds bounded database retention, report-only blob auditing, an opt-in
-local processing stack and delivery/security checks. The
-[v0.8.0 release notes](docs/releases/v0.8.0.md) describe the verified scope
-and its limitations. Physical blob deletion, malware scanning and
-production deployment are not implemented.
+See the [v0.7.0 release notes](docs/releases/v0.7.0.md). `v0.8.0` adds bounded
+database retention, report-only blob auditing, an opt-in local processing
+stack and delivery/security checks. Its [release notes](docs/releases/v0.8.0.md)
+describe the verified scope and limitations. `v0.9.0` development is targeting
+a System Map and reproducible demo walkthrough. Physical blob deletion,
+malware scanning and production deployment are not implemented.
 
 ## Implemented Technology
 
