@@ -56,8 +56,9 @@ and reproducible demo walkthrough. Its
 [release notes](docs/releases/v0.9.0.md) record the local verification and
 limits. `v1.0.0` development now first fixes unsupported-document outcomes.
 The current upload workflow does not call an AI model. A separate advisory
-proposal use case and immutable store are implemented, but are not yet exposed
-through the API or invoked by Temporal; deterministic extraction remains
+proposal use case and immutable store are implemented. The worker registers an
+advisory proposal activity, but the current workflow does not schedule it and
+the proposal is not exposed through the API; deterministic extraction remains
 authoritative and structured extraction is invoice-only. A bounded local-model
 workflow and human evaluation view are planned before the stable release. This
 is a local portfolio demo, not a public backend. Physical blob deletion,

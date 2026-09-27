@@ -185,6 +185,11 @@ services:
     environment:
       DOCUMENT_PLATFORM_DATABASE_URL: postgresql+asyncpg://document_platform:local-development-only@postgres:5432/document_platform
       DOCUMENT_PLATFORM_TEMPORAL_TARGET_HOST: temporal:7233
+      DOCUMENT_PLATFORM_OLLAMA_BASE_URL: ${OLLAMA_COMPOSE_BASE_URL:-http://host.docker.internal:11434}
+      DOCUMENT_PLATFORM_OLLAMA_MODEL_REFERENCE: ${DOCUMENT_PLATFORM_OLLAMA_MODEL_REFERENCE:-qwen3:8b}
+      DOCUMENT_PLATFORM_OLLAMA_TIMEOUT_SECONDS: ${DOCUMENT_PLATFORM_OLLAMA_TIMEOUT_SECONDS:-60}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     volumes:
       - document-platform-data:/app/data

@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     temporal_target_host: Annotated[str, Field(min_length=1, max_length=255)] = "localhost:7233"
     temporal_namespace: Annotated[str, Field(min_length=1, max_length=255)] = "default"
     temporal_task_queue: Annotated[str, Field(min_length=1, max_length=255)] = "document-processing"
+    ollama_base_url: Annotated[str, Field(min_length=1)] = "http://localhost:11434"
+    ollama_model_reference: Annotated[str, Field(min_length=1, max_length=200)] = "qwen3:8b"
+    ollama_model_digest: str | None = None
+    ollama_timeout_seconds: Annotated[float, Field(gt=0, le=120)] = 60.0
     dispatcher_owner: Annotated[str, Field(min_length=1, max_length=64)] = "local-dispatcher"
     dispatcher_batch_size: Annotated[int, Field(ge=1, le=100)] = 10
     dispatcher_lease_seconds: Annotated[float, Field(gt=0, le=300)] = 30.0

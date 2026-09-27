@@ -33,6 +33,9 @@ def test_uses_safe_local_defaults(
     assert settings.temporal_target_host == "localhost:7233"
     assert settings.temporal_namespace == "default"
     assert settings.temporal_task_queue == "document-processing"
+    assert settings.ollama_base_url == "http://localhost:11434"
+    assert settings.ollama_model_reference == "qwen3:8b"
+    assert settings.ollama_timeout_seconds == 60.0
     assert settings.dispatcher_owner == "local-dispatcher"
     assert settings.dispatcher_batch_size == 10
     assert settings.dispatcher_lease_seconds == 30.0
@@ -91,6 +94,11 @@ def test_rejects_a_non_positive_extracted_text_limit() -> None:
 def test_rejects_an_invalid_dispatcher_batch_size() -> None:
     with pytest.raises(ValidationError):
         Settings(dispatcher_batch_size=0)
+
+
+def test_rejects_an_ollama_timeout_above_the_bound() -> None:
+    with pytest.raises(ValidationError):
+        Settings(ollama_timeout_seconds=121)
 
 
 def test_rejects_an_invalid_dispatcher_poll_interval() -> None:

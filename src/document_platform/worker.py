@@ -13,6 +13,7 @@ from document_platform.adapters.inbound.temporal import (
     ExtractDocumentTextActivity,
     ExtractInvoiceActivity,
     ExtractOcrTextActivity,
+    ProposeInvoiceFieldsActivity,
     RecordProcessingRunFailureActivity,
     SelectProcessingTextActivity,
     StartProcessingRunActivity,
@@ -20,6 +21,10 @@ from document_platform.adapters.inbound.temporal import (
 )
 from document_platform.adapters.outbound.filesystem import LocalBlobStore
 from document_platform.adapters.outbound.ocr import TesseractPdfOcrExtractor
+from document_platform.adapters.outbound.ollama import (
+    OllamaInvoiceProposalAdapter,
+    OllamaInvoiceProposalSettings,
+)
 from document_platform.adapters.outbound.pdf import (
     LocalFaultInjectingPdfTextExtractor,
     PyMuPdfTextExtractor,
@@ -33,6 +38,7 @@ from document_platform.application.commands import (
     ExtractDocumentTextHandler,
     ExtractInvoiceHandler,
     ExtractOcrTextHandler,
+    ProposeInvoiceFieldsHandler,
     RecordProcessingRunFailureHandler,
     SelectProcessingTextHandler,
     StartProcessingRunHandler,
@@ -129,6 +135,19 @@ async def run_worker(settings: Settings) -> None:
                 clock=lambda: datetime.now(UTC),
             )
         )
+        invoice_proposal_activity = ProposeInvoiceFieldsActivity(
+            ProposeInvoiceFieldsHandler(
+                unit_of_work_factory=unit_of_work_factory,
+                proposal_generator=OllamaInvoiceProposalAdapter(
+                    settings=OllamaInvoiceProposalSettings(
+                        base_url=settings.ollama_base_url,
+                        model_reference=settings.ollama_model_reference,
+                        model_digest=settings.ollama_model_digest,
+                        timeout_seconds=settings.ollama_timeout_seconds,
+                    )
+                ),
+            )
+        )
         invoice_validation_activity = ValidateInvoiceActivity(
             ValidateInvoiceHandler(
                 unit_of_work_factory=unit_of_work_factory,
@@ -165,6 +184,7 @@ async def run_worker(settings: Settings) -> None:
                 selection_activity.select_processing_text,
                 classification_activity.classify_document,
                 invoice_extraction_activity.extract_invoice,
+                invoice_proposal_activity.propose_invoice_fields,
                 invoice_validation_activity.validate_invoice,
                 invoice_validation_application_activity.apply_invoice_validation,
                 completion_activity.complete_processing_run,
