@@ -55,11 +55,13 @@ describe the verified scope and limitations. `v0.9.0` includes a System Map
 and reproducible demo walkthrough. Its
 [release notes](docs/releases/v0.9.0.md) record the local verification and
 limits. `v1.0.0` development now first fixes unsupported-document outcomes.
-The current upload workflow does not call an AI model: Ollama remains an
-isolated evaluation experiment, and structured extraction is invoice-only. A
-local-model workflow and human evaluation view are planned before the stable
-release. This is a local portfolio demo, not a public backend. Physical blob
-deletion, malware scanning and production deployment are not implemented.
+The current upload workflow does not call an AI model. A separate advisory
+proposal use case and immutable store are implemented, but are not yet exposed
+through the API or invoked by Temporal; deterministic extraction remains
+authoritative and structured extraction is invoice-only. A bounded local-model
+workflow and human evaluation view are planned before the stable release. This
+is a local portfolio demo, not a public backend. Physical blob deletion,
+malware scanning and production deployment are not implemented.
 
 ## Implemented Technology
 
@@ -111,7 +113,7 @@ Failure recording and recovery through a replacement run are documented in the
 The current durable decisions are recorded in
 [ADR 0001](docs/decisions/0001-pragmatic-ports-and-adapters.md),
 [ADR 0002](docs/decisions/0002-preserve-operator-corrections-separately.md)
-and [ADR 0003](docs/decisions/0003-keep-local-models-evaluation-only.md).
+and [ADR 0003](docs/decisions/0003-keep-local-models-advisory.md).
 Operational telemetry is defined in
 [ADR 0004](docs/decisions/0004-expose-low-cardinality-prometheus-metrics.md),
 with bounded request correlation covered by

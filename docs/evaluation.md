@@ -21,10 +21,12 @@ no timestamps, so reports can be diffed between implementations.
 
 ## Local Ollama spike
 
-The Ollama comparison is an isolated local experiment. It does not replace the
-deterministic extraction policy, participate in Temporal workflows, or persist
-model output. It sends the same corpus text to Ollama's structured-output API
-and validates each response against an explicit JSON schema before evaluation.
+The Ollama comparison command is an isolated local experiment. It does not
+replace deterministic extraction, participate in Temporal workflows or persist
+model output. A separate advisory proposal use case and immutable store exist,
+but are not invoked by the current API or workflow. The comparison sends the
+same corpus text to Ollama's structured-output API and validates each response
+against an explicit JSON schema before evaluation.
 Thinking is explicitly disabled because it adds reasoning-token latency without
 improving the five-field structured extraction contract.
 

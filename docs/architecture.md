@@ -35,8 +35,8 @@ execution history while PostgreSQL remains authoritative for business state.
 The dispatcher starts workflows from committed PostgreSQL requests; the API
 does not start them inside the upload transaction. The console reads business
 state through the API, not directly from Temporal or PostgreSQL. Dashed edges
-are the optional local observability profile. The evaluation-only Ollama
-adapter is not part of this processing path.
+are the optional local observability profile. The local proposal adapter and
+persistence are not invoked by the current processing workflow.
 
 Liveness reports only that the API process is responding; readiness also checks
 PostgreSQL with a lightweight query and does not claim that Temporal workers are
@@ -51,10 +51,12 @@ flowchart LR
     Evaluator --> Ollama[Local Ollama comparison]
 ```
 
-The local Ollama client is an evaluation-only adapter. It is not wired to the
-Temporal workflow, cannot persist model output, and is not an authority for
-business state. Any future workflow integration requires an explicit policy
-gate, a broader corpus and an independently measured improvement.
+The evaluation CLI remains an isolated comparison. Separately, the application
+has an advisory proposal use case and immutable PostgreSQL storage. Neither is
+called by the current Temporal workflow or exposed through the API. The local
+model is never an authority for deterministic extraction or review decisions.
+See [ADR 0003](decisions/0003-keep-local-models-advisory.md) for the workflow
+gate and failure-handling requirements.
 
 ## Dependency Direction
 
@@ -63,10 +65,10 @@ adapters -> application -> domain
 ```
 
 The domain does not import framework, database, workflow, OCR, storage or model
-SDK types. The application defines ports only for boundaries that are external,
-fallible or plausibly replaceable: repositories, object storage, workflow start
-and PDF text extraction. The evaluation-only Ollama client deliberately has no
-application port until it meets a justified workflow-integration threshold.
+SDK types. The application defines ports for external, fallible or replaceable
+boundaries, including repositories, object storage, workflow start, PDF text
+extraction and the local model proposal generator. The proposal port is not yet
+part of the authoritative processing workflow.
 
 Temporal workflows are deterministic orchestration. Database, filesystem, OCR,
 clock and model calls happen in Activities, never directly inside workflow code.
@@ -542,7 +544,7 @@ tests/e2e/           API and browser journeys
 | Boundary | Current implementation | Planned extension |
 | --- | --- | --- |
 | Object storage | Local filesystem | S3-compatible adapter |
-| Invoice extraction | Deterministic extraction, validation and immutable review corrections | Evaluation-only Ollama comparison; workflow use requires a policy gate |
+| Invoice extraction | Deterministic extraction, validation and immutable review corrections | Separate advisory local-model proposal; Temporal/API invocation awaits the ADR 0003 gate |
 | Text extraction | Embedded/OCR extraction and persisted canonical source selection | OCR quality calibration and language policy |
 | Document classification | Deterministic canonical-text keyword policy | Evaluated local model policy |
 | Workflow execution | Temporal development server with local worker | Managed/self-hosted Temporal later |
@@ -557,7 +559,7 @@ records the demo trust boundary and controls not yet implemented.
 
 - [ADR 0001: Pragmatic Ports and Adapters](decisions/0001-pragmatic-ports-and-adapters.md)
 - [ADR 0002: Preserve Operator Corrections Separately from Extraction](decisions/0002-preserve-operator-corrections-separately.md)
-- [ADR 0003: Keep Local Models Evaluation-Only Until a Policy Gate Is Met](decisions/0003-keep-local-models-evaluation-only.md)
+- [ADR 0003: Keep Local Model Output Advisory](decisions/0003-keep-local-models-advisory.md)
 - [ADR 0004: Expose Low-Cardinality Prometheus Metrics](decisions/0004-expose-low-cardinality-prometheus-metrics.md)
 - [ADR 0005: Use Bounded HTTP Correlation Identifiers](decisions/0005-use-bounded-http-correlation-identifiers.md)
 - [ADR 0006: Emit Allowlisted JSON Application Logs](decisions/0006-emit-allowlisted-json-application-logs.md)
