@@ -149,7 +149,9 @@ async def run_worker(settings: Settings) -> None:
                         timeout_seconds=settings.ollama_timeout_seconds,
                     )
                 ),
-            )
+            ),
+            enabled=settings.ollama_enabled,
+            max_concurrent_requests=settings.ollama_max_concurrent_requests,
         )
         invoice_proposal_failure_activity = RecordInvoiceProposalFailureActivity(
             RecordInvoiceProposalFailureHandler(

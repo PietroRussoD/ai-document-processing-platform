@@ -35,8 +35,9 @@ execution history while PostgreSQL remains authoritative for business state.
 The dispatcher starts workflows from committed PostgreSQL requests; the API
 does not start them inside the upload transaction. The console reads business
 state through the API, not directly from Temporal or PostgreSQL. Dashed edges
-are the optional local observability profile. The local proposal adapter and
-persistence are not invoked by the current processing workflow.
+are the optional local observability profile. The invoice workflow invokes the
+local proposal adapter only after deterministic completion and only when the
+worker's Ollama setting is enabled.
 
 Liveness reports only that the API process is responding; readiness also checks
 PostgreSQL with a lightweight query and does not claim that Temporal workers are
@@ -51,17 +52,39 @@ flowchart LR
     Evaluator --> Ollama[Local Ollama comparison]
 ```
 
-The evaluation CLI remains an isolated comparison. Separately, the application
-has an advisory proposal use case and immutable PostgreSQL storage. A Temporal
-activity is registered in the worker, but the current workflow does not schedule
-it and proposals are not exposed through the API. Terminal provider failures
-have a separate immutable repository keyed by processing run; it does not
-alter the document's processing status. Proposal and terminal-failure writes
-lock the same processing-run row and reject the opposite outcome. A recording
-activity is registered but not scheduled by the current workflow. The local
-model is never an authority for deterministic extraction or review decisions.
-See [ADR 0003](decisions/0003-keep-local-models-advisory.md) for the workflow
-gate and failure-handling requirements.
+The evaluation CLI remains an isolated comparison. Separately, the invoice
+workflow now schedules advisory proposal generation after deterministic
+validation has completed. The activity exits immediately when Ollama is
+disabled (the default). When enabled, it allows one concurrent model call per
+worker by default, with at most two attempts, 150 seconds per attempt and five
+minutes total. Terminal provider errors are recorded as safe codes in an
+immutable table without changing document status. Proposal and failure writes
+lock the same processing-run row and reject the opposite outcome. Proposals and
+failures are not yet exposed through the API. The local model is never an
+authority for deterministic extraction or review decisions. Old workflow
+histories retain their command sequence through the
+`advisory-invoice-proposal-v1` Temporal patch. See
+[ADR 0003](decisions/0003-keep-local-models-advisory.md).
+
+```mermaid
+sequenceDiagram
+    participant W as Temporal workflow
+    participant D as Deterministic activities
+    participant A as Advisory activity
+    participant DB as PostgreSQL
+    W->>D: Extract, validate and complete invoice
+    opt New workflow history
+        W->>A: Propose invoice fields
+        alt Ollama disabled
+            A-->>W: Skip without provider call
+        else Proposal generated
+            A->>DB: Save immutable proposal
+            A-->>W: Complete
+        else Provider failure after bounded retries
+            W->>DB: Record safe terminal failure via activity
+        end
+    end
+```
 
 ## Dependency Direction
 
@@ -72,8 +95,8 @@ adapters -> application -> domain
 The domain does not import framework, database, workflow, OCR, storage or model
 SDK types. The application defines ports for external, fallible or replaceable
 boundaries, including repositories, object storage, workflow start, PDF text
-extraction and the local model proposal generator. The proposal port is not yet
-part of the authoritative processing workflow.
+extraction and the local model proposal generator. Model proposals remain
+advisory, outside the authoritative extraction and review result.
 
 Temporal workflows are deterministic orchestration. Database, filesystem, OCR,
 clock and model calls happen in Activities, never directly inside workflow code.
@@ -549,7 +572,7 @@ tests/e2e/           API and browser journeys
 | Boundary | Current implementation | Planned extension |
 | --- | --- | --- |
 | Object storage | Local filesystem | S3-compatible adapter |
-| Invoice extraction | Deterministic extraction, validation and immutable review corrections | Separate advisory local-model proposal; Temporal/API invocation awaits the ADR 0003 gate |
+| Invoice extraction | Deterministic extraction, validation, immutable review corrections and opt-in advisory local-model proposal after completion | API projection and human comparison view for advisory output |
 | Text extraction | Embedded/OCR extraction and persisted canonical source selection | OCR quality calibration and language policy |
 | Document classification | Deterministic canonical-text keyword policy | Evaluated local model policy |
 | Workflow execution | Temporal development server with local worker | Managed/self-hosted Temporal later |

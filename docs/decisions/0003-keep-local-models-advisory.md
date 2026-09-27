@@ -25,11 +25,11 @@ to replace deterministic extraction or to approve a document automatically.
 - Only a local Ollama provider is in scope. The selected text is bounded and
   transient; prompts, source text and raw model responses are not persisted or
   logged.
-- The proposal use case and persistence are implemented, but the ordinary
-  Temporal workflow does not invoke them yet. Before adding that workflow path,
-  model failures must have a durable, user-visible outcome distinct from
-  document failure; activity timeout/retry ownership and workflow-history
-  compatibility must also be tested.
+- The invoice workflow invokes the advisory activity only after deterministic
+  completion and only in histories with the `advisory-invoice-proposal-v1`
+  patch. The worker skips the model when disabled (the default). Provider
+  failures use bounded Temporal retries and a separate durable outcome;
+  operator visibility remains pending.
 - The current benchmark is evidence for an advisory demo only, not a real-world
   accuracy claim. Any later move toward authoritative extraction requires a
   broader versioned corpus and measured policy gate.
@@ -39,14 +39,14 @@ to replace deterministic extraction or to approve a document automatically.
 - Existing deterministic processing remains unchanged and works without Ollama.
 - The AI proposal can be compared with deterministic output without conflating
   their provenance or trust level.
-- Provider outages must not turn a usable deterministic result into a failed
-  document when workflow integration is introduced.
+- Provider outages do not turn a usable deterministic result into a failed
+  document; the failure-recording activity writes a separate outcome after
+  bounded retries.
 - Provider timeout, unavailability and invalid response envelopes have separate
   safe error codes. A response body with invalid invoice JSON remains an
   `INVALID` proposal, not a provider outage. A separate immutable persistence
   contract now stores terminal provider failures without failing the document.
   The proposal and failure repositories serialize writes per run and reject
-  opposite outcomes. The failure-recording activity is registered, but workflow
-  scheduling after retries and operator visibility remain pending.
+  opposite outcomes. Operator visibility remains pending.
 - A public demo must disclose the local model, benchmark limitations and human
   review requirement.

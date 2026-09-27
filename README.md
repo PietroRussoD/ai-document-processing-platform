@@ -55,22 +55,29 @@ describe the verified scope and limitations. `v0.9.0` includes a System Map
 and reproducible demo walkthrough. Its
 [release notes](docs/releases/v0.9.0.md) record the local verification and
 limits. `v1.0.0` development now first fixes unsupported-document outcomes.
-The current upload workflow does not call an AI model. A separate advisory
-proposal use case and immutable store are implemented. The worker registers an
-advisory proposal activity, but the current workflow does not schedule it and
-the proposal is not exposed through the API; deterministic extraction remains
-authoritative and structured extraction is invoice-only. A bounded local-model
-workflow and human evaluation view are planned before the stable release. This
-is a local portfolio demo, not a public backend. Physical blob deletion,
-malware scanning and production deployment are not implemented.
+The invoice workflow finishes deterministic extraction and validation before
+its advisory AI stage. Local Ollama calls are disabled by default; set
+`DOCUMENT_PLATFORM_OLLAMA_ENABLED=true` on the worker and run Ollama with the
+configured model to generate proposals. Deterministic extraction remains
+authoritative and structured extraction is invoice-only. Proposals and provider
+failures are not yet exposed through the API or operator console. This is a
+local portfolio demo, not a public backend. Physical blob deletion, malware
+scanning and production deployment are not implemented.
 
 The model adapter classifies provider timeouts, unavailability and invalid
 response envelopes using safe error codes. A separate immutable PostgreSQL
 record can store a terminal provider failure without changing document status.
-The worker registers a separate recording activity. Repository writes serialize
-on the processing run so a proposal and a failure cannot both be stored through
-the application. The current workflow does not schedule either AI activity,
-and the operator console does not show these outcomes yet.
+The workflow makes at most two provider attempts within a five-minute
+total bound, then records the safe terminal code without failing the document.
+Invalid response envelopes are non-retryable; malformed invoice JSON content
+is saved as an `INVALID` proposal. The per-worker model concurrency limit is
+one by default. Repository writes serialize on the processing run so a proposal
+and a failure cannot both be stored through the application.
+
+For a host-run worker, the default Ollama URL is `http://localhost:11434`. In
+Compose, the worker uses `http://host.docker.internal:11434`; set
+`OLLAMA_COMPOSE_BASE_URL` if Ollama is reachable at a different address. The
+Compose stack does not start or download a model server.
 
 ## Implemented Technology
 

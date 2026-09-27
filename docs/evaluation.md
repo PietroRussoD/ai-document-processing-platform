@@ -5,7 +5,7 @@ structured invoice extraction. It contains no customer documents or production
 data. Each case defines canonical text and the exact expected invoice fields.
 
 The deterministic policy is evaluated against this corpus in the ordinary test
-suite. A future Ollama adapter must use the same corpus and report per-field
+suite. The local Ollama comparison uses the same corpus and reports per-field
 exact matches separately from operational metrics such as latency and failure
 rate. A result from this corpus is not a claim of real-world model accuracy.
 
@@ -22,9 +22,9 @@ no timestamps, so reports can be diffed between implementations.
 ## Local Ollama spike
 
 The Ollama comparison command is an isolated local experiment. It does not
-replace deterministic extraction, participate in Temporal workflows or persist
-model output. A separate advisory proposal use case and immutable store exist,
-but are not invoked by the current API or workflow. The comparison sends the
+replace deterministic extraction or persist its comparison output. Separately,
+the opt-in invoice workflow can persist an advisory proposal after deterministic
+completion; this is not exposed by the current API. The comparison sends the
 same corpus text to Ollama's structured-output API and validates each response
 against an explicit JSON schema before evaluation.
 Thinking is explicitly disabled because it adds reasoning-token latency without

@@ -5,7 +5,7 @@ from typing import cast
 
 from temporalio import workflow
 from temporalio.common import RetryPolicy
-from temporalio.exceptions import ActivityError, RetryState
+from temporalio.exceptions import ActivityError, ApplicationError, RetryState, TimeoutError
 
 from document_platform.application.temporal_contracts import (
     APPLY_INVOICE_VALIDATION_ACTIVITY,
@@ -14,16 +14,25 @@ from document_platform.application.temporal_contracts import (
     EXTRACT_DOCUMENT_TEXT_ACTIVITY,
     EXTRACT_INVOICE_ACTIVITY,
     EXTRACT_OCR_TEXT_ACTIVITY,
+    INVOICE_PROPOSAL_FAILURE_TYPE_PREFIX,
     PROCESS_BUSINESS_DOCUMENT_WORKFLOW,
+    PROPOSE_INVOICE_FIELDS_ACTIVITY,
+    RECORD_INVOICE_PROPOSAL_FAILURE_ACTIVITY,
     RECORD_PROCESSING_RUN_FAILURE_ACTIVITY,
     SELECT_PROCESSING_TEXT_ACTIVITY,
     START_PROCESSING_RUN_ACTIVITY,
     VALIDATE_INVOICE_ACTIVITY,
 )
-from document_platform.domain.processing import ProcessingFailureCode, ProcessingStage
+from document_platform.domain.processing import (
+    InvoiceProposalGenerationFailureCode,
+    ProcessingFailureCode,
+    ProcessingStage,
+)
 
 _ACTIVITY_RETRY_POLICY = RetryPolicy(maximum_attempts=3)
 _FAILURE_RECORDING_RETRY_POLICY = RetryPolicy(maximum_attempts=3)
+_PROPOSAL_RETRY_POLICY = RetryPolicy(maximum_attempts=2)
+_ADVISORY_PROPOSAL_PATCH = "advisory-invoice-proposal-v1"
 
 
 @workflow.defn(name=PROCESS_BUSINESS_DOCUMENT_WORKFLOW)
@@ -82,6 +91,8 @@ class ProcessBusinessDocumentWorkflow:
                 ProcessingStage.VALIDATION_APPLICATION,
                 timeout=timedelta(seconds=30),
             )
+            if workflow.patched(_ADVISORY_PROPOSAL_PATCH):
+                await _execute_advisory_proposal(processing_run_id)
         else:
             await _execute_processing_stage(
                 COMPLETE_PROCESSING_RUN_ACTIVITY,
@@ -121,3 +132,43 @@ def classify_activity_failure(error: ActivityError) -> ProcessingFailureCode:
     if error.retry_state is RetryState.TIMEOUT:
         return ProcessingFailureCode.ACTIVITY_TIMEOUT
     return ProcessingFailureCode.ACTIVITY_RETRY_EXHAUSTED
+
+
+async def _execute_advisory_proposal(processing_run_id: str) -> None:
+    try:
+        await workflow.execute_activity(
+            PROPOSE_INVOICE_FIELDS_ACTIVITY,
+            processing_run_id,
+            start_to_close_timeout=timedelta(seconds=150),
+            schedule_to_close_timeout=timedelta(minutes=5),
+            retry_policy=_PROPOSAL_RETRY_POLICY,
+        )
+    except ActivityError as error:
+        code = classify_invoice_proposal_failure(error)
+        if code is None:
+            raise
+        await workflow.execute_activity(
+            RECORD_INVOICE_PROPOSAL_FAILURE_ACTIVITY,
+            args=[processing_run_id, code.value],
+            start_to_close_timeout=timedelta(seconds=30),
+            retry_policy=_FAILURE_RECORDING_RETRY_POLICY,
+        )
+
+
+def classify_invoice_proposal_failure(
+    error: ActivityError,
+) -> InvoiceProposalGenerationFailureCode | None:
+    cause = error.cause
+    if (
+        isinstance(cause, ApplicationError)
+        and cause.type is not None
+        and cause.type.startswith(INVOICE_PROPOSAL_FAILURE_TYPE_PREFIX)
+    ):
+        raw_code = cause.type.removeprefix(INVOICE_PROPOSAL_FAILURE_TYPE_PREFIX)
+        try:
+            return InvoiceProposalGenerationFailureCode(raw_code)
+        except ValueError:
+            return None
+    if isinstance(cause, TimeoutError) or error.retry_state is RetryState.TIMEOUT:
+        return InvoiceProposalGenerationFailureCode.TIMEOUT
+    return None
