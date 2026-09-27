@@ -5,8 +5,9 @@ data from business documents.
 
 ## Status
 
-The `v0.9.0` packages report version `0.9.0`. This is a local demonstration
-release for synthetic documents, not a production deployment.
+Development now targets `v1.0.0`; the packages report `1.0.0.dev0` and
+`1.0.0-dev.0` until that release is cut. The tagged `v0.9.0` remains a local
+demonstration release for synthetic documents, not a production deployment.
 
 The [`v0.7.0` tagged release](https://github.com/PietroRussoD/ai-document-processing-platform/tree/v0.7.0),
 documented in the [release notes](docs/releases/v0.7.0.md), adds operational
@@ -49,7 +50,9 @@ stack and delivery/security checks. Its [release notes](docs/releases/v0.8.0.md)
 describe the verified scope and limitations. `v0.9.0` includes a System Map
 and reproducible demo walkthrough. Its
 [release notes](docs/releases/v0.9.0.md) record the local verification and
-limits. Physical blob deletion, malware scanning and
+limits. `v1.0.0` development focuses on Temporal replay compatibility,
+clean-clone reproducibility and the final portfolio-publication review; it
+does not imply a public backend. Physical blob deletion, malware scanning and
 production deployment are not implemented.
 
 ## Implemented Technology
