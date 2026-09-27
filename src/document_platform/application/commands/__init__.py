@@ -63,6 +63,16 @@ from document_platform.application.commands.extract_ocr_text import (
     ExtractOcrTextHandler,
     OcrTextExtractionResult,
 )
+from document_platform.application.commands.propose_invoice_fields import (
+    InvoiceProposalDoesNotMatchRequest,
+    InvoiceProposalGenerated,
+    InvoiceProposalNotApplicable,
+    InvoiceProposalRequiresClassification,
+    InvoiceProposalRequiresSelectedText,
+    InvoiceProposalRequiresTextSelection,
+    ProposeInvoiceFields,
+    ProposeInvoiceFieldsHandler,
+)
 from document_platform.application.commands.record_processing_run_failure import (
     ConflictingProcessingRunFailure,
     InvalidProcessingFailureDocument,
@@ -152,6 +162,12 @@ __all__ = [
     "InvoiceExtractionRequiresClassification",
     "InvoiceExtractionRequiresSelectedText",
     "InvoiceExtractionRequiresTextSelection",
+    "InvoiceProposalGenerated",
+    "InvoiceProposalDoesNotMatchRequest",
+    "InvoiceProposalNotApplicable",
+    "InvoiceProposalRequiresClassification",
+    "InvoiceProposalRequiresSelectedText",
+    "InvoiceProposalRequiresTextSelection",
     "InvoiceValidated",
     "InvoiceValidationApplied",
     "InvoiceValidationApplicationDocumentNotFound",
@@ -198,6 +214,8 @@ __all__ = [
     "ProcessingRunNotFound",
     "ProcessingRunStarted",
     "ProcessingTextSelected",
+    "ProposeInvoiceFields",
+    "ProposeInvoiceFieldsHandler",
     "StartProcessingRun",
     "StartProcessingRunHandler",
     "SelectProcessingText",

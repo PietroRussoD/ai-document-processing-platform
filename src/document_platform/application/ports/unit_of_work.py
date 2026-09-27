@@ -20,6 +20,9 @@ from document_platform.application.ports.document_text_selection_repository impo
 from document_platform.application.ports.invoice_extraction_repository import (
     InvoiceExtractionRepository,
 )
+from document_platform.application.ports.invoice_proposal_repository import (
+    InvoiceProposalRepository,
+)
 from document_platform.application.ports.invoice_review_correction_repository import (
     InvoiceReviewCorrectionRepository,
 )
@@ -59,6 +62,9 @@ class UnitOfWork(Protocol):
 
     @property
     def invoice_extractions(self) -> InvoiceExtractionRepository: ...
+
+    @property
+    def invoice_proposals(self) -> InvoiceProposalRepository: ...
 
     @property
     def invoice_review_corrections(self) -> InvoiceReviewCorrectionRepository: ...

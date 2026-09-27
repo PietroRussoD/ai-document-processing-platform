@@ -6,6 +6,7 @@ from typing import Self
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from document_platform.adapters.outbound.postgresql.repositories import (
+    SqlAlchemyAiInvoiceExtractionProposalRepository,
     SqlAlchemyDocumentClassificationRepository,
     SqlAlchemyDocumentOcrExtractionRepository,
     SqlAlchemyDocumentRepository,
@@ -27,6 +28,7 @@ from document_platform.application.ports import (
     DocumentTextExtractionRepository,
     DocumentTextSelectionRepository,
     InvoiceExtractionRepository,
+    InvoiceProposalRepository,
     InvoiceReviewCorrectionRepository,
     InvoiceValidationRepository,
     ProcessingRunRepository,
@@ -47,6 +49,7 @@ class SqlAlchemyUnitOfWork:
         self._document_text_extractions: DocumentTextExtractionRepository | None = None
         self._document_text_selections: DocumentTextSelectionRepository | None = None
         self._invoice_extractions: InvoiceExtractionRepository | None = None
+        self._invoice_proposals: InvoiceProposalRepository | None = None
         self._invoice_review_corrections: InvoiceReviewCorrectionRepository | None = None
         self._invoice_validations: InvoiceValidationRepository | None = None
         self._processing_runs: ProcessingRunRepository | None = None
@@ -90,6 +93,12 @@ class SqlAlchemyUnitOfWork:
         if self._invoice_extractions is None:
             raise RuntimeError("unit of work is not active")
         return self._invoice_extractions
+
+    @property
+    def invoice_proposals(self) -> InvoiceProposalRepository:
+        if self._invoice_proposals is None:
+            raise RuntimeError("unit of work is not active")
+        return self._invoice_proposals
 
     @property
     def invoice_review_corrections(self) -> InvoiceReviewCorrectionRepository:
@@ -144,6 +153,7 @@ class SqlAlchemyUnitOfWork:
         self._document_text_extractions = SqlAlchemyDocumentTextExtractionRepository(self._session)
         self._document_text_selections = SqlAlchemyDocumentTextSelectionRepository(self._session)
         self._invoice_extractions = SqlAlchemyInvoiceExtractionRepository(self._session)
+        self._invoice_proposals = SqlAlchemyAiInvoiceExtractionProposalRepository(self._session)
         self._invoice_review_corrections = SqlAlchemyInvoiceReviewCorrectionRepository(
             self._session
         )
@@ -173,6 +183,7 @@ class SqlAlchemyUnitOfWork:
             self._document_text_extractions = None
             self._document_text_selections = None
             self._invoice_extractions = None
+            self._invoice_proposals = None
             self._invoice_review_corrections = None
             self._invoice_validations = None
             self._processing_runs = None

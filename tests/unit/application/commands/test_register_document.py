@@ -20,6 +20,7 @@ from document_platform.application.ports import (
     DocumentTextExtractionRepository,
     DocumentTextSelectionRepository,
     InvoiceExtractionRepository,
+    InvoiceProposalRepository,
     InvoiceReviewCorrectionRepository,
     InvoiceValidationRepository,
     ProcessingRunRepository,
@@ -37,6 +38,7 @@ from document_platform.application.upload_idempotency import (
 )
 from document_platform.domain.documents import Document, InvalidDocument
 from document_platform.domain.processing import (
+    AiInvoiceExtractionProposal,
     ProcessingRun,
     ReprocessingOperation,
     WorkflowStartRequest,
@@ -187,6 +189,14 @@ class UnusedInvoiceExtractionRepository:
         raise AssertionError("not used")
 
 
+class UnusedInvoiceProposalRepository:
+    async def add(self, proposal: AiInvoiceExtractionProposal) -> None:
+        raise AssertionError("not used")
+
+    async def get(self, processing_run_id: UUID) -> None:
+        raise AssertionError("not used")
+
+
 class UnusedInvoiceValidationRepository:
     async def add(self, validation: object) -> None:
         raise AssertionError("not used")
@@ -230,6 +240,7 @@ class RecordingUnitOfWork:
         self._document_text_selections = UnusedDocumentTextSelectionRepository()
         self._document_classifications = UnusedDocumentClassificationRepository()
         self._invoice_extractions = UnusedInvoiceExtractionRepository()
+        self._invoice_proposals = UnusedInvoiceProposalRepository()
         self._invoice_review_corrections = UnusedInvoiceReviewCorrectionRepository()
         self._invoice_validations = UnusedInvoiceValidationRepository()
         self._review_resolutions = UnusedReviewResolutionRepository()
@@ -259,6 +270,10 @@ class RecordingUnitOfWork:
     @property
     def invoice_extractions(self) -> InvoiceExtractionRepository:
         return self._invoice_extractions  # type: ignore[return-value]
+
+    @property
+    def invoice_proposals(self) -> InvoiceProposalRepository:
+        return self._invoice_proposals  # type: ignore[return-value]
 
     @property
     def invoice_review_corrections(self) -> InvoiceReviewCorrectionRepository:
