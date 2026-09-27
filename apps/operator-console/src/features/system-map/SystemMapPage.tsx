@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import { DocumentJourney } from "./DocumentJourney";
 import {
     processingPath,
     supportingNodes,
@@ -133,6 +134,7 @@ export function SystemMapPage() {
                     <ExternalLink aria-hidden="true" size={16} />
                 </a>
             </section>
+            <DocumentJourney />
         </section>
     );
 }

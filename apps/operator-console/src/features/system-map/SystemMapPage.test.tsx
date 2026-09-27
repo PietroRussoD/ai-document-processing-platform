@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { expect, test } from "vitest";
 
 import { axe } from "../../test/accessibility";
@@ -7,13 +7,16 @@ import { SystemMapPage } from "./SystemMapPage";
 test("shows the implemented processing path and component evidence", () => {
     render(<SystemMapPage />);
 
-    expect(screen.getByRole("list")).toHaveTextContent("Operator console");
-    expect(screen.getByRole("list")).toHaveTextContent("Temporal");
+    const path = within(
+        screen.getByRole("region", { name: "Processing path" }),
+    );
+    expect(path.getByRole("list")).toHaveTextContent("Operator console");
+    expect(path.getByRole("list")).toHaveTextContent("Temporal");
     expect(
         screen.getByRole("heading", { name: "Operator console" }),
     ).toBeVisible();
 
-    fireEvent.click(screen.getByRole("button", { name: /Dispatcher/ }));
+    fireEvent.click(path.getByRole("button", { name: /Dispatcher/ }));
 
     expect(screen.getByRole("heading", { name: "Dispatcher" })).toBeVisible();
     expect(screen.getByText(/Committed pending start requests/)).toBeVisible();

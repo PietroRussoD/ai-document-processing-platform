@@ -1,0 +1,144 @@
+export type JourneyId = "auto-approval" | "manual-review" | "failed-run";
+
+export type JourneyStep = {
+    title: string;
+    owner: string;
+    description: string;
+    state: string;
+    referencePath: string;
+};
+
+export type Journey = {
+    id: JourneyId;
+    label: string;
+    outcome: string;
+    steps: readonly JourneyStep[];
+};
+
+const upload: JourneyStep = {
+    title: "Accept PDF",
+    owner: "Console / API / PostgreSQL",
+    description:
+        "The API commits the document, first run, idempotency result and pending workflow-start request together. PDF bytes are stored separately.",
+    state: "Document UPLOADED · run QUEUED",
+    referencePath:
+        "src/document_platform/application/commands/accept_document_upload.py",
+};
+
+const handoff: JourneyStep = {
+    title: "Dispatch after commit",
+    owner: "Dispatcher / Temporal",
+    description:
+        "The dispatcher claims the committed request and starts a workflow with a stable ID. Temporal calls do not happen inside the upload transaction.",
+    state: "Start request DISPATCHED",
+    referencePath:
+        "src/document_platform/application/commands/dispatch_workflow_start_requests.py",
+};
+
+const processing: JourneyStep = {
+    title: "Start processing",
+    owner: "Temporal / worker / PostgreSQL",
+    description:
+        "The worker starts the document and processing run atomically before executing the document activities.",
+    state: "Document PROCESSING · run RUNNING",
+    referencePath:
+        "src/document_platform/workflows/process_business_document.py",
+};
+
+const extraction: JourneyStep = {
+    title: "Select processing text",
+    owner: "Worker / local blob volume",
+    description:
+        "Embedded text is persisted first. OCR runs only when quality recommends it; the chosen text source and reason are persisted per run.",
+    state: "Immutable extraction and selection evidence",
+    referencePath:
+        "src/document_platform/application/commands/select_processing_text.py",
+};
+
+const classification: JourneyStep = {
+    title: "Classify document",
+    owner: "Worker / PostgreSQL",
+    description:
+        "A deterministic, versioned policy classifies the selected text. Only invoices continue through invoice extraction and validation; other types complete the technical run.",
+    state: "Persisted document type and reason",
+    referencePath:
+        "src/document_platform/application/commands/classify_document.py",
+};
+
+const invoiceSteps = [upload, handoff, processing, extraction, classification];
+
+export const journeys: readonly Journey[] = [
+    {
+        id: "auto-approval",
+        label: "Auto-approved invoice",
+        outcome: "A complete invoice passes deterministic validation.",
+        steps: [
+            ...invoiceSteps,
+            {
+                title: "Apply validation",
+                owner: "Worker / PostgreSQL",
+                description:
+                    "Invoice fields and validation decision are persisted. An AUTO_APPROVE decision updates the document and run in one transaction.",
+                state: "Document APPROVED · run COMPLETED",
+                referencePath:
+                    "src/document_platform/application/commands/apply_invoice_validation.py",
+            },
+        ],
+    },
+    {
+        id: "manual-review",
+        label: "Review-required invoice",
+        outcome:
+            "Invoice validation issues prevent automatic approval and require an operator decision.",
+        steps: [
+            ...invoiceSteps,
+            {
+                title: "Request review",
+                owner: "Worker / PostgreSQL",
+                description:
+                    "A REVIEW_REQUIRED validation decision persists the need for operator review without inventing an approval.",
+                state: "Document REVIEW_REQUIRED · run REVIEW_REQUIRED",
+                referencePath:
+                    "src/document_platform/application/commands/apply_invoice_validation.py",
+            },
+            {
+                title: "Resolve review",
+                owner: "Operator / API / PostgreSQL",
+                description:
+                    "The operator approves or rejects. Approval may include typed corrections; the original extraction remains immutable.",
+                state: "Document APPROVED or REJECTED · run COMPLETED",
+                referencePath:
+                    "src/document_platform/application/commands/resolve_document_review.py",
+            },
+        ],
+    },
+    {
+        id: "failed-run",
+        label: "Failure and reprocessing",
+        outcome:
+            "A terminal activity failure is recorded; a new run can be requested.",
+        steps: [
+            upload,
+            handoff,
+            processing,
+            {
+                title: "Record terminal failure",
+                owner: "Temporal / worker / PostgreSQL",
+                description:
+                    "After bounded activity retries are exhausted, the failing stage and code are persisted. Temporal history remains failed.",
+                state: "Document FAILED · run FAILED",
+                referencePath:
+                    "src/document_platform/application/commands/record_processing_run_failure.py",
+            },
+            {
+                title: "Request a new run",
+                owner: "Operator / API / PostgreSQL",
+                description:
+                    "Authenticated reprocessing creates a linked replacement run and pending start request. It does not erase the failed run or guarantee success.",
+                state: "Replacement run QUEUED",
+                referencePath:
+                    "src/document_platform/application/commands/request_document_reprocessing.py",
+            },
+        ],
+    },
+];

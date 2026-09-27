@@ -179,6 +179,11 @@ and it does not receive document text or blob paths. A stage is shown as
 completed only after its immutable output is persisted; the next stages remain
 in progress or pending until their own metadata appears.
 
+The separate System Map page is static architecture documentation. Its document
+journey illustrates possible approval, review and failure/reprocessing paths
+using these persisted-state semantics and links to their implementations. It
+does not read a run, report live component health or reconstruct Temporal history.
+
 The local OCR adapter rasterizes pages with PyMuPDF and invokes the configured
 Tesseract executable one page at a time. It applies the accepted page limit,
 the same bounded text limit, a configurable DPI and a per-page timeout. Serial

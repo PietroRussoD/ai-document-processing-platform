@@ -267,7 +267,9 @@ the development target with `VITE_API_PROXY_TARGET` when required. The Compose
 console is a separate static build served by unprivileged NGINX, not Vite.
 Open `/system-map` in either console to inspect the implemented local components
 and their source references. This map is static documentation, not live health
-or a trace of an individual document.
+or a trace of an individual document. Its document journey compares automatic
+approval, manual review and failure with reprocessing using persisted-state
+semantics; it does not replay a particular run.
 
 ### Temporal Handoff Environment
 
