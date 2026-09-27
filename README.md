@@ -236,6 +236,8 @@ extraction, invoice classification and the final review-required status. This
 is a manual local smoke test, not part of the default CI pipeline. It prints a
 direct console link for the verified document; the
 [v0.9 local demo walkthrough](docs/runbooks/v0.9-demo.md) uses that link.
+For three reusable examples (digital invoice, scanned invoice and unrelated
+report), see the [synthetic demo documents](examples/documents/README.md).
 
 Preview documents eligible for retention without modifying the database or
 local blob storage:
