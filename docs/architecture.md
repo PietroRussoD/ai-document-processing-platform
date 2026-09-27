@@ -54,7 +54,10 @@ flowchart LR
 The evaluation CLI remains an isolated comparison. Separately, the application
 has an advisory proposal use case and immutable PostgreSQL storage. A Temporal
 activity is registered in the worker, but the current workflow does not schedule
-it and proposals are not exposed through the API. The local
+it and proposals are not exposed through the API. Terminal provider failures
+have a separate immutable repository keyed by processing run; it does not
+alter the document's processing status. No workflow writes that repository yet.
+The local
 model is never an authority for deterministic extraction or review decisions.
 See [ADR 0003](decisions/0003-keep-local-models-advisory.md) for the workflow
 gate and failure-handling requirements.

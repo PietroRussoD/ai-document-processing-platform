@@ -63,6 +63,10 @@ from document_platform.application.ports.invoice_extraction_repository import (
     InvoiceExtractionAlreadyExists,
     InvoiceExtractionRepository,
 )
+from document_platform.application.ports.invoice_proposal_failure_repository import (
+    InvoiceProposalFailureAlreadyExists,
+    InvoiceProposalFailureRepository,
+)
 from document_platform.application.ports.invoice_proposal_generator import (
     MAX_SELECTED_TEXT_CHARACTERS,
     InvalidInvoiceProposalRequest,
@@ -175,6 +179,8 @@ __all__ = [
     "InvoiceValidationMetadataView",
     "InvoiceExtractionRepository",
     "InvoiceProposalAlreadyExists",
+    "InvoiceProposalFailureAlreadyExists",
+    "InvoiceProposalFailureRepository",
     "InvoiceProposalGenerationFailed",
     "InvoiceProposalGenerationFailureCode",
     "InvoiceProposalRepository",

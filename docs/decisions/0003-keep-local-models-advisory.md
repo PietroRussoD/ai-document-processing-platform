@@ -43,7 +43,9 @@ to replace deterministic extraction or to approve a document automatically.
   document when workflow integration is introduced.
 - Provider timeout, unavailability and invalid response envelopes have separate
   safe error codes. A response body with invalid invoice JSON remains an
-  `INVALID` proposal, not a provider outage. Durable failure outcome and
+  `INVALID` proposal, not a provider outage. A separate immutable persistence
+  contract now stores terminal provider failures without failing the document.
+  Workflow recording, mutually exclusive success/failure enforcement and
   operator visibility remain pending.
 - A public demo must disclose the local model, benchmark limitations and human
   review requirement.

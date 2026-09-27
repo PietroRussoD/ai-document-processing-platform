@@ -65,8 +65,9 @@ is a local portfolio demo, not a public backend. Physical blob deletion,
 malware scanning and production deployment are not implemented.
 
 The model adapter classifies provider timeouts, unavailability and invalid
-response envelopes using safe error codes. These errors are not yet persisted
-or displayed to operators because the proposal activity is not scheduled.
+response envelopes using safe error codes. A separate immutable PostgreSQL
+record can store a terminal provider failure without changing document status.
+No workflow writes that record yet, and the operator console does not show it.
 
 ## Implemented Technology
 

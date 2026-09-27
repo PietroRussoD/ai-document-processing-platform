@@ -2,19 +2,15 @@
 
 import hashlib
 from dataclasses import dataclass
-from enum import StrEnum
 from typing import Protocol
 from uuid import UUID
 
-from document_platform.domain.processing import AiInvoiceExtractionProposal
+from document_platform.domain.processing import (
+    AiInvoiceExtractionProposal,
+    InvoiceProposalGenerationFailureCode,
+)
 
 MAX_SELECTED_TEXT_CHARACTERS = 20_000
-
-
-class InvoiceProposalGenerationFailureCode(StrEnum):
-    TIMEOUT = "TIMEOUT"
-    UNAVAILABLE = "UNAVAILABLE"
-    INVALID_RESPONSE = "INVALID_RESPONSE"
 
 
 class InvoiceProposalGenerationFailed(RuntimeError):

@@ -42,6 +42,7 @@ from document_platform.adapters.outbound.postgresql.models.workflow_start_reques
 )
 
 from .ai_invoice_extraction_proposal_record import AiInvoiceExtractionProposalRecord
+from .ai_invoice_proposal_failure_record import AiInvoiceProposalFailureRecord
 
 __all__ = [
     "Base",
@@ -52,6 +53,7 @@ __all__ = [
     "DocumentClassificationRecord",
     "InvoiceExtractionRecord",
     "AiInvoiceExtractionProposalRecord",
+    "AiInvoiceProposalFailureRecord",
     "InvoiceReviewCorrectionRecord",
     "InvoiceValidationRecord",
     "ProcessingRunRecord",
