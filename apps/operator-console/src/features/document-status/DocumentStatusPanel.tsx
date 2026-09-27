@@ -10,6 +10,7 @@ import { Button } from "../../components/ui/Button";
 import { FeedbackMessage } from "../../components/ui/FeedbackMessage";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { ProcessingOutputPanel } from "../processing-output/ProcessingOutputPanel";
+import { AiInvoiceComparison } from "../processing-output/AiInvoiceComparison";
 import { ProcessingTimeline } from "../processing-output/ProcessingTimeline";
 import { ReviewResolutionPanel } from "../document-review/ReviewResolutionPanel";
 import { DocumentReprocessingPanel } from "../document-reprocessing/DocumentReprocessingPanel";
@@ -71,7 +72,19 @@ export function DocumentStatusPanel({
     const document = statusQuery.data;
     return (
         <section className="mt-4 border border-app-border bg-app-surface p-5">
-            <h3 className="text-sm font-semibold">Persisted status</h3>
+            <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-semibold">Persisted status</h3>
+                <Button
+                    aria-label="Refresh document status"
+                    title="Refresh document status"
+                    className="w-9 !px-0"
+                    disabled={statusQuery.isFetching}
+                    onClick={() => void statusQuery.refetch()}
+                    size="sm"
+                >
+                    <RefreshCw aria-hidden="true" size={16} />
+                </Button>
+            </div>
             {document.current_run.status === "COMPLETED" &&
             document.status !== "UNSUPPORTED" ? (
                 <FeedbackMessage className="mt-4" tone="success">
@@ -138,6 +151,14 @@ export function DocumentStatusPanel({
                     document.current_run.review_resolution?.corrections ?? []
                 }
                 output={document.current_run.processing_output}
+            />
+            <AiInvoiceComparison
+                extraction={
+                    document.current_run.processing_output
+                        ?.invoice_extraction ?? null
+                }
+                proposal={document.current_run.ai_proposal}
+                failure={document.current_run.ai_proposal_failure}
             />
             <ReviewResolutionPanel
                 documentId={document.id}

@@ -60,8 +60,9 @@ its advisory AI stage. Local Ollama calls are disabled by default; set
 `DOCUMENT_PLATFORM_OLLAMA_ENABLED=true` on the worker and run Ollama with the
 configured model to generate proposals. Deterministic extraction remains
 authoritative and structured extraction is invoice-only. Proposals and provider
-failures are exposed as optional, separate fields in the document-status API;
-the operator console does not yet display them. This is a
+failures are exposed as optional, separate fields in the document-status API.
+The operator console compares recorded proposal fields with rule-based values
+and shows terminal provider failures. This is a
 local portfolio demo, not a public backend. Physical blob deletion, malware
 scanning and production deployment are not implemented.
 
@@ -411,6 +412,9 @@ when no outcome is recorded, including when Ollama is disabled or work is still
 in progress. The deterministic `processing_output` remains authoritative.
 The status endpoint is unauthenticated in this local demo, so use synthetic
 documents only; neither raw document text nor prompts are returned.
+The console stops automatic polling when the processing run completes. Since
+the advisory step can finish later, use its status refresh control to retrieve
+a subsequently recorded proposal or failure.
 
 ### Metrics
 

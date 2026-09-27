@@ -14,6 +14,37 @@ const documentWorkQueuesStory =
 const feedbackMessageStory =
     "/iframe.html?id=ui-feedbackmessage--warning&viewMode=story";
 const primaryButtonStory = "/iframe.html?id=ui-button--primary&viewMode=story";
+const aiComparisonStory =
+    "/iframe.html?id=processing-output-aiinvoicecomparison--partial-proposal&viewMode=story";
+
+test("AI comparison has no browser-detected accessibility violations", async ({
+    page,
+}) => {
+    await page.goto(aiComparisonStory);
+    await expect(
+        page.getByRole("heading", { name: "AI proposal comparison" }),
+    ).toBeVisible();
+
+    const results = await new AxeBuilder({ page })
+        .disableRules(["landmark-one-main", "page-has-heading-one"])
+        .analyze();
+
+    expect(results.violations).toEqual([]);
+});
+
+test("AI comparison fits a narrow viewport", async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 720 });
+    await page.goto(aiComparisonStory);
+    await expect(
+        page.getByRole("heading", { name: "AI proposal comparison" }),
+    ).toBeVisible();
+
+    const hasHorizontalOverflow = await page.evaluate(
+        () => document.documentElement.scrollWidth > window.innerWidth,
+    );
+
+    expect(hasHorizontalOverflow).toBe(false);
+});
 
 test("approved review outcome has no browser-detected accessibility violations", async ({
     page,

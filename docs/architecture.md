@@ -251,6 +251,10 @@ The read model includes only structured proposed fields, issue codes and model
 provenance; it excludes source text, prompts and raw provider responses. This
 local demo does not authenticate status reads, so only synthetic documents
 should be uploaded.
+The operator console renders recorded advisory fields beside the original
+rule-based extraction and never applies them to review decisions. A completed
+run stops automatic polling; a manual refresh retrieves advisory results that
+were persisted afterward. A missing result is not displayed as a failure.
 
 The React upload feature keeps temporary file selection in local component state
 and delegates the remote mutation lifecycle to TanStack Query. One client-generated
@@ -578,7 +582,7 @@ tests/e2e/           API and browser journeys
 | Boundary | Current implementation | Planned extension |
 | --- | --- | --- |
 | Object storage | Local filesystem | S3-compatible adapter |
-| Invoice extraction | Deterministic extraction, validation, immutable review corrections, opt-in advisory local-model proposal and status API projection | Human comparison view for advisory output |
+| Invoice extraction | Deterministic extraction, validation, immutable review corrections, opt-in advisory local-model proposal, status API projection and read-only console comparison | Operator evaluation and correction of advisory output |
 | Text extraction | Embedded/OCR extraction and persisted canonical source selection | OCR quality calibration and language policy |
 | Document classification | Deterministic canonical-text keyword policy | Evaluated local model policy |
 | Workflow execution | Temporal development server with local worker | Managed/self-hosted Temporal later |

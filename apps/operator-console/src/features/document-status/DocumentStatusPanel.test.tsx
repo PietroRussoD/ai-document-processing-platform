@@ -91,6 +91,56 @@ test("confirms when processing results are ready", async () => {
     ).toBeVisible();
 });
 
+test("refreshes a completed run to reveal a later advisory proposal", async () => {
+    const completed = status("APPROVED", "COMPLETED");
+    const withProposal: DocumentStatus = {
+        ...completed,
+        current_run: {
+            ...completed.current_run,
+            ai_proposal: {
+                schema_version: 1,
+                provider: "OLLAMA",
+                model_reference: "qwen3:8b",
+                model_digest: null,
+                prompt_version: "invoice-v1",
+                selected_text_sha256: "a".repeat(64),
+                status: "VALID",
+                invoice_number: "INV-42",
+                issue_date: "2026-09-16",
+                supplier_name: "Acme Ltd",
+                currency: "EUR",
+                total_amount: "12.50",
+                issues: [],
+                proposed_at: "2026-09-16T12:00:06Z",
+            },
+        },
+    };
+    const getStatus = vi
+        .fn<
+            (
+                documentId: string,
+                signal?: AbortSignal,
+            ) => Promise<DocumentStatus>
+        >()
+        .mockResolvedValueOnce(completed)
+        .mockResolvedValueOnce(withProposal);
+
+    render(
+        <DocumentStatusPanel api={{ getStatus }} documentId={DOCUMENT_ID} />,
+        { wrapper: QueryWrapper },
+    );
+
+    expect(await screen.findByText("invoice.pdf")).toBeVisible();
+    expect(
+        screen.queryByText("AI proposal comparison"),
+    ).not.toBeInTheDocument();
+    fireEvent.click(
+        screen.getByRole("button", { name: "Refresh document status" }),
+    );
+    expect(await screen.findByText("AI proposal comparison")).toBeVisible();
+    expect(getStatus).toHaveBeenCalledTimes(2);
+});
+
 test("explains when processing requires an operator review", async () => {
     const getStatus = vi
         .fn<
