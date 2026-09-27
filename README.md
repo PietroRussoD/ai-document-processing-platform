@@ -221,7 +221,9 @@ Use `--base-url http://127.0.0.1:18088` if the console was started with
 `CONSOLE_PORT=18088`. The command creates one synthetic PDF and retains its
 document record in the local database. It checks upload, embedded-text
 extraction, invoice classification and the final review-required status. This
-is a manual local smoke test, not part of the default CI pipeline.
+is a manual local smoke test, not part of the default CI pipeline. It prints a
+direct console link for the verified document; the
+[v0.9 local demo walkthrough](docs/runbooks/v0.9-demo.md) uses that link.
 
 Preview documents eligible for retention without modifying the database or
 local blob storage:

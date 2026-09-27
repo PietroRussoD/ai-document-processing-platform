@@ -1,6 +1,7 @@
 """Focused tests for the local Compose smoke command."""
 
 from typing import cast
+from uuid import UUID
 
 import httpx
 import pymupdf
@@ -8,6 +9,7 @@ import pytest
 
 from scripts.verify_processing_compose import (
     SmokeTestError,
+    document_console_url,
     synthetic_invoice_pdf,
     verify_processing,
 )
@@ -20,6 +22,15 @@ def test_synthetic_invoice_is_a_readable_pdf() -> None:
         assert "Supplier: Example Ltd" in text
     finally:
         document.close()
+
+
+def test_console_link_opens_the_verified_document() -> None:
+    document_id = "00000000-0000-4000-8000-000000000001"
+    url = httpx.URL(document_console_url("http://127.0.0.1:18088/", UUID(document_id)))
+
+    assert url.path == "/"
+    assert url.params["documentId"] == document_id
+    assert url.port == 18088
 
 
 def test_verifies_upload_and_processing_through_console() -> None:

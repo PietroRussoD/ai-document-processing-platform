@@ -33,6 +33,12 @@ def synthetic_invoice_pdf() -> bytes:
         document.close()
 
 
+def document_console_url(base_url: str, document_id: UUID) -> str:
+    return str(
+        httpx.URL(base_url).copy_with(path="/").copy_add_param("documentId", str(document_id))
+    )
+
+
 def verify_processing(
     client: httpx.Client,
     *,
@@ -91,6 +97,7 @@ def main() -> None:
     except (httpx.HTTPError, KeyError, TypeError, ValueError, SmokeTestError) as error:
         raise SystemExit(f"Compose smoke test failed: {error}") from error
     print(f"Compose smoke test passed: document {document_id} reached REVIEW_REQUIRED")
+    print(f"Console document: {document_console_url(args.base_url, document_id)}")
 
 
 if __name__ == "__main__":
