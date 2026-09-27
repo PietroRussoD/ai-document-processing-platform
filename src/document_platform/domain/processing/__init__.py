@@ -1,5 +1,14 @@
 """Document-processing lifecycle domain model."""
 
+from document_platform.domain.processing.ai_invoice_extraction_proposal import (
+    AiInvoiceExtractionProposal,
+    InvalidInvoiceExtractionProposal,
+    InvoiceModelProvider,
+    InvoiceProposalField,
+    InvoiceProposalIssue,
+    InvoiceProposalIssueCode,
+    InvoiceProposalStatus,
+)
 from document_platform.domain.processing.deterministic_invoice_extraction import (
     DeterministicInvoiceExtractionPolicy,
 )
@@ -79,6 +88,13 @@ from document_platform.domain.processing.workflow_start_request import (
 )
 
 __all__ = [
+    "AiInvoiceExtractionProposal",
+    "InvalidInvoiceExtractionProposal",
+    "InvoiceModelProvider",
+    "InvoiceProposalField",
+    "InvoiceProposalIssue",
+    "InvoiceProposalIssueCode",
+    "InvoiceProposalStatus",
     "InvalidProcessingRun",
     "InvalidProcessingRunTransition",
     "ConflictingReprocessingIdempotencyKey",
