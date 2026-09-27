@@ -47,9 +47,11 @@ queues, refresh them and open the existing document detail and review flows.
 See the [v0.7.0 release notes](docs/releases/v0.7.0.md). `v0.8.0` adds bounded
 database retention, report-only blob auditing, an opt-in local processing
 stack and delivery/security checks. Its [release notes](docs/releases/v0.8.0.md)
-describe the verified scope and limitations. `v0.9.0` development is targeting
-a System Map and reproducible demo walkthrough. Physical blob deletion,
-malware scanning and production deployment are not implemented.
+describe the verified scope and limitations. `v0.9.0` development now includes
+a System Map and reproducible demo walkthrough; the pending
+[release notes](docs/releases/v0.9.0.md) record the local verification and
+remaining release gate. Physical blob deletion, malware scanning and
+production deployment are not implemented.
 
 ## Implemented Technology
 
