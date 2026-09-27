@@ -34,6 +34,40 @@ export const supportingNodes: readonly SystemNodeId[] = [
     "observability",
 ];
 
+export const technicalReferences = [
+    {
+        title: "OpenAPI contract",
+        description: "Versioned HTTP request and response schema",
+        path: "docs/contracts/document-platform.openapi.json",
+    },
+    {
+        title: "Architecture decisions",
+        description: "Ports, adapters and the reasons behind key boundaries",
+        path: "docs/decisions",
+        directory: true,
+    },
+    {
+        title: "Model evaluation",
+        description: "Local model experiments, dataset and measured results",
+        path: "docs/evaluation.md",
+    },
+    {
+        title: "Operational metrics",
+        description: "Prometheus endpoint and optional Grafana setup",
+        path: "README.md#metrics",
+    },
+    {
+        title: "Verification runbook",
+        description: "Synthetic upload, failure and recovery checks",
+        path: "docs/runbooks/v0.7-verification.md",
+    },
+    {
+        title: "Security and limitations",
+        description: "Current controls and gaps before real use",
+        path: "docs/security-and-limitations.md",
+    },
+] as const;
+
 export const systemNodes: Record<SystemNodeId, SystemNode> = {
     console: {
         id: "console",

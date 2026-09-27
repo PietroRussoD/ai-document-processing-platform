@@ -270,6 +270,9 @@ and their source references. This map is static documentation, not live health
 or a trace of an individual document. Its document journey compares automatic
 approval, manual review and failure with reprocessing using persisted-state
 semantics; it does not replay a particular run.
+The page also links to the exported OpenAPI contract, ADRs, model evaluation,
+operational metrics, verification runbook and current security limitations in
+this repository. Those links require repository access while it is private.
 
 ### Temporal Handoff Environment
 

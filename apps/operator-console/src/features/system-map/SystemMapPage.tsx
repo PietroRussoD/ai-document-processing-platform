@@ -18,11 +18,12 @@ import {
     processingPath,
     supportingNodes,
     systemNodes,
+    technicalReferences,
     type SystemNodeId,
 } from "./systemMapContent";
 
 const repositoryUrl =
-    "https://github.com/PietroRussoD/ai-document-processing-platform/blob/main";
+    "https://github.com/PietroRussoD/ai-document-processing-platform";
 
 const icons: Record<SystemNodeId, LucideIcon> = {
     console: FileText,
@@ -126,7 +127,7 @@ export function SystemMapPage() {
                 </dl>
                 <a
                     className="mt-5 inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-app-accent underline underline-offset-4 hover:text-app-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
-                    href={`${repositoryUrl}/${selectedNode.referencePath}`}
+                    href={`${repositoryUrl}/blob/main/${selectedNode.referencePath}`}
                     rel="noreferrer"
                     target="_blank"
                 >
@@ -135,6 +136,42 @@ export function SystemMapPage() {
                 </a>
             </section>
             <DocumentJourney />
+
+            <section
+                aria-labelledby="technical-references-heading"
+                className="mt-12 border-t border-app-border pt-8"
+            >
+                <p className="text-xs font-semibold uppercase text-app-accent">
+                    Project evidence
+                </p>
+                <h2
+                    id="technical-references-heading"
+                    className="mt-1 text-xl font-semibold"
+                >
+                    Technical references
+                </h2>
+                <ul className="mt-5 grid gap-x-8 sm:grid-cols-2">
+                    {technicalReferences.map((reference) => (
+                        <li
+                            key={reference.path}
+                            className="border-b border-app-border py-4"
+                        >
+                            <a
+                                className="inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-app-accent underline underline-offset-4 hover:text-app-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                                href={`${repositoryUrl}/${"directory" in reference ? "tree" : "blob"}/main/${reference.path}`}
+                                rel="noreferrer"
+                                target="_blank"
+                            >
+                                {reference.title}
+                                <ExternalLink aria-hidden="true" size={16} />
+                            </a>
+                            <p className="mt-1 text-sm text-app-muted">
+                                {reference.description}
+                            </p>
+                        </li>
+                    ))}
+                </ul>
+            </section>
         </section>
     );
 }

@@ -37,3 +37,32 @@ test("marks observability as optional and has no basic accessibility violations"
     ).toBeVisible();
     expect((await axe(container)).violations).toEqual([]);
 });
+
+test("links the project evidence without requiring a running backend", () => {
+    render(<SystemMapPage />);
+
+    const references = within(
+        screen.getByRole("region", { name: "Technical references" }),
+    );
+    expect(references.getAllByRole("link")).toHaveLength(6);
+    expect(
+        references.getByRole("link", { name: "OpenAPI contract" }),
+    ).toHaveAttribute(
+        "href",
+        expect.stringContaining(
+            "docs/contracts/document-platform.openapi.json",
+        ),
+    );
+    expect(
+        references.getByRole("link", { name: "Architecture decisions" }),
+    ).toHaveAttribute(
+        "href",
+        expect.stringContaining("/tree/main/docs/decisions"),
+    );
+    expect(
+        references.getByRole("link", { name: "Security and limitations" }),
+    ).toHaveAttribute(
+        "href",
+        expect.stringContaining("docs/security-and-limitations.md"),
+    );
+});
