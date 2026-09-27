@@ -72,9 +72,15 @@ export function DocumentStatusPanel({
     return (
         <section className="mt-4 border border-app-border bg-app-surface p-5">
             <h3 className="text-sm font-semibold">Persisted status</h3>
-            {document.current_run.status === "COMPLETED" ? (
+            {document.current_run.status === "COMPLETED" &&
+            document.status !== "UNSUPPORTED" ? (
                 <FeedbackMessage className="mt-4" tone="success">
                     Processing results are ready.
+                </FeedbackMessage>
+            ) : null}
+            {document.status === "UNSUPPORTED" ? (
+                <FeedbackMessage className="mt-4" tone="warning">
+                    {unsupportedDocumentMessage(document)}
                 </FeedbackMessage>
             ) : null}
             {document.current_run.status === "REVIEW_REQUIRED" ? (
@@ -212,7 +218,21 @@ function statusTone(status: VisibleStatus): StatusTone {
         case "FAILED":
         case "REJECTED":
             return "danger";
+        case "UNSUPPORTED":
+            return "warning";
         default:
             return "neutral";
     }
+}
+
+function unsupportedDocumentMessage(document: DocumentStatus): string {
+    const classification =
+        document.current_run.processing_output?.classification;
+    if (classification?.document_type === "UNKNOWN") {
+        return "The document type could not be recognized. No structured extraction was performed.";
+    }
+    if (classification !== null && classification !== undefined) {
+        return `This ${formatStatus(classification.document_type)} is recognized, but structured extraction is not available for it yet.`;
+    }
+    return "Structured extraction is not available for this document type yet.";
 }

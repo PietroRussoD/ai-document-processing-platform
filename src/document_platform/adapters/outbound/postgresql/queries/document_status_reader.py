@@ -188,6 +188,7 @@ class SqlAlchemyDocumentStatusReader:
             DocumentWorkQueue.ACTIVE: ("UPLOADED", "PROCESSING"),
             DocumentWorkQueue.REVIEW: ("REVIEW_REQUIRED",),
             DocumentWorkQueue.FAILED: ("FAILED",),
+            DocumentWorkQueue.UNSUPPORTED: ("UNSUPPORTED",),
         }[queue]
         latest_run_id = (
             select(ProcessingRunRecord.id)

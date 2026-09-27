@@ -14,7 +14,13 @@ from document_platform.application.commands import (
     ProcessingRunCompleted,
 )
 from document_platform.application.ports import UnitOfWork
-from document_platform.domain.processing import ProcessingRun
+from document_platform.domain.documents import Document, DocumentStatus
+from document_platform.domain.processing import (
+    BusinessDocumentType,
+    DocumentClassification,
+    DocumentClassificationReason,
+    ProcessingRun,
+)
 
 QUEUED_AT = datetime(2026, 9, 16, 12, 0, tzinfo=UTC)
 STARTED_AT = QUEUED_AT + timedelta(seconds=1)
@@ -36,9 +42,51 @@ class RecordingProcessingRunRepository:
         self.run = run
 
 
+class RecordingDocumentRepository:
+    def __init__(self, document: Document) -> None:
+        self.document = document
+        self.updated: list[Document] = []
+
+    async def get_for_update(self, document_id: UUID) -> Document | None:
+        return self.document if document_id == self.document.id else None
+
+    async def update(self, document: Document) -> None:
+        self.updated.append(document)
+        self.document = document
+
+
+class RecordingClassificationRepository:
+    def __init__(self, classification: DocumentClassification) -> None:
+        self.classification = classification
+
+    async def get(self, processing_run_id: UUID) -> DocumentClassification | None:
+        return (
+            self.classification
+            if processing_run_id == self.classification.processing_run_id
+            else None
+        )
+
+
 class RecordingUnitOfWork:
-    def __init__(self, run: ProcessingRun) -> None:
+    def __init__(
+        self,
+        run: ProcessingRun,
+        document_type: BusinessDocumentType = BusinessDocumentType.UNKNOWN,
+    ) -> None:
         self.processing_runs = RecordingProcessingRunRepository(run)
+        self.documents = RecordingDocumentRepository(processing_document())
+        self.document_classifications = RecordingClassificationRepository(
+            DocumentClassification(
+                processing_run_id=RUN_ID,
+                document_type=document_type,
+                reason=(
+                    DocumentClassificationReason.NO_MATCH
+                    if document_type is BusinessDocumentType.UNKNOWN
+                    else DocumentClassificationReason.KEYWORD_MATCHED
+                ),
+                classified_at=STARTED_AT,
+            )
+        )
         self.commit_count = 0
 
     async def __aenter__(self) -> Self:
@@ -64,6 +112,18 @@ def running_run() -> ProcessingRun:
     ).start(at=STARTED_AT)
 
 
+def processing_document() -> Document:
+    return Document.accept_pdf(
+        document_id=DOCUMENT_ID,
+        original_filename="document.pdf",
+        size_bytes=42,
+        page_count=1,
+        content_sha256="a" * 64,
+        storage_key="blobs/sha256/aa/" + "a" * 64,
+        accepted_at=QUEUED_AT,
+    ).start_processing(at=STARTED_AT)
+
+
 def handler(unit_of_work: RecordingUnitOfWork) -> CompleteProcessingRunHandler:
     return CompleteProcessingRunHandler(
         unit_of_work_factory=lambda: cast(UnitOfWork, unit_of_work),
@@ -72,14 +132,26 @@ def handler(unit_of_work: RecordingUnitOfWork) -> CompleteProcessingRunHandler:
 
 
 @pytest.mark.anyio
-async def test_completes_a_running_processing_run() -> None:
-    unit_of_work = RecordingUnitOfWork(running_run())
+@pytest.mark.parametrize(
+    "document_type",
+    [
+        BusinessDocumentType.UNKNOWN,
+        BusinessDocumentType.PURCHASE_ORDER,
+        BusinessDocumentType.CREDIT_NOTE,
+    ],
+)
+async def test_completes_a_non_invoice_run_and_marks_document_unsupported(
+    document_type: BusinessDocumentType,
+) -> None:
+    unit_of_work = RecordingUnitOfWork(running_run(), document_type)
 
     result = await handler(unit_of_work)(CompleteProcessingRun(RUN_ID))
 
     assert result == ProcessingRunCompleted(RUN_ID, COMPLETED_AT, replayed=False)
     assert unit_of_work.processing_runs.updated[0].status.value == "COMPLETED"
     assert unit_of_work.processing_runs.updated[0].finished_at == COMPLETED_AT
+    assert unit_of_work.documents.updated[0].status is DocumentStatus.UNSUPPORTED
+    assert unit_of_work.documents.updated[0].status_changed_at == COMPLETED_AT
     assert unit_of_work.commit_count == 1
 
 

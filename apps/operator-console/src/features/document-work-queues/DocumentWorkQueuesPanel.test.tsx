@@ -101,6 +101,29 @@ test("switches to failed work and presents bounded failure evidence", async () =
     );
 });
 
+test("lists unsupported documents in a separate queue", async () => {
+    const unsupported = queueItem({
+        original_filename: "unrelated.pdf",
+        status: "UNSUPPORTED",
+        processing_run_status: "COMPLETED",
+    });
+    const listWorkQueue = vi
+        .fn<DocumentApi["listWorkQueue"]>()
+        .mockImplementation(async (queue) =>
+            queue === "UNSUPPORTED" ? queuePage([unsupported]) : queuePage([]),
+        );
+
+    renderPanel(createApi({ listWorkQueue }));
+    fireEvent.click(await screen.findByRole("button", { name: "Unsupported" }));
+
+    expect(await screen.findByText("unrelated.pdf")).toBeVisible();
+    expect(listWorkQueue).toHaveBeenLastCalledWith(
+        "UNSUPPORTED",
+        0,
+        expect.any(AbortSignal),
+    );
+});
+
 test("navigates through bounded pages of a work queue", async () => {
     const firstPage = Array.from({ length: 25 }, (_, index) =>
         queueItem({

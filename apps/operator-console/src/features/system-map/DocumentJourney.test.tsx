@@ -57,3 +57,19 @@ test("review path distinguishes review-required and final states", () => {
         screen.getByText(/original extraction remains immutable/),
     ).toBeVisible();
 });
+
+test("explains unsupported documents as a terminal business outcome", () => {
+    render(<DocumentJourney />);
+
+    fireEvent.click(
+        screen.getByRole("button", { name: "Unsupported document" }),
+    );
+    fireEvent.click(
+        screen.getByRole("button", { name: /Complete as unsupported/ }),
+    );
+
+    expect(
+        screen.getAllByText("Document UNSUPPORTED · run COMPLETED"),
+    ).toHaveLength(2);
+    expect(screen.getByText(/commit atomically/)).toBeVisible();
+});

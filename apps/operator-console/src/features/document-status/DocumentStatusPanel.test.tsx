@@ -15,6 +15,7 @@ test.each([
     ["REVIEW_REQUIRED", "WAITING_RETRY", "Review Required", "Waiting Retry"],
     ["APPROVED", "COMPLETED", "Approved", "Completed"],
     ["REJECTED", "FAILED", "Rejected", "Failed"],
+    ["UNSUPPORTED", "COMPLETED", "Unsupported", "Completed"],
 ] as const)(
     "renders persisted %s and %s status",
     async (documentState, runState, documentLabel, runLabel) => {
@@ -108,6 +109,37 @@ test("explains when processing requires an operator review", async () => {
     expect(
         await screen.findByText("Processing requires an operator review."),
     ).toBeVisible();
+});
+
+test("explains why a completed unknown document is unsupported", async () => {
+    const unsupported = status("UNSUPPORTED", "COMPLETED");
+    unsupported.current_run.processing_output = {
+        embedded_text: null,
+        ocr_text: null,
+        selected_text: null,
+        classification: {
+            document_type: "UNKNOWN",
+            reason: "NO_MATCH",
+            classified_at: "2026-09-15T08:00:02Z",
+        },
+        invoice_extraction: null,
+        invoice_validation: null,
+    };
+    const getStatus = vi.fn().mockResolvedValue(unsupported);
+
+    render(
+        <DocumentStatusPanel api={{ getStatus }} documentId={DOCUMENT_ID} />,
+        { wrapper: QueryWrapper },
+    );
+
+    expect(
+        await screen.findByText(
+            "The document type could not be recognized. No structured extraction was performed.",
+        ),
+    ).toBeVisible();
+    expect(
+        screen.queryByText("Processing results are ready."),
+    ).not.toBeInTheDocument();
 });
 
 test("shows the preceding run for a reprocessing lineage", async () => {

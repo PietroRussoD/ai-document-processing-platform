@@ -203,7 +203,7 @@ export interface components {
          * DocumentStatus
          * @enum {string}
          */
-        DocumentStatus: "UPLOADED" | "PROCESSING" | "REVIEW_REQUIRED" | "APPROVED" | "REJECTED" | "FAILED";
+        DocumentStatus: "UPLOADED" | "PROCESSING" | "REVIEW_REQUIRED" | "UNSUPPORTED" | "APPROVED" | "REJECTED" | "FAILED";
         /** DocumentStatusResponse */
         DocumentStatusResponse: {
             /**
@@ -238,7 +238,7 @@ export interface components {
          * DocumentWorkQueue
          * @enum {string}
          */
-        DocumentWorkQueue: "ACTIVE" | "REVIEW" | "FAILED";
+        DocumentWorkQueue: "ACTIVE" | "REVIEW" | "FAILED" | "UNSUPPORTED";
         /** DocumentWorkQueueItemResponse */
         DocumentWorkQueueItemResponse: {
             /**

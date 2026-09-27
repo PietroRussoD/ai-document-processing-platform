@@ -156,6 +156,7 @@
           "UPLOADED",
           "PROCESSING",
           "REVIEW_REQUIRED",
+          "UNSUPPORTED",
           "APPROVED",
           "REJECTED",
           "FAILED"
@@ -226,7 +227,8 @@
         "enum": [
           "ACTIVE",
           "REVIEW",
-          "FAILED"
+          "FAILED",
+          "UNSUPPORTED"
         ],
         "title": "DocumentWorkQueue",
         "type": "string"

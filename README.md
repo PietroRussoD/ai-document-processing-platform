@@ -44,16 +44,22 @@ failed. The status API and console expose the bounded failure stage and code
 for the current run. A paginated API exposes active, review and failed work
 queues as metadata-only summaries. The operator console can browse these
 queues, refresh them and open the existing document detail and review flows.
+Documents whose type is unknown or lacks structured extraction support now
+finish as `UNSUPPORTED`, appear in their own queue and retain their classification
+reason. Their processing run is `COMPLETED`; this is a business outcome, not a
+technical failure.
 See the [v0.7.0 release notes](docs/releases/v0.7.0.md). `v0.8.0` adds bounded
 database retention, report-only blob auditing, an opt-in local processing
 stack and delivery/security checks. Its [release notes](docs/releases/v0.8.0.md)
 describe the verified scope and limitations. `v0.9.0` includes a System Map
 and reproducible demo walkthrough. Its
 [release notes](docs/releases/v0.9.0.md) record the local verification and
-limits. `v1.0.0` development focuses on Temporal replay compatibility,
-clean-clone reproducibility and the final portfolio-publication review; it
-does not imply a public backend. Physical blob deletion, malware scanning and
-production deployment are not implemented.
+limits. `v1.0.0` development now first fixes unsupported-document outcomes.
+The current upload workflow does not call an AI model: Ollama remains an
+isolated evaluation experiment, and structured extraction is invoice-only. A
+local-model workflow and human evaluation view are planned before the stable
+release. This is a local portfolio demo, not a public backend. Physical blob
+deletion, malware scanning and production deployment are not implemented.
 
 ## Implemented Technology
 
@@ -118,6 +124,8 @@ Terminal workflow failure evidence is defined by
 [ADR 0008](docs/decisions/0008-record-safe-terminal-workflow-failure-evidence.md).
 Safe document retention and blob garbage-collection boundaries are defined by
 [ADR 0009](docs/decisions/0009-use-explicit-safe-document-retention.md).
+Unsupported document outcomes and their operator queue are defined by
+[ADR 0010](docs/decisions/0010-record-unsupported-document-outcomes.md).
 
 ## Repository Layout
 
@@ -160,7 +168,7 @@ The API is available at `http://localhost:8000`. Current endpoints:
 - readiness: `GET http://localhost:8000/health/ready`;
 - Prometheus metrics: `GET http://localhost:8000/metrics`;
 - document ingestion: `POST http://localhost:8000/api/v1/documents`;
-- operator queue: `GET http://localhost:8000/api/v1/documents?queue=ACTIVE|REVIEW|FAILED&limit=25&offset=0`;
+- operator queue: `GET http://localhost:8000/api/v1/documents?queue=ACTIVE|REVIEW|FAILED|UNSUPPORTED&limit=25&offset=0`;
 - document status: `GET http://localhost:8000/api/v1/documents/{document_id}`;
 - review resolution: `POST http://localhost:8000/api/v1/documents/{document_id}/review-resolution`;
 - controlled reprocessing: `POST http://localhost:8000/api/v1/documents/{document_id}/reprocessing-requests`;
@@ -317,7 +325,9 @@ using a small deterministic, word-boundary keyword policy. For invoices, it
 extracts explicitly labelled fields, validates their completeness and persists
 the decision. `AUTO_APPROVE` atomically transitions the document to `APPROVED`
 and the run to `COMPLETED`; `REVIEW_REQUIRED` transitions both to review. The
-console stops polling after either automated outcome. A configured local review
+workflow marks unknown and non-invoice documents `UNSUPPORTED` while completing
+their run. The console exposes the classification reason and stops polling for
+that terminal run. A configured local review
 operator can then approve or reject the review-required document. Resolution is
 atomic, immutable and idempotent for the same decision, reviewer and note.
 

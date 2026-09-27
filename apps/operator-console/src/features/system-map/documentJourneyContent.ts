@@ -1,4 +1,5 @@
-export type JourneyId = "auto-approval" | "manual-review" | "failed-run";
+export type JourneyId =
+    "auto-approval" | "manual-review" | "failed-run" | "unsupported-document";
 
 export type JourneyStep = {
     title: string;
@@ -59,7 +60,7 @@ const classification: JourneyStep = {
     title: "Classify document",
     owner: "Worker / PostgreSQL",
     description:
-        "A deterministic, versioned policy classifies the selected text. Only invoices continue through invoice extraction and validation; other types complete the technical run.",
+        "A deterministic, versioned policy classifies the selected text. Only invoices continue through invoice extraction and validation; other types receive an explicit unsupported outcome.",
     state: "Persisted document type and reason",
     referencePath:
         "src/document_platform/application/commands/classify_document.py",
@@ -109,6 +110,24 @@ export const journeys: readonly Journey[] = [
                 state: "Document APPROVED or REJECTED · run COMPLETED",
                 referencePath:
                     "src/document_platform/application/commands/resolve_document_review.py",
+            },
+        ],
+    },
+    {
+        id: "unsupported-document",
+        label: "Unsupported document",
+        outcome:
+            "Unknown documents and recognized non-invoices finish with a visible unsupported outcome.",
+        steps: [
+            ...invoiceSteps,
+            {
+                title: "Complete as unsupported",
+                owner: "Worker / PostgreSQL",
+                description:
+                    "The saved classification distinguishes unknown input from a recognized type without invoice extraction. The document status and completed run commit atomically.",
+                state: "Document UNSUPPORTED · run COMPLETED",
+                referencePath:
+                    "src/document_platform/application/commands/complete_processing_run.py",
             },
         ],
     },

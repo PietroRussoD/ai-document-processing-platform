@@ -128,6 +128,18 @@ def test_reopens_a_failed_document_for_reprocessing() -> None:
     assert reopened.version == 3
 
 
+def test_marks_an_unrecognized_document_as_unsupported() -> None:
+    processing = accepted_document().start_processing(at=ACCEPTED_AT + timedelta(seconds=1))
+    unsupported_at = ACCEPTED_AT + timedelta(seconds=2)
+
+    unsupported = processing.mark_unsupported(at=unsupported_at)
+
+    assert unsupported.status is DocumentStatus.UNSUPPORTED
+    assert unsupported.status_changed_at == unsupported_at
+    with pytest.raises(InvalidDocumentTransition, match="cannot reopen for reprocessing"):
+        unsupported.reopen_for_reprocessing(at=ACCEPTED_AT + timedelta(seconds=3))
+
+
 @pytest.mark.parametrize("status", [DocumentStatus.UPLOADED, DocumentStatus.PROCESSING])
 def test_rejects_reprocessing_for_a_nonterminal_document(status: DocumentStatus) -> None:
     document = accepted_document()

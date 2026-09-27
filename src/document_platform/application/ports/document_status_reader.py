@@ -143,6 +143,7 @@ class DocumentWorkQueue(StrEnum):
     ACTIVE = "ACTIVE"
     REVIEW = "REVIEW"
     FAILED = "FAILED"
+    UNSUPPORTED = "UNSUPPORTED"
 
 
 @dataclass(frozen=True, slots=True)

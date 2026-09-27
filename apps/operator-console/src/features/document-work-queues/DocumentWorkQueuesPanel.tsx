@@ -34,6 +34,7 @@ const queues: readonly {
     { id: "ACTIVE", label: "Active" },
     { id: "REVIEW", label: "Needs review" },
     { id: "FAILED", label: "Failed" },
+    { id: "UNSUPPORTED", label: "Unsupported" },
 ];
 
 export function DocumentWorkQueuesPanel({
@@ -372,7 +373,7 @@ function statusTone(
     if (status === "FAILED" || status === "REJECTED") {
         return "danger";
     }
-    if (status === "REVIEW_REQUIRED") {
+    if (status === "REVIEW_REQUIRED" || status === "UNSUPPORTED") {
         return "warning";
     }
     if (status === "APPROVED") {

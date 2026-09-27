@@ -170,9 +170,16 @@ fields and positive totals, then persists an immutable `AUTO_APPROVE` or
 in one transaction: auto-approval yields `APPROVED` and `COMPLETED`; incomplete
 data yields `REVIEW_REQUIRED` for both. `PURCHASE_ORDER`, `CREDIT_NOTE` and
 `UNKNOWN` classifications skip invoice stages and use `complete-processing-run`.
-All activity outputs are immutable and keyed by processing run, which makes
-retries safe. The status API and console expose safe structured values and
-reason codes, never source text or storage paths.
+That activity marks the document `UNSUPPORTED` and completes the processing run
+in one database transaction. The saved classification distinguishes unknown
+input from a recognized type without structured extraction support. The
+operator console lists these documents in a separate queue and explains the
+outcome. Unsupported documents are not retryable until a new processing
+capability is implemented. The migration backfills old completed non-invoice
+runs whose document was left in `PROCESSING`. All activity outputs are
+immutable and keyed by processing run, which makes retries safe. The status API
+and console expose safe structured values and reason codes, never source text
+or storage paths.
 
 An operator may approve a review-required invoice with a non-empty set of typed
 field corrections. The application applies that set only in memory to validate
