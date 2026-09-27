@@ -14,6 +14,7 @@ from document_platform.adapters.inbound.temporal import (
     ExtractInvoiceActivity,
     ExtractOcrTextActivity,
     ProposeInvoiceFieldsActivity,
+    RecordInvoiceProposalFailureActivity,
     RecordProcessingRunFailureActivity,
     SelectProcessingTextActivity,
     StartProcessingRunActivity,
@@ -39,6 +40,7 @@ from document_platform.application.commands import (
     ExtractInvoiceHandler,
     ExtractOcrTextHandler,
     ProposeInvoiceFieldsHandler,
+    RecordInvoiceProposalFailureHandler,
     RecordProcessingRunFailureHandler,
     SelectProcessingTextHandler,
     StartProcessingRunHandler,
@@ -49,6 +51,7 @@ from document_platform.domain.processing import (
     DeterministicInvoiceExtractionPolicy,
     DocumentClassificationPolicy,
     EmbeddedTextQualityPolicy,
+    InvoiceModelProvider,
     InvoiceValidationPolicy,
     ProcessingStage,
     ProcessingTextSelectionPolicy,
@@ -148,6 +151,14 @@ async def run_worker(settings: Settings) -> None:
                 ),
             )
         )
+        invoice_proposal_failure_activity = RecordInvoiceProposalFailureActivity(
+            RecordInvoiceProposalFailureHandler(
+                unit_of_work_factory=unit_of_work_factory,
+                clock=lambda: datetime.now(UTC),
+            ),
+            provider=InvoiceModelProvider.OLLAMA,
+            model_reference=settings.ollama_model_reference,
+        )
         invoice_validation_activity = ValidateInvoiceActivity(
             ValidateInvoiceHandler(
                 unit_of_work_factory=unit_of_work_factory,
@@ -185,6 +196,7 @@ async def run_worker(settings: Settings) -> None:
                 classification_activity.classify_document,
                 invoice_extraction_activity.extract_invoice,
                 invoice_proposal_activity.propose_invoice_fields,
+                invoice_proposal_failure_activity.record_invoice_proposal_failure,
                 invoice_validation_activity.validate_invoice,
                 invoice_validation_application_activity.apply_invoice_validation,
                 completion_activity.complete_processing_run,

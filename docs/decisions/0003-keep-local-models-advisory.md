@@ -45,7 +45,8 @@ to replace deterministic extraction or to approve a document automatically.
   safe error codes. A response body with invalid invoice JSON remains an
   `INVALID` proposal, not a provider outage. A separate immutable persistence
   contract now stores terminal provider failures without failing the document.
-  Workflow recording, mutually exclusive success/failure enforcement and
-  operator visibility remain pending.
+  The proposal and failure repositories serialize writes per run and reject
+  opposite outcomes. The failure-recording activity is registered, but workflow
+  scheduling after retries and operator visibility remain pending.
 - A public demo must disclose the local model, benchmark limitations and human
   review requirement.

@@ -67,7 +67,10 @@ malware scanning and production deployment are not implemented.
 The model adapter classifies provider timeouts, unavailability and invalid
 response envelopes using safe error codes. A separate immutable PostgreSQL
 record can store a terminal provider failure without changing document status.
-No workflow writes that record yet, and the operator console does not show it.
+The worker registers a separate recording activity. Repository writes serialize
+on the processing run so a proposal and a failure cannot both be stored through
+the application. The current workflow does not schedule either AI activity,
+and the operator console does not show these outcomes yet.
 
 ## Implemented Technology
 

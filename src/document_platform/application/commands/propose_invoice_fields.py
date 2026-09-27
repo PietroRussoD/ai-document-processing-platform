@@ -6,6 +6,7 @@ from uuid import UUID
 from document_platform.application.ports import (
     InvoiceProposalAlreadyExists,
     InvoiceProposalGenerator,
+    InvoiceProposalOutcomeConflict,
     InvoiceProposalRequest,
     UnitOfWorkFactory,
 )
@@ -69,6 +70,8 @@ class ProposeInvoiceFieldsHandler:
             existing = await unit_of_work.invoice_proposals.get(command.processing_run_id)
             if existing is not None:
                 return InvoiceProposalGenerated(existing, replayed=True)
+            if await unit_of_work.invoice_proposal_failures.get(command.processing_run_id):
+                raise InvoiceProposalOutcomeConflict(command.processing_run_id)
 
             classification = await unit_of_work.document_classifications.get(
                 command.processing_run_id

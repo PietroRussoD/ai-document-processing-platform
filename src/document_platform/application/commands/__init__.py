@@ -73,6 +73,11 @@ from document_platform.application.commands.propose_invoice_fields import (
     ProposeInvoiceFields,
     ProposeInvoiceFieldsHandler,
 )
+from document_platform.application.commands.record_invoice_proposal_failure import (
+    InvoiceProposalFailureRecorded,
+    RecordInvoiceProposalFailure,
+    RecordInvoiceProposalFailureHandler,
+)
 from document_platform.application.commands.record_processing_run_failure import (
     ConflictingProcessingRunFailure,
     InvalidProcessingFailureDocument,
@@ -216,6 +221,9 @@ __all__ = [
     "ProcessingTextSelected",
     "ProposeInvoiceFields",
     "ProposeInvoiceFieldsHandler",
+    "InvoiceProposalFailureRecorded",
+    "RecordInvoiceProposalFailure",
+    "RecordInvoiceProposalFailureHandler",
     "StartProcessingRun",
     "StartProcessingRunHandler",
     "SelectProcessingText",

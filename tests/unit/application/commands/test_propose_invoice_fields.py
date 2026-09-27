@@ -19,9 +19,14 @@ from document_platform.application.commands.propose_invoice_fields import (
     ProposeInvoiceFields,
     ProposeInvoiceFieldsHandler,
 )
-from document_platform.application.ports import InvoiceProposalRequest, UnitOfWork
+from document_platform.application.ports import (
+    InvoiceProposalOutcomeConflict,
+    InvoiceProposalRequest,
+    UnitOfWork,
+)
 from document_platform.domain.processing import (
     AiInvoiceExtractionProposal,
+    AiInvoiceProposalFailure,
     BusinessDocumentType,
     DocumentClassification,
     DocumentClassificationReason,
@@ -30,6 +35,7 @@ from document_platform.domain.processing import (
     DocumentTextSelection,
     EmbeddedTextQuality,
     InvoiceModelProvider,
+    InvoiceProposalGenerationFailureCode,
     InvoiceProposalStatus,
     OcrExtractionMethod,
     ProcessingTextSelectionReason,
@@ -60,6 +66,7 @@ class RecordingUnitOfWork:
         self.active = False
         self.commit_count = 0
         self.invoice_proposals = ValueRepository()
+        self.invoice_proposal_failures = ValueRepository()
         self.document_classifications = ValueRepository(
             DocumentClassification(
                 processing_run_id=RUN_ID,
@@ -200,6 +207,24 @@ async def test_reuses_an_existing_proposal_without_calling_the_model() -> None:
     assert result == InvoiceProposalGenerated(existing, replayed=True)
     assert generator.requests == []
     assert unit_of_work.commit_count == 0
+
+
+@pytest.mark.anyio
+async def test_does_not_call_model_when_terminal_failure_is_recorded() -> None:
+    unit_of_work = RecordingUnitOfWork()
+    unit_of_work.invoice_proposal_failures.value = AiInvoiceProposalFailure(
+        processing_run_id=RUN_ID,
+        provider=InvoiceModelProvider.OLLAMA,
+        model_reference="qwen3:8b",
+        code=InvoiceProposalGenerationFailureCode.UNAVAILABLE,
+        failed_at=AT,
+    )
+    generator = RecordingGenerator(unit_of_work)
+
+    with pytest.raises(InvoiceProposalOutcomeConflict):
+        await handler(unit_of_work, generator)(ProposeInvoiceFields(RUN_ID))
+
+    assert generator.requests == []
 
 
 @pytest.mark.anyio

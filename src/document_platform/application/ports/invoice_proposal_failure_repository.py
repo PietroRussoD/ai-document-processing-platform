@@ -11,6 +11,11 @@ class InvoiceProposalFailureAlreadyExists(RuntimeError):
         super().__init__(f"AI invoice proposal failure already exists: {processing_run_id}")
 
 
+class InvoiceProposalOutcomeConflict(RuntimeError):
+    def __init__(self, processing_run_id: UUID) -> None:
+        super().__init__(f"AI invoice proposal outcome already exists: {processing_run_id}")
+
+
 class InvoiceProposalFailureRepository(Protocol):
     async def add(self, failure: AiInvoiceProposalFailure) -> None: ...
 

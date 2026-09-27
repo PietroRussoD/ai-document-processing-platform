@@ -2,12 +2,20 @@
 
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from document_platform.adapters.outbound.postgresql.errors import is_unique_violation
-from document_platform.adapters.outbound.postgresql.models import AiInvoiceExtractionProposalRecord
-from document_platform.application.ports import InvoiceProposalAlreadyExists
+from document_platform.adapters.outbound.postgresql.models import (
+    AiInvoiceExtractionProposalRecord,
+    AiInvoiceProposalFailureRecord,
+    ProcessingRunRecord,
+)
+from document_platform.application.ports import (
+    InvoiceProposalAlreadyExists,
+    InvoiceProposalOutcomeConflict,
+)
 from document_platform.domain.processing import (
     AiInvoiceExtractionProposal,
     InvoiceModelProvider,
@@ -23,6 +31,13 @@ class SqlAlchemyAiInvoiceExtractionProposalRepository:
         self._session = session
 
     async def add(self, proposal: AiInvoiceExtractionProposal) -> None:
+        await self._session.scalar(
+            select(ProcessingRunRecord.id)
+            .where(ProcessingRunRecord.id == proposal.processing_run_id)
+            .with_for_update()
+        )
+        if await self._session.get(AiInvoiceProposalFailureRecord, proposal.processing_run_id):
+            raise InvoiceProposalOutcomeConflict(proposal.processing_run_id)
         self._session.add(_to_record(proposal))
         try:
             await self._session.flush()

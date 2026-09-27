@@ -6,7 +6,10 @@ from typing import Any
 import pytest
 
 import document_platform.worker as worker_module
-from document_platform.application.temporal_contracts import PROPOSE_INVOICE_FIELDS_ACTIVITY
+from document_platform.application.temporal_contracts import (
+    PROPOSE_INVOICE_FIELDS_ACTIVITY,
+    RECORD_INVOICE_PROPOSAL_FAILURE_ACTIVITY,
+)
 from document_platform.settings import Settings
 
 
@@ -45,6 +48,6 @@ async def test_registers_proposal_activity_without_calling_ollama(
 
     await worker_module.run_worker(Settings(storage_root=tmp_path))
 
-    assert PROPOSE_INVOICE_FIELDS_ACTIVITY in {
-        activity.__temporal_activity_definition.name for activity in registered
-    }
+    activity_names = {activity.__temporal_activity_definition.name for activity in registered}
+    assert PROPOSE_INVOICE_FIELDS_ACTIVITY in activity_names
+    assert RECORD_INVOICE_PROPOSAL_FAILURE_ACTIVITY in activity_names
