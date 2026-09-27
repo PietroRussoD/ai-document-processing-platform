@@ -60,7 +60,7 @@ worker by default, with at most two attempts, 150 seconds per attempt and five
 minutes total. Terminal provider errors are recorded as safe codes in an
 immutable table without changing document status. Proposal and failure writes
 lock the same processing-run row and reject the opposite outcome. Proposals and
-failures are not yet exposed through the API. The local model is never an
+failures are exposed separately through the document-status API. The local model is never an
 authority for deterministic extraction or review decisions. Old workflow
 histories retain their command sequence through the
 `advisory-invoice-proposal-v1` Temporal patch. See
@@ -245,6 +245,12 @@ When processing output is available, the same snapshot includes extraction
 counts, quality decisions, selection, classification, structured invoice fields
 and validation reason codes. It deliberately excludes extracted text, original
 blobs and internal storage paths.
+Optional AI proposal and terminal provider-failure records are joined by the
+current processing-run ID and returned separately from deterministic output.
+The read model includes only structured proposed fields, issue codes and model
+provenance; it excludes source text, prompts and raw provider responses. This
+local demo does not authenticate status reads, so only synthetic documents
+should be uploaded.
 
 The React upload feature keeps temporary file selection in local component state
 and delegates the remote mutation lifecycle to TanStack Query. One client-generated
@@ -572,7 +578,7 @@ tests/e2e/           API and browser journeys
 | Boundary | Current implementation | Planned extension |
 | --- | --- | --- |
 | Object storage | Local filesystem | S3-compatible adapter |
-| Invoice extraction | Deterministic extraction, validation, immutable review corrections and opt-in advisory local-model proposal after completion | API projection and human comparison view for advisory output |
+| Invoice extraction | Deterministic extraction, validation, immutable review corrections, opt-in advisory local-model proposal and status API projection | Human comparison view for advisory output |
 | Text extraction | Embedded/OCR extraction and persisted canonical source selection | OCR quality calibration and language policy |
 | Document classification | Deterministic canonical-text keyword policy | Evaluated local model policy |
 | Workflow execution | Temporal development server with local worker | Managed/self-hosted Temporal later |

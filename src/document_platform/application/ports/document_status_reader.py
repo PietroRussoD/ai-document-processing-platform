@@ -13,6 +13,10 @@ from document_platform.domain.processing import (
     DocumentClassificationReason,
     EmbeddedTextQuality,
     InvoiceExtractionMethod,
+    InvoiceModelProvider,
+    InvoiceProposalGenerationFailureCode,
+    InvoiceProposalIssue,
+    InvoiceProposalStatus,
     InvoiceReviewField,
     InvoiceValidationDecision,
     InvoiceValidationIssue,
@@ -111,6 +115,32 @@ class ReviewResolutionMetadataView:
 
 
 @dataclass(frozen=True, slots=True)
+class AiInvoiceProposalMetadataView:
+    schema_version: int
+    provider: InvoiceModelProvider
+    model_reference: str
+    model_digest: str | None
+    prompt_version: str
+    selected_text_sha256: str
+    status: InvoiceProposalStatus
+    invoice_number: str | None
+    issue_date: date | None
+    supplier_name: str | None
+    currency: str | None
+    total_amount: Decimal | None
+    issues: tuple[InvoiceProposalIssue, ...]
+    proposed_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class AiInvoiceProposalFailureMetadataView:
+    provider: InvoiceModelProvider
+    model_reference: str
+    code: InvoiceProposalGenerationFailureCode
+    failed_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
 class ProcessingRunStatusView:
     id: UUID
     previous_run_id: UUID | None
@@ -123,6 +153,8 @@ class ProcessingRunStatusView:
     failure: ProcessingFailureMetadataView | None
     processing_output: ProcessingOutputView | None
     review_resolution: ReviewResolutionMetadataView | None
+    ai_proposal: AiInvoiceProposalMetadataView | None = None
+    ai_proposal_failure: AiInvoiceProposalFailureMetadataView | None = None
 
 
 @dataclass(frozen=True, slots=True)

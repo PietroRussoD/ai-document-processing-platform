@@ -126,6 +126,8 @@ async def test_accepts_and_replays_a_pdf_upload(
             "failure": None,
             "processing_output": None,
             "review_resolution": None,
+            "ai_proposal": None,
+            "ai_proposal_failure": None,
         },
     }
     assert "storage_key" not in status_response.json()

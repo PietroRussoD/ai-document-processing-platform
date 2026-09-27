@@ -32,6 +32,179 @@
         "title": "AcceptedDocumentResponse",
         "type": "object"
       },
+      "AiInvoiceProposalFailureMetadataResponse": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/InvoiceProposalGenerationFailureCode"
+          },
+          "failed_at": {
+            "format": "date-time",
+            "title": "Failed At",
+            "type": "string"
+          },
+          "model_reference": {
+            "title": "Model Reference",
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/InvoiceModelProvider"
+          }
+        },
+        "required": [
+          "provider",
+          "model_reference",
+          "code",
+          "failed_at"
+        ],
+        "title": "AiInvoiceProposalFailureMetadataResponse",
+        "type": "object"
+      },
+      "AiInvoiceProposalIssueResponse": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/InvoiceProposalIssueCode"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InvoiceProposalField"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "field"
+        ],
+        "title": "AiInvoiceProposalIssueResponse",
+        "type": "object"
+      },
+      "AiInvoiceProposalMetadataResponse": {
+        "properties": {
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "invoice_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Invoice Number"
+          },
+          "issue_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issue Date"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/AiInvoiceProposalIssueResponse"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "model_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Digest"
+          },
+          "model_reference": {
+            "title": "Model Reference",
+            "type": "string"
+          },
+          "prompt_version": {
+            "title": "Prompt Version",
+            "type": "string"
+          },
+          "proposed_at": {
+            "format": "date-time",
+            "title": "Proposed At",
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/InvoiceModelProvider"
+          },
+          "schema_version": {
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "selected_text_sha256": {
+            "title": "Selected Text Sha256",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InvoiceProposalStatus"
+          },
+          "supplier_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supplier Name"
+          },
+          "total_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Amount"
+          }
+        },
+        "required": [
+          "schema_version",
+          "provider",
+          "model_reference",
+          "model_digest",
+          "prompt_version",
+          "selected_text_sha256",
+          "status",
+          "invoice_number",
+          "issue_date",
+          "supplier_name",
+          "currency",
+          "total_amount",
+          "issues",
+          "proposed_at"
+        ],
+        "title": "AiInvoiceProposalMetadataResponse",
+        "type": "object"
+      },
       "Body_acceptDocumentUpload": {
         "properties": {
           "document": {
@@ -452,6 +625,13 @@
         "title": "InvoiceExtractionMethod",
         "type": "string"
       },
+      "InvoiceModelProvider": {
+        "enum": [
+          "OLLAMA"
+        ],
+        "title": "InvoiceModelProvider",
+        "type": "string"
+      },
       "InvoiceNumberReviewCorrectionRequest": {
         "properties": {
           "corrected_value": {
@@ -472,6 +652,44 @@
         ],
         "title": "InvoiceNumberReviewCorrectionRequest",
         "type": "object"
+      },
+      "InvoiceProposalField": {
+        "enum": [
+          "INVOICE_NUMBER",
+          "ISSUE_DATE",
+          "SUPPLIER_NAME",
+          "CURRENCY",
+          "TOTAL_AMOUNT"
+        ],
+        "title": "InvoiceProposalField",
+        "type": "string"
+      },
+      "InvoiceProposalGenerationFailureCode": {
+        "enum": [
+          "TIMEOUT",
+          "UNAVAILABLE",
+          "INVALID_RESPONSE"
+        ],
+        "title": "InvoiceProposalGenerationFailureCode",
+        "type": "string"
+      },
+      "InvoiceProposalIssueCode": {
+        "enum": [
+          "MALFORMED_RESPONSE",
+          "MISSING_FIELD",
+          "INVALID_FIELD_VALUE"
+        ],
+        "title": "InvoiceProposalIssueCode",
+        "type": "string"
+      },
+      "InvoiceProposalStatus": {
+        "enum": [
+          "VALID",
+          "PARTIAL",
+          "INVALID"
+        ],
+        "title": "InvoiceProposalStatus",
+        "type": "string"
       },
       "InvoiceReviewCorrectionMetadataResponse": {
         "properties": {
@@ -769,6 +987,26 @@
       },
       "ProcessingRunStatusResponse": {
         "properties": {
+          "ai_proposal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiInvoiceProposalMetadataResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ai_proposal_failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiInvoiceProposalFailureMetadataResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "attempt_count": {
             "title": "Attempt Count",
             "type": "integer"
@@ -869,7 +1107,9 @@
           "attempt_count",
           "failure",
           "processing_output",
-          "review_resolution"
+          "review_resolution",
+          "ai_proposal",
+          "ai_proposal_failure"
         ],
         "title": "ProcessingRunStatusResponse",
         "type": "object"

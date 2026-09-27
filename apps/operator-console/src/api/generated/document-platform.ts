@@ -131,6 +131,55 @@ export interface components {
             /** Replayed */
             replayed: boolean;
         };
+        /** AiInvoiceProposalFailureMetadataResponse */
+        AiInvoiceProposalFailureMetadataResponse: {
+            code: components["schemas"]["InvoiceProposalGenerationFailureCode"];
+            /**
+             * Failed At
+             * Format: date-time
+             */
+            failed_at: string;
+            /** Model Reference */
+            model_reference: string;
+            provider: components["schemas"]["InvoiceModelProvider"];
+        };
+        /** AiInvoiceProposalIssueResponse */
+        AiInvoiceProposalIssueResponse: {
+            code: components["schemas"]["InvoiceProposalIssueCode"];
+            field: components["schemas"]["InvoiceProposalField"] | null;
+        };
+        /** AiInvoiceProposalMetadataResponse */
+        AiInvoiceProposalMetadataResponse: {
+            /** Currency */
+            currency: string | null;
+            /** Invoice Number */
+            invoice_number: string | null;
+            /** Issue Date */
+            issue_date: string | null;
+            /** Issues */
+            issues: components["schemas"]["AiInvoiceProposalIssueResponse"][];
+            /** Model Digest */
+            model_digest: string | null;
+            /** Model Reference */
+            model_reference: string;
+            /** Prompt Version */
+            prompt_version: string;
+            /**
+             * Proposed At
+             * Format: date-time
+             */
+            proposed_at: string;
+            provider: components["schemas"]["InvoiceModelProvider"];
+            /** Schema Version */
+            schema_version: number;
+            /** Selected Text Sha256 */
+            selected_text_sha256: string;
+            status: components["schemas"]["InvoiceProposalStatus"];
+            /** Supplier Name */
+            supplier_name: string | null;
+            /** Total Amount */
+            total_amount: string | null;
+        };
         /** Body_acceptDocumentUpload */
         Body_acceptDocumentUpload: {
             /**
@@ -321,6 +370,11 @@ export interface components {
          * @enum {string}
          */
         InvoiceExtractionMethod: "DETERMINISTIC_RULES" | "OLLAMA";
+        /**
+         * InvoiceModelProvider
+         * @enum {string}
+         */
+        InvoiceModelProvider: "OLLAMA";
         /** InvoiceNumberReviewCorrectionRequest */
         InvoiceNumberReviewCorrectionRequest: {
             /** Corrected Value */
@@ -331,6 +385,26 @@ export interface components {
              */
             field: "INVOICE_NUMBER";
         };
+        /**
+         * InvoiceProposalField
+         * @enum {string}
+         */
+        InvoiceProposalField: "INVOICE_NUMBER" | "ISSUE_DATE" | "SUPPLIER_NAME" | "CURRENCY" | "TOTAL_AMOUNT";
+        /**
+         * InvoiceProposalGenerationFailureCode
+         * @enum {string}
+         */
+        InvoiceProposalGenerationFailureCode: "TIMEOUT" | "UNAVAILABLE" | "INVALID_RESPONSE";
+        /**
+         * InvoiceProposalIssueCode
+         * @enum {string}
+         */
+        InvoiceProposalIssueCode: "MALFORMED_RESPONSE" | "MISSING_FIELD" | "INVALID_FIELD_VALUE";
+        /**
+         * InvoiceProposalStatus
+         * @enum {string}
+         */
+        InvoiceProposalStatus: "VALID" | "PARTIAL" | "INVALID";
         /** InvoiceReviewCorrectionMetadataResponse */
         InvoiceReviewCorrectionMetadataResponse: {
             /**
@@ -437,6 +511,8 @@ export interface components {
         ProcessingRunStatus: "QUEUED" | "RUNNING" | "WAITING_RETRY" | "REVIEW_REQUIRED" | "COMPLETED" | "FAILED" | "CANCELLED";
         /** ProcessingRunStatusResponse */
         ProcessingRunStatusResponse: {
+            ai_proposal: components["schemas"]["AiInvoiceProposalMetadataResponse"] | null;
+            ai_proposal_failure: components["schemas"]["AiInvoiceProposalFailureMetadataResponse"] | null;
             /** Attempt Count */
             attempt_count: number;
             failure: components["schemas"]["ProcessingFailureMetadataResponse"] | null;

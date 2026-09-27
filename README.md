@@ -60,7 +60,8 @@ its advisory AI stage. Local Ollama calls are disabled by default; set
 `DOCUMENT_PLATFORM_OLLAMA_ENABLED=true` on the worker and run Ollama with the
 configured model to generate proposals. Deterministic extraction remains
 authoritative and structured extraction is invoice-only. Proposals and provider
-failures are not yet exposed through the API or operator console. This is a
+failures are exposed as optional, separate fields in the document-status API;
+the operator console does not yet display them. This is a
 local portfolio demo, not a public backend. Physical blob deletion, malware
 scanning and production deployment are not implemented.
 
@@ -401,6 +402,15 @@ Its optional `processing_output` contains only extraction counts,
 quality decisions, canonical-text selection, classification, invoice fields and
 validation reason codes. Internal storage paths and extracted text are never
 exposed by the HTTP contract.
+
+When an invoice run has an advisory AI result, `current_run.ai_proposal` contains
+the structured fields, validation issues, and model provenance. A terminal
+provider error appears instead in `current_run.ai_proposal_failure` as a bounded
+code (`TIMEOUT`, `UNAVAILABLE` or `INVALID_RESPONSE`). Both fields are `null`
+when no outcome is recorded, including when Ollama is disabled or work is still
+in progress. The deterministic `processing_output` remains authoritative.
+The status endpoint is unauthenticated in this local demo, so use synthetic
+documents only; neither raw document text nor prompts are returned.
 
 ### Metrics
 

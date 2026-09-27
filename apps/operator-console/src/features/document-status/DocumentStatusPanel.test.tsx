@@ -231,6 +231,8 @@ function status(
             failure: null,
             processing_output: null,
             review_resolution: null,
+            ai_proposal: null,
+            ai_proposal_failure: null,
         },
     };
 }

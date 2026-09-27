@@ -6,6 +6,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from document_platform.adapters.outbound.postgresql.models import (
+    AiInvoiceExtractionProposalRecord,
+    AiInvoiceProposalFailureRecord,
     DocumentClassificationRecord,
     DocumentOcrExtractionRecord,
     DocumentRecord,
@@ -18,6 +20,8 @@ from document_platform.adapters.outbound.postgresql.models import (
     ReviewResolutionRecord,
 )
 from document_platform.application.ports import (
+    AiInvoiceProposalFailureMetadataView,
+    AiInvoiceProposalMetadataView,
     ClassificationMetadataView,
     DocumentStatusView,
     DocumentWorkQueue,
@@ -40,6 +44,12 @@ from document_platform.domain.processing import (
     DocumentClassificationReason,
     EmbeddedTextQuality,
     InvoiceExtractionMethod,
+    InvoiceModelProvider,
+    InvoiceProposalField,
+    InvoiceProposalGenerationFailureCode,
+    InvoiceProposalIssue,
+    InvoiceProposalIssueCode,
+    InvoiceProposalStatus,
     InvoiceReviewField,
     InvoiceValidationDecision,
     InvoiceValidationIssue,
@@ -70,6 +80,8 @@ class SqlAlchemyDocumentStatusReader:
                 InvoiceExtractionRecord,
                 InvoiceValidationRecord,
                 ReviewResolutionRecord,
+                AiInvoiceExtractionProposalRecord,
+                AiInvoiceProposalFailureRecord,
             )
             .join(ProcessingRunRecord, ProcessingRunRecord.document_id == DocumentRecord.id)
             .outerjoin(
@@ -99,6 +111,14 @@ class SqlAlchemyDocumentStatusReader:
             .outerjoin(
                 ReviewResolutionRecord,
                 ReviewResolutionRecord.processing_run_id == ProcessingRunRecord.id,
+            )
+            .outerjoin(
+                AiInvoiceExtractionProposalRecord,
+                AiInvoiceExtractionProposalRecord.processing_run_id == ProcessingRunRecord.id,
+            )
+            .outerjoin(
+                AiInvoiceProposalFailureRecord,
+                AiInvoiceProposalFailureRecord.processing_run_id == ProcessingRunRecord.id,
             )
             .where(DocumentRecord.id == document_id)
             .order_by(ProcessingRunRecord.queued_at.desc(), ProcessingRunRecord.id.desc())
@@ -130,6 +150,8 @@ class SqlAlchemyDocumentStatusReader:
         invoice_extraction = row[6]
         invoice_validation = row[7]
         review_resolution = row[8]
+        ai_proposal = row[9]
+        ai_proposal_failure = row[10]
         return DocumentStatusView(
             id=document.id,
             original_filename=document.original_filename,
@@ -176,6 +198,44 @@ class SqlAlchemyDocumentStatusReader:
                         ),
                     )
                     if review_resolution is not None
+                    else None
+                ),
+                ai_proposal=(
+                    AiInvoiceProposalMetadataView(
+                        schema_version=ai_proposal.schema_version,
+                        provider=InvoiceModelProvider(ai_proposal.provider),
+                        model_reference=ai_proposal.model_reference,
+                        model_digest=ai_proposal.model_digest,
+                        prompt_version=ai_proposal.prompt_version,
+                        selected_text_sha256=ai_proposal.selected_text_sha256,
+                        status=InvoiceProposalStatus(ai_proposal.status),
+                        invoice_number=ai_proposal.invoice_number,
+                        issue_date=ai_proposal.issue_date,
+                        supplier_name=ai_proposal.supplier_name,
+                        currency=ai_proposal.currency,
+                        total_amount=ai_proposal.total_amount,
+                        issues=tuple(
+                            InvoiceProposalIssue(
+                                code=InvoiceProposalIssueCode(issue["code"]),
+                                field=InvoiceProposalField(issue["field"])
+                                if issue["field"] is not None
+                                else None,
+                            )
+                            for issue in ai_proposal.issues
+                        ),
+                        proposed_at=ai_proposal.proposed_at,
+                    )
+                    if ai_proposal is not None
+                    else None
+                ),
+                ai_proposal_failure=(
+                    AiInvoiceProposalFailureMetadataView(
+                        provider=InvoiceModelProvider(ai_proposal_failure.provider),
+                        model_reference=ai_proposal_failure.model_reference,
+                        code=InvoiceProposalGenerationFailureCode(ai_proposal_failure.code),
+                        failed_at=ai_proposal_failure.failed_at,
+                    )
+                    if ai_proposal_failure is not None
                     else None
                 ),
             ),

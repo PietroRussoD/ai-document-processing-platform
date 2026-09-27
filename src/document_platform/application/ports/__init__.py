@@ -33,6 +33,8 @@ from document_platform.application.ports.document_retention_reader import (
     DocumentRetentionSnapshot,
 )
 from document_platform.application.ports.document_status_reader import (
+    AiInvoiceProposalFailureMetadataView,
+    AiInvoiceProposalMetadataView,
     ClassificationMetadataView,
     DocumentStatusReader,
     DocumentStatusView,
@@ -140,6 +142,8 @@ from document_platform.application.ports.workflow_start_request_repository impor
 from document_platform.application.ports.workflow_starter import WorkflowStarter
 
 __all__ = [
+    "AiInvoiceProposalFailureMetadataView",
+    "AiInvoiceProposalMetadataView",
     "BlobIntegrityConflict",
     "BlobIdentity",
     "BlobNotFound",

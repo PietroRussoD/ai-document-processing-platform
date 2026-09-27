@@ -37,6 +37,11 @@ from document_platform.domain.processing import (
     DocumentClassificationReason,
     EmbeddedTextQuality,
     InvoiceExtractionMethod,
+    InvoiceModelProvider,
+    InvoiceProposalField,
+    InvoiceProposalGenerationFailureCode,
+    InvoiceProposalIssueCode,
+    InvoiceProposalStatus,
     InvoiceReviewField,
     InvoiceReviewFieldCorrection,
     InvoiceValidationDecision,
@@ -163,6 +168,46 @@ class ProcessingFailureMetadataResponse(BaseModel):
     code: ProcessingFailureCode
 
 
+class AiInvoiceProposalIssueResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    code: InvoiceProposalIssueCode
+    field: InvoiceProposalField | None
+
+
+class AiInvoiceProposalMetadataResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    schema_version: int
+    provider: InvoiceModelProvider
+    model_reference: str
+    model_digest: str | None
+    prompt_version: str
+    selected_text_sha256: str
+    status: InvoiceProposalStatus
+    invoice_number: str | None
+    issue_date: date | None
+    supplier_name: str | None
+    currency: str | None
+    total_amount: str | None
+    issues: tuple[AiInvoiceProposalIssueResponse, ...]
+    proposed_at: datetime
+
+    @field_validator("total_amount", mode="before")
+    @classmethod
+    def stringify_total_amount(cls, value: Decimal | str | None) -> str | None:
+        return str(value) if value is not None else None
+
+
+class AiInvoiceProposalFailureMetadataResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    provider: InvoiceModelProvider
+    model_reference: str
+    code: InvoiceProposalGenerationFailureCode
+    failed_at: datetime
+
+
 class ProcessingRunStatusResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -177,6 +222,8 @@ class ProcessingRunStatusResponse(BaseModel):
     failure: ProcessingFailureMetadataResponse | None
     processing_output: ProcessingOutputResponse | None
     review_resolution: ReviewResolutionMetadataResponse | None
+    ai_proposal: AiInvoiceProposalMetadataResponse | None
+    ai_proposal_failure: AiInvoiceProposalFailureMetadataResponse | None
 
 
 class DocumentStatusResponse(BaseModel):

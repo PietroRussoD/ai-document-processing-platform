@@ -7,9 +7,12 @@ from uuid import uuid4
 import pytest
 from pydantic import PostgresDsn
 
+from document_platform.adapters.inbound.http.documents import DocumentStatusResponse
 from document_platform.adapters.outbound.postgresql.database import create_database
 from document_platform.adapters.outbound.postgresql.queries import SqlAlchemyDocumentStatusReader
 from document_platform.adapters.outbound.postgresql.repositories import (
+    SqlAlchemyAiInvoiceExtractionProposalRepository,
+    SqlAlchemyAiInvoiceProposalFailureRepository,
     SqlAlchemyDocumentClassificationRepository,
     SqlAlchemyDocumentOcrExtractionRepository,
     SqlAlchemyDocumentRepository,
@@ -23,6 +26,8 @@ from document_platform.adapters.outbound.postgresql.repositories import (
 )
 from document_platform.domain.documents import Document
 from document_platform.domain.processing import (
+    AiInvoiceExtractionProposal,
+    AiInvoiceProposalFailure,
     BusinessDocumentType,
     DocumentClassification,
     DocumentClassificationReason,
@@ -32,6 +37,12 @@ from document_platform.domain.processing import (
     EmbeddedTextQuality,
     InvoiceExtraction,
     InvoiceExtractionMethod,
+    InvoiceModelProvider,
+    InvoiceProposalField,
+    InvoiceProposalGenerationFailureCode,
+    InvoiceProposalIssue,
+    InvoiceProposalIssueCode,
+    InvoiceProposalStatus,
     InvoiceReviewCorrection,
     InvoiceReviewField,
     InvoiceReviewFieldCorrection,
@@ -41,6 +52,7 @@ from document_platform.domain.processing import (
     ProcessingFailure,
     ProcessingFailureCode,
     ProcessingRun,
+    ProcessingRunStatus,
     ProcessingStage,
     ProcessingTextSelectionReason,
     ProcessingTextSource,
@@ -109,7 +121,125 @@ async def test_returns_the_document_with_its_most_recent_run(
     assert result.current_run.queued_at == latest_run.queued_at
     assert result.current_run.failure is None
     assert result.current_run.processing_output is None
+    assert result.current_run.ai_proposal is None
+    assert result.current_run.ai_proposal_failure is None
     assert missing is None
+
+
+@pytest.mark.anyio
+async def test_returns_ai_proposal_without_source_text_or_prompt(
+    migrated_postgres_url: str,
+) -> None:
+    database = create_database(
+        Settings(environment="test", database_url=PostgresDsn(migrated_postgres_url))
+    )
+    document_id = uuid4()
+    run_id = uuid4()
+    document = Document.accept_pdf(
+        document_id=document_id,
+        original_filename="proposal.pdf",
+        size_bytes=100,
+        page_count=1,
+        content_sha256="a" * 64,
+        storage_key="blobs/proposal",
+        accepted_at=ACCEPTED_AT,
+    )
+    proposal = AiInvoiceExtractionProposal(
+        processing_run_id=run_id,
+        schema_version=1,
+        provider=InvoiceModelProvider.OLLAMA,
+        model_reference="qwen3:8b",
+        model_digest=None,
+        prompt_version="invoice-v1",
+        selected_text_sha256="b" * 64,
+        status=InvoiceProposalStatus.PARTIAL,
+        invoice_number="INV-42",
+        issue_date=None,
+        supplier_name=None,
+        currency=None,
+        total_amount=None,
+        issues=(
+            InvoiceProposalIssue(
+                code=InvoiceProposalIssueCode.MISSING_FIELD,
+                field=InvoiceProposalField.ISSUE_DATE,
+            ),
+        ),
+        proposed_at=ACCEPTED_AT,
+    )
+    try:
+        async with database.sessions.begin() as session:
+            await SqlAlchemyDocumentRepository(session).add(document)
+            await SqlAlchemyProcessingRunRepository(session).add(
+                ProcessingRun.queue(run_id=run_id, document_id=document_id, queued_at=ACCEPTED_AT)
+            )
+            await SqlAlchemyAiInvoiceExtractionProposalRepository(session).add(proposal)
+        result = await SqlAlchemyDocumentStatusReader(database.sessions).get(document_id)
+    finally:
+        await database.dispose()
+
+    assert result is not None
+    assert result.current_run.ai_proposal is not None
+    assert result.current_run.ai_proposal.status is InvoiceProposalStatus.PARTIAL
+    assert result.current_run.ai_proposal.issues == proposal.issues
+    assert result.current_run.ai_proposal.invoice_number == "INV-42"
+    assert result.current_run.ai_proposal_failure is None
+    assert not hasattr(result.current_run.ai_proposal, "selected_text")
+    assert not hasattr(result.current_run.ai_proposal, "prompt")
+    response = DocumentStatusResponse.model_validate(result).model_dump(mode="json")
+    assert response["current_run"]["ai_proposal"]["issues"] == [
+        {"code": "MISSING_FIELD", "field": "ISSUE_DATE"}
+    ]
+    assert response["current_run"]["ai_proposal_failure"] is None
+    assert "selected_text" not in response["current_run"]["ai_proposal"]
+    assert "prompt" not in response["current_run"]["ai_proposal"]
+
+
+@pytest.mark.anyio
+async def test_returns_terminal_ai_failure_without_changing_document_status(
+    migrated_postgres_url: str,
+) -> None:
+    database = create_database(
+        Settings(environment="test", database_url=PostgresDsn(migrated_postgres_url))
+    )
+    document_id = uuid4()
+    run_id = uuid4()
+    document = Document.accept_pdf(
+        document_id=document_id,
+        original_filename="failure.pdf",
+        size_bytes=100,
+        page_count=1,
+        content_sha256="c" * 64,
+        storage_key="blobs/failure",
+        accepted_at=ACCEPTED_AT,
+    )
+    failure = AiInvoiceProposalFailure(
+        processing_run_id=run_id,
+        provider=InvoiceModelProvider.OLLAMA,
+        model_reference="qwen3:8b",
+        code=InvoiceProposalGenerationFailureCode.TIMEOUT,
+        failed_at=ACCEPTED_AT,
+    )
+    try:
+        async with database.sessions.begin() as session:
+            await SqlAlchemyDocumentRepository(session).add(document)
+            await SqlAlchemyProcessingRunRepository(session).add(
+                ProcessingRun.queue(run_id=run_id, document_id=document_id, queued_at=ACCEPTED_AT)
+            )
+            await SqlAlchemyAiInvoiceProposalFailureRepository(session).add(failure)
+        result = await SqlAlchemyDocumentStatusReader(database.sessions).get(document_id)
+    finally:
+        await database.dispose()
+
+    assert result is not None
+    assert result.current_run.ai_proposal is None
+    assert result.current_run.ai_proposal_failure is not None
+    assert (
+        result.current_run.ai_proposal_failure.code is InvoiceProposalGenerationFailureCode.TIMEOUT
+    )
+    assert result.current_run.status is ProcessingRunStatus.QUEUED
+    response = DocumentStatusResponse.model_validate(result).model_dump(mode="json")
+    assert response["current_run"]["ai_proposal"] is None
+    assert response["current_run"]["ai_proposal_failure"]["code"] == "TIMEOUT"
 
 
 @pytest.mark.anyio

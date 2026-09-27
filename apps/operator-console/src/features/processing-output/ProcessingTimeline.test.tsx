@@ -18,6 +18,8 @@ test("shows active processing before output is persisted", () => {
                 failure: null,
                 processing_output: null,
                 review_resolution: null,
+                ai_proposal: null,
+                ai_proposal_failure: null,
             }}
         />,
     );
@@ -76,6 +78,8 @@ test("shows completed and skipped stages after a successful run", () => {
                     },
                 },
                 review_resolution: null,
+                ai_proposal: null,
+                ai_proposal_failure: null,
             }}
         />,
     );
@@ -137,6 +141,8 @@ test("shows the review handoff after an incomplete invoice", () => {
                     },
                 },
                 review_resolution: null,
+                ai_proposal: null,
+                ai_proposal_failure: null,
             }}
         />,
     );
