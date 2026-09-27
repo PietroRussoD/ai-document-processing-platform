@@ -63,6 +63,13 @@ from document_platform.application.ports.invoice_extraction_repository import (
     InvoiceExtractionAlreadyExists,
     InvoiceExtractionRepository,
 )
+from document_platform.application.ports.invoice_proposal_generator import (
+    MAX_SELECTED_TEXT_CHARACTERS,
+    InvalidInvoiceProposalRequest,
+    InvoiceProposalGenerator,
+    InvoiceProposalInputTooLarge,
+    InvoiceProposalRequest,
+)
 from document_platform.application.ports.invoice_review_correction_repository import (
     InvoiceReviewCorrectionAlreadyExists,
     InvoiceReviewCorrectionRepository,
@@ -161,6 +168,11 @@ __all__ = [
     "InvoiceReviewCorrectionMetadataView",
     "InvoiceValidationMetadataView",
     "InvoiceExtractionRepository",
+    "InvoiceProposalGenerator",
+    "InvoiceProposalInputTooLarge",
+    "InvoiceProposalRequest",
+    "InvalidInvoiceProposalRequest",
+    "MAX_SELECTED_TEXT_CHARACTERS",
     "InvoiceReviewCorrectionAlreadyExists",
     "InvoiceReviewCorrectionRepository",
     "InvoiceValidationAlreadyExists",
