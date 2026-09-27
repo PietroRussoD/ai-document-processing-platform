@@ -4,6 +4,7 @@ import json
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import cast
+from urllib.error import URLError
 from uuid import UUID
 
 import pytest
@@ -13,7 +14,11 @@ from document_platform.adapters.outbound.ollama import (
     OllamaInvoiceProposalError,
     OllamaInvoiceProposalSettings,
 )
-from document_platform.application.ports import InvoiceProposalGenerator, InvoiceProposalRequest
+from document_platform.application.ports import (
+    InvoiceProposalGenerationFailureCode,
+    InvoiceProposalGenerator,
+    InvoiceProposalRequest,
+)
 from document_platform.domain.processing import (
     InvoiceProposalField,
     InvoiceProposalIssue,
@@ -180,18 +185,22 @@ async def test_maps_a_schema_violation_to_an_invalid_proposal() -> None:
 
 @pytest.mark.anyio
 async def test_rejects_a_malformed_provider_envelope() -> None:
-    with pytest.raises(OllamaInvoiceProposalError, match="message object"):
+    with pytest.raises(OllamaInvoiceProposalError) as error:
         await adapter({"unexpected": "body"}).generate(
             InvoiceProposalRequest(processing_run_id=UUID(int=5), selected_text="invoice")
         )
 
+    assert error.value.code is InvoiceProposalGenerationFailureCode.INVALID_RESPONSE
+
 
 @pytest.mark.anyio
 async def test_rejects_a_provider_response_over_the_size_limit() -> None:
-    with pytest.raises(OllamaInvoiceProposalError, match="size limit"):
+    with pytest.raises(OllamaInvoiceProposalError) as error:
         await adapter(response("x" * 64_001)).generate(
             InvoiceProposalRequest(processing_run_id=UUID(int=9), selected_text="invoice")
         )
+
+    assert error.value.code is InvoiceProposalGenerationFailureCode.INVALID_RESPONSE
 
 
 @pytest.mark.anyio
@@ -208,12 +217,59 @@ async def test_wraps_transport_failures_without_exposing_provider_details() -> N
         clock=lambda: NOW,
     )
 
-    with pytest.raises(OllamaInvoiceProposalError, match="request failed") as error:
+    with pytest.raises(OllamaInvoiceProposalError) as error:
         await client.generate(
             InvoiceProposalRequest(processing_run_id=UUID(int=6), selected_text="invoice")
         )
 
+    assert error.value.code is InvoiceProposalGenerationFailureCode.TIMEOUT
     assert "private transport details" not in str(error.value)
+
+
+@pytest.mark.anyio
+async def test_classifies_connection_failures_without_exposing_provider_details() -> None:
+    def fail(_url: str, _payload: dict[str, object], _timeout: float) -> object:
+        raise ConnectionError("private host details")
+
+    client = OllamaInvoiceProposalAdapter(
+        settings=OllamaInvoiceProposalSettings(
+            base_url="http://ollama:11434",
+            model_reference="qwen3:8b",
+        ),
+        post_json=fail,
+        clock=lambda: NOW,
+    )
+
+    with pytest.raises(OllamaInvoiceProposalError) as error:
+        await client.generate(
+            InvoiceProposalRequest(processing_run_id=UUID(int=10), selected_text="invoice")
+        )
+
+    assert error.value.code is InvoiceProposalGenerationFailureCode.UNAVAILABLE
+    assert "private host details" not in str(error.value)
+
+
+@pytest.mark.anyio
+async def test_classifies_url_wrapped_timeout() -> None:
+    def fail(_url: str, _payload: dict[str, object], _timeout: float) -> object:
+        raise URLError(TimeoutError("private socket details"))
+
+    client = OllamaInvoiceProposalAdapter(
+        settings=OllamaInvoiceProposalSettings(
+            base_url="http://ollama:11434",
+            model_reference="qwen3:8b",
+        ),
+        post_json=fail,
+        clock=lambda: NOW,
+    )
+
+    with pytest.raises(OllamaInvoiceProposalError) as error:
+        await client.generate(
+            InvoiceProposalRequest(processing_run_id=UUID(int=11), selected_text="invoice")
+        )
+
+    assert error.value.code is InvoiceProposalGenerationFailureCode.TIMEOUT
+    assert "private socket details" not in str(error.value)
 
 
 @pytest.mark.parametrize(

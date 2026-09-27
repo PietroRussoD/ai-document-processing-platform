@@ -8,13 +8,17 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import cast
-from urllib.error import HTTPError, URLError
+from urllib.error import URLError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
-from document_platform.application.ports import InvoiceProposalRequest
+from document_platform.application.ports import (
+    InvoiceProposalGenerationFailed,
+    InvoiceProposalGenerationFailureCode,
+    InvoiceProposalRequest,
+)
 from document_platform.domain.processing import (
     AiInvoiceExtractionProposal,
     InvoiceModelProvider,
@@ -36,8 +40,8 @@ _SYSTEM_PROMPT = (
 )
 
 
-class OllamaInvoiceProposalError(RuntimeError):
-    """Raised when the local Ollama endpoint cannot serve a proposal request."""
+class OllamaInvoiceProposalError(InvoiceProposalGenerationFailed):
+    """A safe, classified failure at the local model boundary."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,8 +108,18 @@ class OllamaInvoiceProposalAdapter:
             )
         except OllamaInvoiceProposalError:
             raise
-        except (HTTPError, OSError, URLError, TimeoutError) as error:
-            raise OllamaInvoiceProposalError("Ollama request failed") from error
+        except TimeoutError:
+            raise OllamaInvoiceProposalError(InvoiceProposalGenerationFailureCode.TIMEOUT) from None
+        except URLError as error:
+            raise OllamaInvoiceProposalError(
+                InvoiceProposalGenerationFailureCode.TIMEOUT
+                if isinstance(error.reason, TimeoutError)
+                else InvoiceProposalGenerationFailureCode.UNAVAILABLE
+            ) from None
+        except OSError:
+            raise OllamaInvoiceProposalError(
+                InvoiceProposalGenerationFailureCode.UNAVAILABLE
+            ) from None
 
         content = _response_content(response)
         try:
@@ -242,15 +256,15 @@ def _issue(code: InvoiceProposalIssueCode, field: InvoiceProposalField) -> Invoi
 
 def _response_content(response: object) -> str:
     if not isinstance(response, dict):
-        raise OllamaInvoiceProposalError("Ollama returned a non-object response")
+        raise OllamaInvoiceProposalError(InvoiceProposalGenerationFailureCode.INVALID_RESPONSE)
     message = cast(dict[str, object], response).get("message")
     if not isinstance(message, dict):
-        raise OllamaInvoiceProposalError("Ollama response did not contain a message object")
+        raise OllamaInvoiceProposalError(InvoiceProposalGenerationFailureCode.INVALID_RESPONSE)
     content = cast(dict[str, object], message).get("content")
     if not isinstance(content, str):
-        raise OllamaInvoiceProposalError("Ollama response did not contain message content")
+        raise OllamaInvoiceProposalError(InvoiceProposalGenerationFailureCode.INVALID_RESPONSE)
     if len(content.encode("utf-8")) > MAX_PROVIDER_RESPONSE_BYTES:
-        raise OllamaInvoiceProposalError("Ollama response exceeded the configured size limit")
+        raise OllamaInvoiceProposalError(InvoiceProposalGenerationFailureCode.INVALID_RESPONSE)
     return content
 
 
@@ -266,13 +280,25 @@ def _post_json(url: str, payload: dict[str, object], timeout_seconds: float) -> 
             body = response.read(MAX_PROVIDER_RESPONSE_BYTES + 1)
             if len(body) > MAX_PROVIDER_RESPONSE_BYTES:
                 raise OllamaInvoiceProposalError(
-                    "Ollama response exceeded the configured size limit"
+                    InvoiceProposalGenerationFailureCode.INVALID_RESPONSE
                 )
             return json.loads(body.decode("utf-8"))
     except OllamaInvoiceProposalError:
         raise
-    except (HTTPError, OSError, URLError, UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise OllamaInvoiceProposalError("Ollama request failed") from error
+    except TimeoutError:
+        raise OllamaInvoiceProposalError(InvoiceProposalGenerationFailureCode.TIMEOUT) from None
+    except URLError as error:
+        raise OllamaInvoiceProposalError(
+            InvoiceProposalGenerationFailureCode.TIMEOUT
+            if isinstance(error.reason, TimeoutError)
+            else InvoiceProposalGenerationFailureCode.UNAVAILABLE
+        ) from None
+    except OSError:
+        raise OllamaInvoiceProposalError(InvoiceProposalGenerationFailureCode.UNAVAILABLE) from None
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        raise OllamaInvoiceProposalError(
+            InvoiceProposalGenerationFailureCode.INVALID_RESPONSE
+        ) from None
 
 
 def _utc_now() -> datetime:

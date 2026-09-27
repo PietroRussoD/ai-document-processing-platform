@@ -64,6 +64,10 @@ workflow and human evaluation view are planned before the stable release. This
 is a local portfolio demo, not a public backend. Physical blob deletion,
 malware scanning and production deployment are not implemented.
 
+The model adapter classifies provider timeouts, unavailability and invalid
+response envelopes using safe error codes. These errors are not yet persisted
+or displayed to operators because the proposal activity is not scheduled.
+
 ## Implemented Technology
 
 - Python 3.13 and `uv`;
