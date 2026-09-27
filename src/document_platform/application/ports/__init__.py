@@ -70,6 +70,10 @@ from document_platform.application.ports.invoice_proposal_generator import (
     InvoiceProposalInputTooLarge,
     InvoiceProposalRequest,
 )
+from document_platform.application.ports.invoice_proposal_repository import (
+    InvoiceProposalAlreadyExists,
+    InvoiceProposalRepository,
+)
 from document_platform.application.ports.invoice_review_correction_repository import (
     InvoiceReviewCorrectionAlreadyExists,
     InvoiceReviewCorrectionRepository,
@@ -168,6 +172,8 @@ __all__ = [
     "InvoiceReviewCorrectionMetadataView",
     "InvoiceValidationMetadataView",
     "InvoiceExtractionRepository",
+    "InvoiceProposalAlreadyExists",
+    "InvoiceProposalRepository",
     "InvoiceProposalGenerator",
     "InvoiceProposalInputTooLarge",
     "InvoiceProposalRequest",
