@@ -156,7 +156,7 @@ sequenceDiagram
     end
     opt Review-required document is resolved
         Operator->>API: Submit approve or reject, optionally with corrections
-        API->>DB: Validate effective invoice and persist immutable correction rows
+        API->>DB: Validate effective invoice and persist corrections with source
         API->>DB: Persist immutable resolution and complete run
     end
 ```
@@ -217,6 +217,12 @@ the effective invoice, then persists correction rows and the review resolution
 in one transaction. The original extraction is never overwritten. A rejected
 review cannot carry corrections, and an approval without corrections remains
 valid only when the originally extracted invoice is complete.
+
+The console may copy an individual advisory AI proposal into the correction
+form, but the operator must still submit the approval. Each correction records
+whether it was entered manually or selected from the proposal. The API verifies
+AI-sourced values against the persisted proposal before accepting them; the
+browser cannot assert that provenance by itself.
 
 The operator console derives its processing timeline from the same persisted
 metadata exposed by the status endpoint. It does not query Temporal directly,

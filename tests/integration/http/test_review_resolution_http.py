@@ -130,6 +130,7 @@ async def test_approves_a_review_required_document_with_authenticated_operator(
             {
                 "field": "TOTAL_AMOUNT",
                 "corrected_value": "159.9900",
+                "source": "MANUAL",
                 "corrected_at": response.json()["resolved_at"],
             }
         ],

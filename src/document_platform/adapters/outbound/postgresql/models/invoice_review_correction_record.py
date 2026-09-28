@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Numeric, String, Uuid
+from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Numeric, String, Uuid, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from document_platform.adapters.outbound.postgresql.metadata import Base
@@ -22,6 +22,7 @@ class InvoiceReviewCorrectionRecord(Base):
             "'TOTAL_AMOUNT')",
             name="field_valid",
         ),
+        CheckConstraint("source IN ('MANUAL', 'AI_PROPOSAL')", name="source_valid"),
         CheckConstraint(
             "(field IN ('INVOICE_NUMBER', 'SUPPLIER_NAME', 'CURRENCY') "
             "AND corrected_text IS NOT NULL AND corrected_date IS NULL "
@@ -55,6 +56,9 @@ class InvoiceReviewCorrectionRecord(Base):
         primary_key=True,
     )
     field: Mapped[str] = mapped_column(String(32), primary_key=True)
+    source: Mapped[str] = mapped_column(
+        String(16), default="MANUAL", server_default=text("'MANUAL'")
+    )
     corrected_text: Mapped[str | None] = mapped_column(String(512))
     corrected_date: Mapped[date | None] = mapped_column(Date())
     corrected_amount: Mapped[Decimal | None] = mapped_column(Numeric(20, 4))

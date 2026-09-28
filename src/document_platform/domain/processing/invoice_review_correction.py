@@ -15,6 +15,11 @@ class InvoiceReviewField(StrEnum):
     TOTAL_AMOUNT = "TOTAL_AMOUNT"
 
 
+class InvoiceReviewCorrectionSource(StrEnum):
+    MANUAL = "MANUAL"
+    AI_PROPOSAL = "AI_PROPOSAL"
+
+
 type InvoiceReviewFieldValue = str | date | Decimal
 
 
@@ -26,6 +31,7 @@ class InvalidInvoiceReviewCorrection(ValueError):
 class InvoiceReviewFieldCorrection:
     field: InvoiceReviewField
     corrected_value: InvoiceReviewFieldValue
+    source: InvoiceReviewCorrectionSource = InvoiceReviewCorrectionSource.MANUAL
 
     def __post_init__(self) -> None:
         _validate_corrected_value(field=self.field, value=self.corrected_value)

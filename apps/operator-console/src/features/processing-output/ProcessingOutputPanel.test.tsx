@@ -137,11 +137,13 @@ test("shows review-corrected invoice values without replacing extracted values",
                 {
                     field: "SUPPLIER_NAME",
                     corrected_value: "Acme Europe Ltd",
+                    source: "MANUAL",
                     corrected_at: "2026-09-16T12:00:06Z",
                 },
                 {
                     field: "TOTAL_AMOUNT",
                     corrected_value: "15.00",
+                    source: "MANUAL",
                     corrected_at: "2026-09-16T12:00:06Z",
                 },
             ]}

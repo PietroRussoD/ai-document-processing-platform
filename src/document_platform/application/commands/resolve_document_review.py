@@ -10,6 +10,7 @@ from document_platform.domain.documents import DocumentStatus
 from document_platform.domain.processing import (
     InvoiceExtraction,
     InvoiceReviewCorrection,
+    InvoiceReviewCorrectionSource,
     InvoiceReviewField,
     InvoiceReviewFieldCorrection,
     InvoiceValidationDecision,
@@ -185,6 +186,31 @@ class ResolveDocumentReviewHandler:
         extraction = await unit_of_work.invoice_extractions.get(command.processing_run_id)
         if extraction is None:
             raise ReviewResolutionRequiresInvoiceExtraction(command.processing_run_id)
+        ai_corrections = tuple(
+            correction
+            for correction in command.corrections
+            if correction.source is InvoiceReviewCorrectionSource.AI_PROPOSAL
+        )
+        if ai_corrections:
+            proposal = await unit_of_work.invoice_proposals.get(command.processing_run_id)
+            if proposal is None:
+                raise ReviewCorrectionRequiresApproval(
+                    "AI proposal corrections require a persisted proposal"
+                )
+            proposal_values = {
+                InvoiceReviewField.INVOICE_NUMBER: proposal.invoice_number,
+                InvoiceReviewField.ISSUE_DATE: proposal.issue_date,
+                InvoiceReviewField.SUPPLIER_NAME: proposal.supplier_name,
+                InvoiceReviewField.CURRENCY: proposal.currency,
+                InvoiceReviewField.TOTAL_AMOUNT: proposal.total_amount,
+            }
+            if any(
+                proposal_values[correction.field] != correction.corrected_value
+                for correction in ai_corrections
+            ):
+                raise ReviewCorrectionRequiresApproval(
+                    "AI proposal correction must match its persisted field value"
+                )
         corrected = _apply_corrections(extraction, command.corrections)
         validation = self._invoice_validation_policy.validate(
             extraction=corrected,

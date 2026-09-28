@@ -1,4 +1,10 @@
-import { CheckCircle2, CircleAlert, LoaderCircle, XCircle } from "lucide-react";
+import {
+    CheckCircle2,
+    CircleAlert,
+    Copy,
+    LoaderCircle,
+    XCircle,
+} from "lucide-react";
 import { useState } from "react";
 
 import type {
@@ -15,6 +21,7 @@ type InvoiceExtraction = NonNullable<
         DocumentStatus["current_run"]["processing_output"]
     >["invoice_extraction"]
 >;
+type AiProposal = DocumentStatus["current_run"]["ai_proposal"];
 type ReviewCorrections = ReviewResolutionRequest["corrections"];
 type InvoiceValues = {
     invoiceNumber: string;
@@ -25,6 +32,7 @@ type InvoiceValues = {
 };
 
 type ReviewResolutionFormProps = {
+    aiProposal?: AiProposal;
     errorMessage: string | null;
     invoiceExtraction: InvoiceExtraction | null;
     isSaving: boolean;
@@ -41,6 +49,7 @@ type ReviewResolutionFormProps = {
 const reviewResolutionErrorId = "review-resolution-error";
 
 export function ReviewResolutionForm({
+    aiProposal = null,
     errorMessage,
     invoiceExtraction,
     isSaving,
@@ -53,13 +62,35 @@ export function ReviewResolutionForm({
     const [invoiceValues, setInvoiceValues] = useState(() =>
         toInvoiceValues(invoiceExtraction),
     );
+    const [correctionSources, setCorrectionSources] = useState<
+        Partial<Record<keyof InvoiceValues, "MANUAL" | "AI_PROPOSAL">>
+    >({});
     const canApprove = invoiceExtraction !== null;
     const corrections = invoiceExtraction
-        ? collectCorrections(invoiceExtraction, invoiceValues)
+        ? collectCorrections(
+              invoiceExtraction,
+              invoiceValues,
+              correctionSources,
+          )
         : [];
 
     function updateInvoiceValue(field: keyof InvoiceValues, value: string) {
         setInvoiceValues((current) => ({ ...current, [field]: value }));
+        setCorrectionSources((current) => ({ ...current, [field]: "MANUAL" }));
+    }
+
+    function selectProposalValue(
+        field: keyof InvoiceValues,
+        value: string | null,
+    ) {
+        if (value === null) {
+            return;
+        }
+        setInvoiceValues((current) => ({ ...current, [field]: value }));
+        setCorrectionSources((current) => ({
+            ...current,
+            [field]: "AI_PROPOSAL",
+        }));
     }
 
     return (
@@ -136,43 +167,82 @@ export function ReviewResolutionForm({
                     <div className="mt-4 grid gap-4 sm:grid-cols-2">
                         <InvoiceField
                             label="Invoice number"
+                            onSelectProposal={() =>
+                                selectProposalValue(
+                                    "invoiceNumber",
+                                    aiProposal?.invoice_number ?? null,
+                                )
+                            }
                             onChange={(value) =>
                                 updateInvoiceValue("invoiceNumber", value)
+                            }
+                            proposalAvailable={
+                                aiProposal?.invoice_number != null
                             }
                             value={invoiceValues.invoiceNumber}
                         />
                         <InvoiceField
                             label="Issue date"
+                            onSelectProposal={() =>
+                                selectProposalValue(
+                                    "issueDate",
+                                    aiProposal?.issue_date ?? null,
+                                )
+                            }
                             onChange={(value) =>
                                 updateInvoiceValue("issueDate", value)
                             }
+                            proposalAvailable={aiProposal?.issue_date != null}
                             type="date"
                             value={invoiceValues.issueDate}
                         />
                         <InvoiceField
                             label="Supplier"
+                            onSelectProposal={() =>
+                                selectProposalValue(
+                                    "supplierName",
+                                    aiProposal?.supplier_name ?? null,
+                                )
+                            }
                             onChange={(value) =>
                                 updateInvoiceValue("supplierName", value)
+                            }
+                            proposalAvailable={
+                                aiProposal?.supplier_name != null
                             }
                             value={invoiceValues.supplierName}
                         />
                         <InvoiceField
                             label="Currency"
                             maxLength={3}
+                            onSelectProposal={() =>
+                                selectProposalValue(
+                                    "currency",
+                                    aiProposal?.currency ?? null,
+                                )
+                            }
                             onChange={(value) =>
                                 updateInvoiceValue(
                                     "currency",
                                     value.toUpperCase(),
                                 )
                             }
+                            proposalAvailable={aiProposal?.currency != null}
                             value={invoiceValues.currency}
                         />
                         <InvoiceField
                             label="Total amount"
                             min="0.0001"
+                            onSelectProposal={() =>
+                                selectProposalValue(
+                                    "totalAmount",
+                                    aiProposal?.total_amount ?? null,
+                                )
+                            }
                             onChange={(value) =>
                                 updateInvoiceValue("totalAmount", value)
                             }
+                            proposalAvailable={aiProposal?.total_amount != null}
                             step="0.0001"
                             type="number"
                             value={invoiceValues.totalAmount}
@@ -239,6 +309,8 @@ function InvoiceField({
     maxLength,
     min,
     onChange,
+    onSelectProposal,
+    proposalAvailable,
     step,
     type = "text",
     value,
@@ -247,14 +319,30 @@ function InvoiceField({
     maxLength?: number;
     min?: string;
     onChange: (value: string) => void;
+    onSelectProposal: () => void;
+    proposalAvailable: boolean;
     step?: string;
     type?: "date" | "number" | "text";
     value: string;
 }) {
     return (
-        <label className="block text-sm font-medium text-app-foreground">
-            {label}
+        <div className="block text-sm font-medium text-app-foreground">
+            <div className="flex items-center justify-between gap-2">
+                <label htmlFor={invoiceFieldId(label)}>{label}</label>
+                {proposalAvailable ? (
+                    <button
+                        aria-label={`Use AI proposal for ${label}`}
+                        className="rounded p-1 text-app-accent hover:bg-app-canvas focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                        onClick={onSelectProposal}
+                        title={`Use AI proposal for ${label}`}
+                        type="button"
+                    >
+                        <Copy aria-hidden="true" size={16} />
+                    </button>
+                ) : null}
+            </div>
             <input
+                id={invoiceFieldId(label)}
                 className="mt-1.5 h-10 w-full rounded border border-app-border-strong bg-app-surface px-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
                 maxLength={maxLength}
                 min={min}
@@ -263,7 +351,7 @@ function InvoiceField({
                 type={type}
                 value={value}
             />
-        </label>
+        </div>
     );
 }
 
@@ -280,6 +368,7 @@ function toInvoiceValues(extraction: InvoiceExtraction | null): InvoiceValues {
 function collectCorrections(
     extraction: InvoiceExtraction,
     values: InvoiceValues,
+    sources: Partial<Record<keyof InvoiceValues, "MANUAL" | "AI_PROPOSAL">>,
 ): ReviewCorrections {
     const corrections: ReviewCorrections = [];
     addTextCorrection(
@@ -287,24 +376,33 @@ function collectCorrections(
         "INVOICE_NUMBER",
         extraction.invoice_number,
         values.invoiceNumber,
+        sourceFor(sources, "invoiceNumber"),
     );
-    addDateCorrection(corrections, extraction.issue_date, values.issueDate);
+    addDateCorrection(
+        corrections,
+        extraction.issue_date,
+        values.issueDate,
+        sourceFor(sources, "issueDate"),
+    );
     addTextCorrection(
         corrections,
         "SUPPLIER_NAME",
         extraction.supplier_name,
         values.supplierName,
+        sourceFor(sources, "supplierName"),
     );
     addTextCorrection(
         corrections,
         "CURRENCY",
         extraction.currency,
         values.currency,
+        sourceFor(sources, "currency"),
     );
     addAmountCorrection(
         corrections,
         extraction.total_amount,
         values.totalAmount,
+        sourceFor(sources, "totalAmount"),
     );
     return corrections;
 }
@@ -314,10 +412,11 @@ function addTextCorrection(
     field: "CURRENCY" | "INVOICE_NUMBER" | "SUPPLIER_NAME",
     original: string | null,
     current: string,
+    source: "MANUAL" | "AI_PROPOSAL",
 ) {
     const value = current.trim();
     if (value && value !== original) {
-        corrections.push({ field, corrected_value: value });
+        corrections.push({ field, corrected_value: value, source });
     }
 }
 
@@ -325,9 +424,14 @@ function addDateCorrection(
     corrections: ReviewCorrections,
     original: string | null,
     current: string,
+    source: "MANUAL" | "AI_PROPOSAL",
 ) {
     if (current && current !== original) {
-        corrections.push({ field: "ISSUE_DATE", corrected_value: current });
+        corrections.push({
+            field: "ISSUE_DATE",
+            corrected_value: current,
+            source,
+        });
     }
 }
 
@@ -335,11 +439,27 @@ function addAmountCorrection(
     corrections: ReviewCorrections,
     original: string | null,
     current: string,
+    source: "MANUAL" | "AI_PROPOSAL",
 ) {
     const value = current.trim();
     if (value && normalizeAmount(value) !== normalizeAmount(original)) {
-        corrections.push({ field: "TOTAL_AMOUNT", corrected_value: value });
+        corrections.push({
+            field: "TOTAL_AMOUNT",
+            corrected_value: value,
+            source,
+        });
     }
+}
+
+function sourceFor(
+    sources: Partial<Record<keyof InvoiceValues, "MANUAL" | "AI_PROPOSAL">>,
+    field: keyof InvoiceValues,
+): "MANUAL" | "AI_PROPOSAL" {
+    return sources[field] ?? "MANUAL";
+}
+
+function invoiceFieldId(label: string): string {
+    return `invoice-field-${label.toLowerCase().replaceAll(" ", "-")}`;
 }
 
 function normalizeAmount(value: string | null): string | null {

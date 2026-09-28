@@ -19,9 +19,13 @@ from document_platform.application.commands.resolve_document_review import (
 from document_platform.application.ports import UnitOfWork
 from document_platform.domain.documents import Document, DocumentStatus
 from document_platform.domain.processing import (
+    AiInvoiceExtractionProposal,
     InvoiceExtraction,
     InvoiceExtractionMethod,
+    InvoiceModelProvider,
+    InvoiceProposalStatus,
     InvoiceReviewCorrection,
+    InvoiceReviewCorrectionSource,
     InvoiceReviewField,
     InvoiceReviewFieldCorrection,
     InvoiceValidationIssue,
@@ -60,6 +64,7 @@ class RecordingUnitOfWork:
         self.documents = ValueRepository(review_required_document())
         self.processing_runs = ValueRepository(review_required_run())
         self.invoice_extractions = ValueRepository(incomplete_invoice_extraction())
+        self.invoice_proposals = ValueRepository()
         self.invoice_review_corrections = ValueRepository()
         self.review_resolutions = ValueRepository()
         self.commit_count = 0
@@ -116,6 +121,26 @@ def incomplete_invoice_extraction() -> InvoiceExtraction:
     )
 
 
+def ai_proposal() -> AiInvoiceExtractionProposal:
+    return AiInvoiceExtractionProposal(
+        processing_run_id=RUN_ID,
+        schema_version=1,
+        provider=InvoiceModelProvider.OLLAMA,
+        model_reference="qwen3:8b",
+        model_digest=None,
+        prompt_version="invoice-fields-v1",
+        selected_text_sha256="a" * 64,
+        status=InvoiceProposalStatus.VALID,
+        invoice_number="INV-42",
+        issue_date=date(2026, 9, 17),
+        supplier_name="Acme S.r.l.",
+        currency="EUR",
+        total_amount=Decimal("39.98"),
+        issues=(),
+        proposed_at=REVIEWED_AT,
+    )
+
+
 def handler(unit_of_work: RecordingUnitOfWork) -> ResolveDocumentReviewHandler:
     return ResolveDocumentReviewHandler(
         unit_of_work_factory=lambda: cast(UnitOfWork, unit_of_work),
@@ -169,6 +194,67 @@ async def test_approves_a_complete_corrected_invoice_and_persists_the_audit_reco
         corrected_at=RESOLVED_AT,
     )
     assert unit_of_work.commit_count == 1
+
+
+@pytest.mark.anyio
+async def test_accepts_a_proposal_value_and_persists_its_provenance() -> None:
+    unit_of_work = RecordingUnitOfWork()
+    correction = InvoiceReviewFieldCorrection(
+        field=InvoiceReviewField.ISSUE_DATE,
+        corrected_value=date(2026, 9, 17),
+        source=InvoiceReviewCorrectionSource.AI_PROPOSAL,
+    )
+    unit_of_work.invoice_proposals.value = ai_proposal()
+
+    await handler(unit_of_work)(
+        command(ReviewResolutionDecision.APPROVE, corrections=(correction,))
+    )
+
+    saved = cast(InvoiceReviewCorrection, unit_of_work.invoice_review_corrections.value)
+    assert saved.corrections == (correction,)
+
+
+@pytest.mark.anyio
+async def test_rejects_an_ai_proposal_value_that_differs_from_the_persisted_proposal() -> None:
+    unit_of_work = RecordingUnitOfWork()
+    unit_of_work.invoice_proposals.value = ai_proposal()
+
+    with pytest.raises(ReviewCorrectionRequiresApproval, match="must match"):
+        await handler(unit_of_work)(
+            command(
+                ReviewResolutionDecision.APPROVE,
+                corrections=(
+                    InvoiceReviewFieldCorrection(
+                        field=InvoiceReviewField.ISSUE_DATE,
+                        corrected_value=date(2026, 9, 18),
+                        source=InvoiceReviewCorrectionSource.AI_PROPOSAL,
+                    ),
+                ),
+            )
+        )
+
+    assert unit_of_work.commit_count == 0
+
+
+@pytest.mark.anyio
+async def test_rejects_an_ai_proposal_correction_without_a_persisted_proposal() -> None:
+    unit_of_work = RecordingUnitOfWork()
+
+    with pytest.raises(ReviewCorrectionRequiresApproval, match="persisted proposal"):
+        await handler(unit_of_work)(
+            command(
+                ReviewResolutionDecision.APPROVE,
+                corrections=(
+                    InvoiceReviewFieldCorrection(
+                        field=InvoiceReviewField.ISSUE_DATE,
+                        corrected_value=date(2026, 9, 17),
+                        source=InvoiceReviewCorrectionSource.AI_PROPOSAL,
+                    ),
+                ),
+            )
+        )
+
+    assert unit_of_work.commit_count == 0
 
 
 @pytest.mark.anyio

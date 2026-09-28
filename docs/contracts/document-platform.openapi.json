@@ -263,6 +263,10 @@
             "const": "CURRENCY",
             "title": "Field",
             "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/InvoiceReviewCorrectionSource",
+            "default": "MANUAL"
           }
         },
         "required": [
@@ -644,6 +648,10 @@
             "const": "INVOICE_NUMBER",
             "title": "Field",
             "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/InvoiceReviewCorrectionSource",
+            "default": "MANUAL"
           }
         },
         "required": [
@@ -704,11 +712,15 @@
           },
           "field": {
             "$ref": "#/components/schemas/InvoiceReviewField"
+          },
+          "source": {
+            "$ref": "#/components/schemas/InvoiceReviewCorrectionSource"
           }
         },
         "required": [
           "field",
           "corrected_value",
+          "source",
           "corrected_at"
         ],
         "title": "InvoiceReviewCorrectionMetadataResponse",
@@ -742,6 +754,14 @@
             "$ref": "#/components/schemas/TotalAmountReviewCorrectionRequest"
           }
         ]
+      },
+      "InvoiceReviewCorrectionSource": {
+        "enum": [
+          "MANUAL",
+          "AI_PROPOSAL"
+        ],
+        "title": "InvoiceReviewCorrectionSource",
+        "type": "string"
       },
       "InvoiceReviewField": {
         "enum": [
@@ -811,6 +831,10 @@
             "const": "ISSUE_DATE",
             "title": "Field",
             "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/InvoiceReviewCorrectionSource",
+            "default": "MANUAL"
           }
         },
         "required": [
@@ -1317,6 +1341,10 @@
             "const": "SUPPLIER_NAME",
             "title": "Field",
             "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/InvoiceReviewCorrectionSource",
+            "default": "MANUAL"
           }
         },
         "required": [
@@ -1411,6 +1439,10 @@
             "const": "TOTAL_AMOUNT",
             "title": "Field",
             "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/InvoiceReviewCorrectionSource",
+            "default": "MANUAL"
           }
         },
         "required": [

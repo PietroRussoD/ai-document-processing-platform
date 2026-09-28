@@ -50,6 +50,7 @@ from document_platform.domain.processing import (
     InvoiceProposalIssue,
     InvoiceProposalIssueCode,
     InvoiceProposalStatus,
+    InvoiceReviewCorrectionSource,
     InvoiceReviewField,
     InvoiceValidationDecision,
     InvoiceValidationIssue,
@@ -410,5 +411,6 @@ def _to_review_correction_metadata(
     return InvoiceReviewCorrectionMetadataView(
         field=field,
         corrected_value=value,
+        source=InvoiceReviewCorrectionSource(record.source),
         corrected_at=record.corrected_at,
     )

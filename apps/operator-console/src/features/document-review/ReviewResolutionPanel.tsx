@@ -71,6 +71,7 @@ export function ReviewResolutionPanel({
 
     return (
         <ReviewResolutionForm
+            aiProposal={run.ai_proposal}
             errorMessage={resolutionMutation.isError ? failureMessage : null}
             invoiceExtraction={
                 run.processing_output?.invoice_extraction ?? null

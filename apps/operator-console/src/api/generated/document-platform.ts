@@ -212,6 +212,8 @@ export interface components {
              * @enum {string}
              */
             field: "CURRENCY";
+            /** @default MANUAL */
+            source: components["schemas"]["InvoiceReviewCorrectionSource"];
         };
         /**
          * DocumentClassificationReason
@@ -384,6 +386,8 @@ export interface components {
              * @enum {string}
              */
             field: "INVOICE_NUMBER";
+            /** @default MANUAL */
+            source: components["schemas"]["InvoiceReviewCorrectionSource"];
         };
         /**
          * InvoiceProposalField
@@ -415,8 +419,14 @@ export interface components {
             /** Corrected Value */
             corrected_value: string;
             field: components["schemas"]["InvoiceReviewField"];
+            source: components["schemas"]["InvoiceReviewCorrectionSource"];
         };
         InvoiceReviewCorrectionRequest: components["schemas"]["InvoiceNumberReviewCorrectionRequest"] | components["schemas"]["IssueDateReviewCorrectionRequest"] | components["schemas"]["SupplierNameReviewCorrectionRequest"] | components["schemas"]["CurrencyReviewCorrectionRequest"] | components["schemas"]["TotalAmountReviewCorrectionRequest"];
+        /**
+         * InvoiceReviewCorrectionSource
+         * @enum {string}
+         */
+        InvoiceReviewCorrectionSource: "MANUAL" | "AI_PROPOSAL";
         /**
          * InvoiceReviewField
          * @enum {string}
@@ -455,6 +465,8 @@ export interface components {
              * @enum {string}
              */
             field: "ISSUE_DATE";
+            /** @default MANUAL */
+            source: components["schemas"]["InvoiceReviewCorrectionSource"];
         };
         /** LivenessResponse */
         LivenessResponse: {
@@ -632,6 +644,8 @@ export interface components {
              * @enum {string}
              */
             field: "SUPPLIER_NAME";
+            /** @default MANUAL */
+            source: components["schemas"]["InvoiceReviewCorrectionSource"];
         };
         /** TextExtractionMetadataResponse */
         TextExtractionMetadataResponse: {
@@ -673,6 +687,8 @@ export interface components {
              * @enum {string}
              */
             field: "TOTAL_AMOUNT";
+            /** @default MANUAL */
+            source: components["schemas"]["InvoiceReviewCorrectionSource"];
         };
         /** ValidationError */
         ValidationError: {

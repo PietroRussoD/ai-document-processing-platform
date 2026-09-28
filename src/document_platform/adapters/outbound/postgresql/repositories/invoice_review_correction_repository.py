@@ -11,6 +11,7 @@ from document_platform.adapters.outbound.postgresql.models import InvoiceReviewC
 from document_platform.application.ports import InvoiceReviewCorrectionAlreadyExists
 from document_platform.domain.processing import (
     InvoiceReviewCorrection,
+    InvoiceReviewCorrectionSource,
     InvoiceReviewField,
     InvoiceReviewFieldCorrection,
 )
@@ -62,6 +63,7 @@ def _to_record(
     return InvoiceReviewCorrectionRecord(
         processing_run_id=correction.processing_run_id,
         field=field_correction.field.value,
+        source=field_correction.source.value,
         corrected_text=value if isinstance(value, str) else None,
         corrected_date=(value if field_correction.field is InvoiceReviewField.ISSUE_DATE else None),
         corrected_amount=(
@@ -87,4 +89,8 @@ def _to_domain_correction(
         if record.corrected_text is None:
             raise RuntimeError("persisted text correction is missing corrected_text")
         value = record.corrected_text
-    return InvoiceReviewFieldCorrection(field=field, corrected_value=value)
+    return InvoiceReviewFieldCorrection(
+        field=field,
+        corrected_value=value,
+        source=InvoiceReviewCorrectionSource(record.source),
+    )

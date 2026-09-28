@@ -11,7 +11,11 @@ from document_platform.application.ports import (
     InvoiceExtractionMetadataView,
     InvoiceReviewCorrectionMetadataView,
 )
-from document_platform.domain.processing import InvoiceExtractionMethod, InvoiceReviewField
+from document_platform.domain.processing import (
+    InvoiceExtractionMethod,
+    InvoiceReviewCorrectionSource,
+    InvoiceReviewField,
+)
 
 
 def test_serializes_a_decimal_invoice_total_as_a_json_safe_string() -> None:
@@ -35,6 +39,7 @@ def test_serializes_a_review_correction_value_as_a_json_safe_string() -> None:
         InvoiceReviewCorrectionMetadataView(
             field=InvoiceReviewField.TOTAL_AMOUNT,
             corrected_value=Decimal("39.9800"),
+            source=InvoiceReviewCorrectionSource.MANUAL,
             corrected_at=datetime(2026, 9, 17, tzinfo=UTC),
         )
     )

@@ -39,6 +39,10 @@ to replace deterministic extraction or to approve a document automatically.
 - Existing deterministic processing remains unchanged and works without Ollama.
 - The AI proposal can be compared with deterministic output without conflating
   their provenance or trust level.
+- An operator may explicitly copy a proposal field into an approval correction.
+  The correction stores `MANUAL` or `AI_PROPOSAL` provenance, and the API checks
+  AI-sourced values against the persisted proposal. The operator remains the
+  decision-maker; selecting a proposal never approves a document automatically.
 - Provider outages do not turn a usable deterministic result into a failed
   document; the failure-recording activity writes a separate outcome after
   bounded retries.

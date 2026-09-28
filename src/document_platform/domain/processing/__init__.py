@@ -53,6 +53,7 @@ from document_platform.domain.processing.invoice_extraction import (
 from document_platform.domain.processing.invoice_review_correction import (
     InvalidInvoiceReviewCorrection,
     InvoiceReviewCorrection,
+    InvoiceReviewCorrectionSource,
     InvoiceReviewField,
     InvoiceReviewFieldCorrection,
     InvoiceReviewFieldValue,
@@ -125,6 +126,7 @@ __all__ = [
     "InvoiceExtractionMethod",
     "InvalidInvoiceReviewCorrection",
     "InvoiceReviewCorrection",
+    "InvoiceReviewCorrectionSource",
     "InvoiceReviewField",
     "InvoiceReviewFieldCorrection",
     "InvoiceReviewFieldValue",

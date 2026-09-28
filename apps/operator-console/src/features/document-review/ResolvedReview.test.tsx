@@ -16,11 +16,13 @@ test("renders an approved review outcome", () => {
                     {
                         field: "SUPPLIER_NAME",
                         corrected_value: "Acme Europe Ltd",
+                        source: "MANUAL",
                         corrected_at: "2026-09-17T18:00:00Z",
                     },
                     {
                         field: "TOTAL_AMOUNT",
                         corrected_value: "159.9900",
+                        source: "AI_PROPOSAL",
                         corrected_at: "2026-09-17T18:00:00Z",
                     },
                 ],
@@ -35,6 +37,7 @@ test("renders an approved review outcome", () => {
     expect(screen.getByText("Recorded corrections")).toBeVisible();
     expect(screen.getByText("Acme Europe Ltd")).toBeVisible();
     expect(screen.getByText("159.9900")).toBeVisible();
+    expect(screen.getByText("AI proposal selected")).toBeVisible();
 });
 
 test("renders a rejected outcome without a review note", () => {

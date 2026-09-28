@@ -63,11 +63,18 @@ export function ResolvedReview({ resolution }: ResolvedReviewProps) {
                     </h4>
                     <dl className="mt-3 grid gap-4 text-sm sm:grid-cols-2">
                         {resolution.corrections.map((correction) => (
-                            <ReviewValue
-                                key={correction.field}
-                                label={correctionLabel(correction.field)}
-                                value={correction.corrected_value}
-                            />
+                            <div key={correction.field}>
+                                <ReviewValue
+                                    label={correctionLabel(correction.field)}
+                                    value={correction.corrected_value}
+                                />
+                                {correction.source === "AI_PROPOSAL" ? (
+                                    <StatusBadge
+                                        label="AI proposal selected"
+                                        tone="info"
+                                    />
+                                ) : null}
+                            </div>
                         ))}
                     </dl>
                 </div>

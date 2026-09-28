@@ -18,6 +18,7 @@ from document_platform.application.ports import InvoiceReviewCorrectionAlreadyEx
 from document_platform.domain.documents import Document
 from document_platform.domain.processing import (
     InvoiceReviewCorrection,
+    InvoiceReviewCorrectionSource,
     InvoiceReviewField,
     InvoiceReviewFieldCorrection,
     ProcessingRun,
@@ -70,6 +71,7 @@ def correction(run_id: UUID) -> InvoiceReviewCorrection:
             InvoiceReviewFieldCorrection(
                 field=InvoiceReviewField.TOTAL_AMOUNT,
                 corrected_value=Decimal("39.98"),
+                source=InvoiceReviewCorrectionSource.AI_PROPOSAL,
             ),
         ),
         corrected_at=AT,

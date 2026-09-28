@@ -42,6 +42,7 @@ from document_platform.domain.processing import (
     InvoiceProposalGenerationFailureCode,
     InvoiceProposalIssueCode,
     InvoiceProposalStatus,
+    InvoiceReviewCorrectionSource,
     InvoiceReviewField,
     InvoiceReviewFieldCorrection,
     InvoiceValidationDecision,
@@ -153,6 +154,7 @@ class InvoiceReviewCorrectionMetadataResponse(BaseModel):
 
     field: InvoiceReviewField
     corrected_value: str
+    source: InvoiceReviewCorrectionSource
     corrected_at: datetime
 
     @field_validator("corrected_value", mode="before")
@@ -269,6 +271,7 @@ class DocumentWorkQueuePageResponse(BaseModel):
 class InvoiceNumberReviewCorrectionRequest(BaseModel):
     field: Literal[InvoiceReviewField.INVOICE_NUMBER]
     corrected_value: str = Field(min_length=1, max_length=128)
+    source: InvoiceReviewCorrectionSource = InvoiceReviewCorrectionSource.MANUAL
 
     @field_validator("corrected_value")
     @classmethod
@@ -281,11 +284,13 @@ class InvoiceNumberReviewCorrectionRequest(BaseModel):
 class IssueDateReviewCorrectionRequest(BaseModel):
     field: Literal[InvoiceReviewField.ISSUE_DATE]
     corrected_value: date
+    source: InvoiceReviewCorrectionSource = InvoiceReviewCorrectionSource.MANUAL
 
 
 class SupplierNameReviewCorrectionRequest(BaseModel):
     field: Literal[InvoiceReviewField.SUPPLIER_NAME]
     corrected_value: str = Field(min_length=1, max_length=512)
+    source: InvoiceReviewCorrectionSource = InvoiceReviewCorrectionSource.MANUAL
 
     @field_validator("corrected_value")
     @classmethod
@@ -298,11 +303,13 @@ class SupplierNameReviewCorrectionRequest(BaseModel):
 class CurrencyReviewCorrectionRequest(BaseModel):
     field: Literal[InvoiceReviewField.CURRENCY]
     corrected_value: str = Field(pattern=r"^[A-Z]{3}$")
+    source: InvoiceReviewCorrectionSource = InvoiceReviewCorrectionSource.MANUAL
 
 
 class TotalAmountReviewCorrectionRequest(BaseModel):
     field: Literal[InvoiceReviewField.TOTAL_AMOUNT]
     corrected_value: Decimal = Field(gt=Decimal("0"), max_digits=20, decimal_places=4)
+    source: InvoiceReviewCorrectionSource = InvoiceReviewCorrectionSource.MANUAL
 
 
 type InvoiceReviewCorrectionRequest = Annotated[
@@ -420,6 +427,7 @@ async def resolve_document_review(
                 InvoiceReviewFieldCorrection(
                     field=correction.field,
                     corrected_value=correction.corrected_value,
+                    source=correction.source,
                 )
                 for correction in resolution.corrections
             ),

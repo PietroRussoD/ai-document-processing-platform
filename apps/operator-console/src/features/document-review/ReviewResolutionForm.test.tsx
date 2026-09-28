@@ -51,9 +51,61 @@ test("submits only changed invoice fields with an approval", async () => {
     await user.click(screen.getByRole("button", { name: "Approve document" }));
 
     expect(onDecision).toHaveBeenCalledWith("APPROVE", [
-        { field: "SUPPLIER_NAME", corrected_value: "Acme Europe Ltd" },
-        { field: "TOTAL_AMOUNT", corrected_value: "159.99" },
+        {
+            field: "SUPPLIER_NAME",
+            corrected_value: "Acme Europe Ltd",
+            source: "MANUAL",
+        },
+        { field: "TOTAL_AMOUNT", corrected_value: "159.99", source: "MANUAL" },
     ]);
+});
+
+test("allows selecting a proposal while recording its source", async () => {
+    const onDecision = vi.fn();
+    const user = userEvent.setup();
+
+    const { container } = render(
+        <ReviewResolutionForm
+            aiProposal={{
+                schema_version: 1,
+                provider: "OLLAMA",
+                model_reference: "qwen3:8b",
+                model_digest: null,
+                prompt_version: "invoice-fields-v1",
+                selected_text_sha256: "a".repeat(64),
+                status: "VALID",
+                invoice_number: "INV-2026-001",
+                issue_date: "2026-09-18",
+                supplier_name: "Acme AI Ltd",
+                currency: "EUR",
+                total_amount: "159.99",
+                issues: [],
+                proposed_at: "2026-09-17T18:00:00Z",
+            }}
+            errorMessage={null}
+            invoiceExtraction={invoiceExtraction()}
+            isSaving={false}
+            onDecision={onDecision}
+            onOperatorTokenChange={() => undefined}
+            onReviewNoteChange={() => undefined}
+            operatorToken="operator-token"
+            reviewNote=""
+        />,
+    );
+
+    await user.click(
+        screen.getByRole("button", { name: "Use AI proposal for Supplier" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Approve document" }));
+
+    expect(onDecision).toHaveBeenCalledWith("APPROVE", [
+        {
+            field: "SUPPLIER_NAME",
+            corrected_value: "Acme AI Ltd",
+            source: "AI_PROPOSAL",
+        },
+    ]);
+    expect((await axe(container)).violations).toEqual([]);
 });
 
 test("moves focus to a review error", async () => {

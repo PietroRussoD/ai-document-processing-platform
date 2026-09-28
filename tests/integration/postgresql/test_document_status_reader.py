@@ -44,6 +44,7 @@ from document_platform.domain.processing import (
     InvoiceProposalIssueCode,
     InvoiceProposalStatus,
     InvoiceReviewCorrection,
+    InvoiceReviewCorrectionSource,
     InvoiceReviewField,
     InvoiceReviewFieldCorrection,
     InvoiceValidation,
@@ -442,6 +443,7 @@ async def test_returns_safe_review_resolution_metadata(
                         InvoiceReviewFieldCorrection(
                             field=InvoiceReviewField.TOTAL_AMOUNT,
                             corrected_value=Decimal("42.50"),
+                            source=InvoiceReviewCorrectionSource.AI_PROPOSAL,
                         ),
                     ),
                     corrected_at=ACCEPTED_AT,
@@ -460,4 +462,5 @@ async def test_returns_safe_review_resolution_metadata(
     assert review.review_note == "Matched the supplier statement."
     assert review.corrections[0].field is InvoiceReviewField.TOTAL_AMOUNT
     assert review.corrections[0].corrected_value == Decimal("42.50")
+    assert review.corrections[0].source is InvoiceReviewCorrectionSource.AI_PROPOSAL
     assert review.corrections[0].corrected_at == ACCEPTED_AT

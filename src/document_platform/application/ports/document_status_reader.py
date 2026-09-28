@@ -17,6 +17,7 @@ from document_platform.domain.processing import (
     InvoiceProposalGenerationFailureCode,
     InvoiceProposalIssue,
     InvoiceProposalStatus,
+    InvoiceReviewCorrectionSource,
     InvoiceReviewField,
     InvoiceValidationDecision,
     InvoiceValidationIssue,
@@ -102,6 +103,7 @@ class ProcessingFailureMetadataView:
 class InvoiceReviewCorrectionMetadataView:
     field: InvoiceReviewField
     corrected_value: str | date | Decimal
+    source: InvoiceReviewCorrectionSource
     corrected_at: datetime
 
 
