@@ -17,6 +17,9 @@ from document_platform.domain.processing import (
     DeterministicInvoiceExtractionPolicy,
     DocumentClassificationPolicy,
     DocumentClassificationReason,
+    InvoiceValidationDecision,
+    InvoiceValidationIssue,
+    InvoiceValidationPolicy,
 )
 
 FIXTURES = Path(__file__).resolve().parents[3] / "examples/documents"
@@ -43,7 +46,7 @@ def _classification(text: str):
     )
 
 
-def test_digital_invoice_has_expected_classification_and_extracted_fields() -> None:
+def test_digital_invoice_requires_review_for_an_unsupported_currency() -> None:
     text = _document_text("invoice-digital.pdf")
     classification = _classification(text)
     extraction = DeterministicInvoiceExtractionPolicy().extract(
@@ -57,8 +60,14 @@ def test_digital_invoice_has_expected_classification_and_extracted_fields() -> N
     assert extraction.invoice_number == "DEMO-INV-1001"
     assert extraction.supplier_name == "Northstar Office Supplies Ltd"
     assert extraction.issue_date == date(2026, 9, 15)
-    assert extraction.currency == "EUR"
-    assert extraction.total_amount == Decimal("1240.50")
+    assert extraction.currency is None
+    assert extraction.total_amount is None
+    validation = InvoiceValidationPolicy().validate(extraction=extraction, validated_at=AT)
+    assert validation.decision is InvoiceValidationDecision.REVIEW_REQUIRED
+    assert validation.issues == (
+        InvoiceValidationIssue.MISSING_CURRENCY,
+        InvoiceValidationIssue.MISSING_TOTAL_AMOUNT,
+    )
 
 
 def test_scanned_invoice_has_no_embedded_text_layer() -> None:
@@ -87,7 +96,7 @@ async def test_scanned_invoice_is_classified_and_extracted_through_ocr() -> None
     assert classification.document_type is BusinessDocumentType.INVOICE
     assert extraction.invoice_number == "DEMO-INV-1002"
     assert extraction.supplier_name == "Cedar Lane Technology Ltd"
-    assert extraction.issue_date == date(2026, 9, 18)
+    assert extraction.issue_date is None
     assert extraction.currency == "EUR"
     assert extraction.total_amount == Decimal("875.25")
 

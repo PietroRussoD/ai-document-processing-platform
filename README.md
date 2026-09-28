@@ -239,7 +239,9 @@ volume. The Temporal UI is at `http://localhost:8233`. Set `CONSOLE_PORT`,
 `API_PORT`, `POSTGRES_PORT`, `TEMPORAL_PORT` or `TEMPORAL_UI_PORT` if a host port
 is occupied. Published application, database and Temporal ports bind to
 `127.0.0.1`. This stack uses development credentials and does not provide
-production authentication or deployment configuration.
+production authentication or deployment configuration. The review form uses
+the loopback-only demo token `local-only-demo-review-token-change-before-exposure`
+unless `DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN` overrides it in `.env`.
 
 After starting the `processing` profile, verify the complete path through the
 console's reverse proxy:
@@ -257,7 +259,9 @@ is a manual local smoke test, not part of the default CI pipeline. It prints a
 direct console link for the verified document; the
 [v0.9 local demo walkthrough](docs/runbooks/v0.9-demo.md) uses that link.
 For three reusable examples (digital invoice, scanned invoice and unrelated
-report), see the [synthetic demo documents](examples/documents/README.md).
+report), see the [synthetic demo documents](examples/documents/README.md). The
+optional local-model proposal and human approval path is covered by the
+[v1.0 verification record](docs/runbooks/v1.0-verification.md#local-ai-assisted-review).
 
 Preview documents eligible for retention without modifying the database or
 local blob storage:

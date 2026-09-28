@@ -27,14 +27,13 @@ INVOICE_TEXT = (
     "Invoice date: 2026-09-15\n"
     "Supplier: Northstar Office Supplies Ltd\n"
     "Customer: Example Research Group\n"
-    "Total amount: EUR 1240.50\n"
+    "Total amount: CAD 99.00\n"
     "Payment terms: 30 days from invoice date\n"
     "Synthetic sample. No real company or transaction is represented.\n"
 )
 SCANNED_INVOICE_TEXT = (
     "INVOICE\n"
     "Invoice number: DEMO-INV-1002\n"
-    "Invoice date: 2026-09-18\n"
     "Supplier: Cedar Lane Technology Ltd\n"
     "Customer: Example Research Group\n"
     "Total amount: EUR 875.25\n"
