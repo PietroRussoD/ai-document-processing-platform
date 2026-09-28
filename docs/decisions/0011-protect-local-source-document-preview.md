@@ -32,8 +32,9 @@ demo, not real customer documents.
 
 ## Consequences
 
-- An operator can inspect source evidence before resolving a review without
-  widening metadata/status contracts.
+- The separate source endpoint permits evidence inspection without widening
+  metadata/status contracts; the browser preview remains a separate client
+  feature.
 - The bearer token grants access to source documents as well as review actions;
   anyone who obtains it can read all documents reachable through the endpoint.
 - The static token, unauthenticated status reads, absent tenant isolation and

@@ -10,8 +10,10 @@ machine and the private Compose network, not a public HTTP service.
   health, metrics and OpenAPI endpoints are unauthenticated. Knowing a document
   ID is not an authorization check.
 - Review resolution and reprocessing require one configured local bearer token.
-  The Compose API does not set one by default, so those actions are unavailable
-  there until configured. The token is not a user, role or tenant system.
+  Compose supplies a local-only demo token unless overridden; host-run APIs
+  require it to be configured. The token is not a user, role or tenant system.
+- Source-PDF retrieval requires the same bearer token. Any holder of the shared
+  token can retrieve every stored document through this route.
 - PostgreSQL owns document metadata and processing evidence. A named volume
   holds PDF blobs; Temporal has its own database and an unauthenticated UI.
   The console, API, worker and dispatcher share a Compose network.
@@ -30,9 +32,10 @@ machine and the private Compose network, not a public HTTP service.
   request details and should not be treated as a secret-free audit trail.
 - Database retention is explicit and dry-run-first. Blob auditing reports
   potential orphans but never deletes files.
-- A separate local PDF-preview endpoint is planned to require the configured
-  review bearer token, resolve blob keys server-side and return non-cacheable
-  PDF bytes only. It is not implemented yet; see
+- The browser console does not yet preview source PDFs; use the authenticated
+  API route for local inspection. Blob bytes are returned with `no-store` and
+  `nosniff`, and document IDs are resolved to storage keys server-side. This
+  remains a local demo control, not production authorization. See
   [ADR 0011](decisions/0011-protect-local-source-document-preview.md).
 
 ## Gaps Before Real Use

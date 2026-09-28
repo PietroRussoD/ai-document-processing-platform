@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Annotated, Any, Literal, cast
 from uuid import UUID
 
-from fastapi import APIRouter, File, Header, Query, Request, UploadFile, status
+from fastapi import APIRouter, File, Header, Query, Request, Response, UploadFile, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from document_platform.adapters.inbound.http.problems import ProblemDetails
@@ -28,6 +28,7 @@ from document_platform.application.commands.accept_document_upload import (
 )
 from document_platform.application.ports import DocumentWorkQueue
 from document_platform.application.queries import (
+    GetDocumentSourceHandler,
     GetDocumentStatusHandler,
     ListDocumentWorkQueueHandler,
 )
@@ -392,6 +393,38 @@ async def get_document_status(
     handler = cast(GetDocumentStatusHandler, request.app.state.get_document_status)
     document = await handler(document_id)
     return DocumentStatusResponse.model_validate(document)
+
+
+@router.get(
+    "/{document_id}/source",
+    operation_id="getDocumentSource",
+    summary="Retrieve a source PDF for local operator review",
+    response_class=Response,
+    responses={
+        200: {"content": {"application/pdf": {"schema": {"type": "string", "format": "binary"}}}},
+        401: _problem_response("Unauthorized"),
+        404: _problem_response("Not Found"),
+        503: _problem_response("Service Unavailable"),
+    },
+)
+async def get_document_source(
+    document_id: UUID,
+    request: Request,
+    authorization: Annotated[str | None, Header()] = None,
+) -> Response:
+    settings = cast(Settings, request.app.state.settings)
+    authenticate_review_operator(authorization=authorization, settings=settings)
+    handler = cast(GetDocumentSourceHandler, request.app.state.get_document_source)
+    content = await handler(document_id)
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        headers={
+            "Cache-Control": "no-store",
+            "Content-Disposition": 'inline; filename="document.pdf"',
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.post(

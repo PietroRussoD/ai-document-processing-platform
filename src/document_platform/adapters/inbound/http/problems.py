@@ -36,7 +36,7 @@ from document_platform.application.ports import (
     ReprocessingOperationAlreadyExists,
     ReviewResolutionAlreadyExists,
 )
-from document_platform.application.queries import DocumentNotFound
+from document_platform.application.queries import DocumentNotFound, DocumentSourceUnavailable
 from document_platform.application.upload_idempotency import (
     ConflictingIdempotencyKey,
     InvalidIdempotencyKey,
@@ -68,6 +68,12 @@ PROBLEM_DEFINITIONS: tuple[tuple[type[Exception], ProblemDefinition], ...] = (
     (
         DocumentNotFound,
         ProblemDefinition("urn:problem:document-not-found", "Document not found", 404),
+    ),
+    (
+        DocumentSourceUnavailable,
+        ProblemDefinition(
+            "urn:problem:source-document-unavailable", "Source document unavailable", 503
+        ),
     ),
     (
         ReviewAuthenticationRejected,

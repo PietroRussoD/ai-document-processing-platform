@@ -27,6 +27,7 @@ from document_platform.adapters.outbound.pdf import PyMuPdfInspector
 from document_platform.adapters.outbound.postgresql import SqlAlchemyUnitOfWork
 from document_platform.adapters.outbound.postgresql.database import create_database
 from document_platform.adapters.outbound.postgresql.queries import (
+    SqlAlchemyDocumentSourceReader,
     SqlAlchemyDocumentStatusReader,
     SqlAlchemyProcessingRunMetricsReader,
 )
@@ -38,6 +39,7 @@ from document_platform.application.commands import (
 )
 from document_platform.application.ports import ProcessingRunMetricsReader
 from document_platform.application.queries import (
+    GetDocumentSourceHandler,
     GetDocumentStatusHandler,
     ListDocumentWorkQueueHandler,
 )
@@ -59,17 +61,22 @@ def create_app(
         clock=lambda: datetime.now(UTC),
         id_generator=uuid4,
     )
+    blob_store = LocalBlobStore(
+        active_settings.storage_root,
+        max_bytes=active_settings.max_document_bytes,
+    )
     accept_document_upload = AcceptDocumentUploadHandler(
         pdf_inspector=PyMuPdfInspector(active_settings.max_document_pages),
-        blob_store=LocalBlobStore(
-            active_settings.storage_root,
-            max_bytes=active_settings.max_document_bytes,
-        ),
+        blob_store=blob_store,
         register_document=register_document,
         max_bytes=active_settings.max_document_bytes,
     )
     document_status_reader = SqlAlchemyDocumentStatusReader(database.sessions)
     get_document_status = GetDocumentStatusHandler(document_status_reader)
+    get_document_source = GetDocumentSourceHandler(
+        reader=SqlAlchemyDocumentSourceReader(database.sessions),
+        blob_store=blob_store,
+    )
     list_document_work_queue = ListDocumentWorkQueueHandler(document_status_reader)
     resolve_document_review = ResolveDocumentReviewHandler(
         unit_of_work_factory=lambda: SqlAlchemyUnitOfWork(database.sessions),
@@ -101,6 +108,7 @@ def create_app(
     application.state.database = database
     application.state.accept_document_upload = accept_document_upload
     application.state.get_document_status = get_document_status
+    application.state.get_document_source = get_document_source
     application.state.list_document_work_queue = list_document_work_queue
     application.state.resolve_document_review = resolve_document_review
     application.state.request_document_reprocessing = request_document_reprocessing

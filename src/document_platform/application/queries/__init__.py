@@ -1,5 +1,9 @@
 """Application read use cases."""
 
+from document_platform.application.queries.get_document_source import (
+    DocumentSourceUnavailable,
+    GetDocumentSourceHandler,
+)
 from document_platform.application.queries.get_document_status import (
     DocumentNotFound,
     GetDocumentStatusHandler,
@@ -18,7 +22,9 @@ from document_platform.application.retention import (
 __all__ = [
     "DocumentNotFound",
     "DocumentRetentionReport",
+    "DocumentSourceUnavailable",
     "GetDocumentStatusHandler",
+    "GetDocumentSourceHandler",
     "InvalidRetentionPeriod",
     "ListDocumentWorkQueueHandler",
     "SummarizeDocumentRetentionHandler",

@@ -209,7 +209,8 @@ capability is implemented. The migration backfills old completed non-invoice
 runs whose document was left in `PROCESSING`. All activity outputs are
 immutable and keyed by processing run, which makes retries safe. The status API
 and console expose safe structured values and reason codes, never source text
-or storage paths.
+or storage paths. A separate bearer-protected local endpoint returns the source
+PDF for review; the console viewer is not implemented yet.
 
 An operator may approve a review-required invoice with a non-empty set of typed
 field corrections. The application applies that set only in memory to validate
@@ -588,7 +589,7 @@ tests/e2e/           API and browser journeys
 | Boundary | Current implementation | Planned extension |
 | --- | --- | --- |
 | Object storage | Local filesystem | S3-compatible adapter |
-| Original document access | Not exposed over HTTP; inspect local synthetic source files separately | Explicit, review-token-protected local PDF preview, isolated from status and queue responses |
+| Original document access | Separate review-token-protected PDF endpoint; console viewer not implemented | On-demand console preview with in-memory token and revoked object URL |
 | Invoice extraction | Deterministic extraction, validation, immutable review corrections, opt-in advisory local-model proposal, status API projection and read-only console comparison | Operator evaluation and correction of advisory output |
 | Text extraction | Embedded/OCR extraction and persisted canonical source selection | OCR quality calibration and language policy |
 | Document classification | Deterministic canonical-text keyword policy | Evaluated local model policy |

@@ -9,6 +9,9 @@ from document_platform.adapters.outbound.postgresql.queries.document_retention_d
 from document_platform.adapters.outbound.postgresql.queries.document_retention_reader import (
     SqlAlchemyDocumentRetentionReader,
 )
+from document_platform.adapters.outbound.postgresql.queries.document_source_reader import (
+    SqlAlchemyDocumentSourceReader,
+)
 from document_platform.adapters.outbound.postgresql.queries.document_status_reader import (
     SqlAlchemyDocumentStatusReader,
 )
@@ -21,5 +24,6 @@ __all__ = [
     "SqlAlchemyDocumentRetentionReader",
     "SqlAlchemyDocumentRetentionDeleter",
     "SqlAlchemyDocumentStatusReader",
+    "SqlAlchemyDocumentSourceReader",
     "SqlAlchemyProcessingRunMetricsReader",
 ]

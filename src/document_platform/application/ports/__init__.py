@@ -32,6 +32,7 @@ from document_platform.application.ports.document_retention_reader import (
     DocumentRetentionReader,
     DocumentRetentionSnapshot,
 )
+from document_platform.application.ports.document_source_reader import DocumentSourceReader
 from document_platform.application.ports.document_status_reader import (
     AiInvoiceProposalFailureMetadataView,
     AiInvoiceProposalMetadataView,
@@ -167,6 +168,7 @@ __all__ = [
     "DocumentOcrExtractionRepository",
     "DocumentRetentionReader",
     "DocumentRetentionSnapshot",
+    "DocumentSourceReader",
     "DocumentClassificationAlreadyExists",
     "DocumentClassificationRepository",
     "DocumentStatusReader",

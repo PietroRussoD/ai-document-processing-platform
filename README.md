@@ -190,6 +190,8 @@ The API is available at `http://localhost:8000`. Current endpoints:
 - document ingestion: `POST http://localhost:8000/api/v1/documents`;
 - operator queue: `GET http://localhost:8000/api/v1/documents?queue=ACTIVE|REVIEW|FAILED|UNSUPPORTED&limit=25&offset=0`;
 - document status: `GET http://localhost:8000/api/v1/documents/{document_id}`;
+- source PDF: `GET http://localhost:8000/api/v1/documents/{document_id}/source`
+  (review bearer token required; local demo only);
 - review resolution: `POST http://localhost:8000/api/v1/documents/{document_id}/review-resolution`;
 - controlled reprocessing: `POST http://localhost:8000/api/v1/documents/{document_id}/reprocessing-requests`;
 - OpenAPI document: `GET http://localhost:8000/openapi.json`;
