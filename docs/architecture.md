@@ -589,7 +589,7 @@ tests/e2e/           API and browser journeys
 | Boundary | Current implementation | Planned extension |
 | --- | --- | --- |
 | Object storage | Local filesystem | S3-compatible adapter |
-| Original document access | Separate review-token-protected PDF endpoint; console viewer not implemented | On-demand console preview with in-memory token and revoked object URL |
+| Original document access | Separate review-token-protected PDF endpoint and on-demand console preview with in-memory token and revoked object URL | Production identity, authorization and document isolation |
 | Invoice extraction | Deterministic extraction, validation, immutable review corrections, opt-in advisory local-model proposal, status API projection and read-only console comparison | Operator evaluation and correction of advisory output |
 | Text extraction | Embedded/OCR extraction and persisted canonical source selection | OCR quality calibration and language policy |
 | Document classification | Deterministic canonical-text keyword policy | Evaluated local model policy |

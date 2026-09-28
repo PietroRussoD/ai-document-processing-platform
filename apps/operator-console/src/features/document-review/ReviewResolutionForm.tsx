@@ -5,6 +5,7 @@ import {
     LoaderCircle,
     XCircle,
 } from "lucide-react";
+import { type ReactNode } from "react";
 import { useState } from "react";
 
 import type {
@@ -44,6 +45,7 @@ type ReviewResolutionFormProps = {
     onReviewNoteChange: (reviewNote: string) => void;
     operatorToken: string;
     reviewNote: string;
+    sourcePreview?: ReactNode;
 };
 
 const reviewResolutionErrorId = "review-resolution-error";
@@ -58,6 +60,7 @@ export function ReviewResolutionForm({
     onReviewNoteChange,
     operatorToken,
     reviewNote,
+    sourcePreview,
 }: ReviewResolutionFormProps) {
     const [invoiceValues, setInvoiceValues] = useState(() =>
         toInvoiceValues(invoiceExtraction),
@@ -117,6 +120,8 @@ export function ReviewResolutionForm({
                     </p>
                 </div>
             </div>
+
+            {sourcePreview}
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <label className="block text-sm font-medium text-app-foreground">

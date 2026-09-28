@@ -32,10 +32,12 @@ machine and the private Compose network, not a public HTTP service.
   request details and should not be treated as a secret-free audit trail.
 - Database retention is explicit and dry-run-first. Blob auditing reports
   potential orphans but never deletes files.
-- The browser console does not yet preview source PDFs; use the authenticated
-  API route for local inspection. Blob bytes are returned with `no-store` and
-  `nosniff`, and document IDs are resolved to storage keys server-side. This
-  remains a local demo control, not production authorization. See
+- The review console can fetch and display a source PDF only after an explicit
+  operator action, using the in-memory review bearer token. It revokes its
+  temporary object URL when the preview closes or unmounts. Blob bytes are
+  returned with `no-store` and `nosniff`, and document IDs are resolved to
+  storage keys server-side. This remains a local demo control, not production
+  authorization. See
   [ADR 0011](decisions/0011-protect-local-source-document-preview.md).
 
 ## Gaps Before Real Use

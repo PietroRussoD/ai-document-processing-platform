@@ -80,6 +80,24 @@ export function createDocumentApi(fetcher: typeof fetch = globalThis.fetch) {
             return readResponse<DocumentStatus>(response);
         },
 
+        async getSourceDocument(
+            documentId: string,
+            operatorToken: string,
+            signal?: AbortSignal,
+        ): Promise<Blob> {
+            const response = await fetcher(
+                `/api/v1/documents/${encodeURIComponent(documentId)}/source`,
+                {
+                    headers: { Authorization: `Bearer ${operatorToken}` },
+                    signal,
+                },
+            );
+            if (!response.ok) {
+                return readResponse<Blob>(response);
+            }
+            return response.blob();
+        },
+
         async resolveReview(
             documentId: string,
             resolution: ReviewResolutionRequest,

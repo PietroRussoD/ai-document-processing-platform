@@ -9,8 +9,10 @@ import {
 } from "../../api/documentApi";
 import { ReviewResolutionForm } from "./ReviewResolutionForm";
 import { ResolvedReview } from "./ResolvedReview";
+import { SourcePdfPreview } from "./SourcePdfPreview";
 
-type ReviewApi = Pick<DocumentApi, "resolveReview">;
+type ReviewApi = Pick<DocumentApi, "resolveReview"> &
+    Partial<Pick<DocumentApi, "getSourceDocument">>;
 type ProcessingRun = DocumentStatus["current_run"];
 
 type ReviewResolutionPanelProps = {
@@ -68,6 +70,13 @@ export function ReviewResolutionPanel({
         resolutionMutation.error instanceof DocumentApiProblem
             ? resolutionMutation.error.problem.detail
             : "The review decision could not be saved. Try again.";
+    const sourcePreview = api.getSourceDocument ? (
+        <SourcePdfPreview
+            api={{ getSourceDocument: api.getSourceDocument }}
+            documentId={documentId}
+            operatorToken={operatorToken}
+        />
+    ) : null;
 
     return (
         <ReviewResolutionForm
@@ -88,6 +97,7 @@ export function ReviewResolutionPanel({
             onReviewNoteChange={setReviewNote}
             operatorToken={operatorToken}
             reviewNote={reviewNote}
+            sourcePreview={sourcePreview}
         />
     );
 }

@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import userEvent from "@testing-library/user-event";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { type PropsWithChildren } from "react";
 import { expect, test, vi } from "vitest";
@@ -96,6 +97,104 @@ test("shows a safe review failure message", async () => {
         "aria-describedby",
         "review-resolution-error",
     );
+});
+
+test("loads the source PDF only on request and revokes its object URL on close", async () => {
+    const pdf = new Blob(["synthetic pdf"], { type: "application/pdf" });
+    const getSourceDocument = vi
+        .fn<DocumentApi["getSourceDocument"]>()
+        .mockResolvedValue(pdf);
+    const createObjectURL = vi.fn(() => "blob:source-document");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", {
+        ...URL,
+        createObjectURL,
+        revokeObjectURL,
+    });
+    const user = userEvent.setup();
+
+    const { container } = render(
+        <ReviewResolutionPanel
+            api={{
+                resolveReview: vi.fn(),
+                getSourceDocument,
+            }}
+            documentId={DOCUMENT_ID}
+            run={reviewRequiredRun()}
+        />,
+        { wrapper: QueryWrapper },
+    );
+
+    expect(getSourceDocument).not.toHaveBeenCalled();
+    expect(
+        screen.getByRole("button", { name: "View source PDF" }),
+    ).toBeDisabled();
+    expect((await axe(container)).violations).toEqual([]);
+
+    await user.type(screen.getByLabelText("Operator token"), "operator-token");
+    await user.click(screen.getByRole("button", { name: "View source PDF" }));
+
+    expect(getSourceDocument).toHaveBeenCalledWith(
+        DOCUMENT_ID,
+        "operator-token",
+        expect.any(AbortSignal),
+    );
+    expect(await screen.findByTitle("Source PDF preview")).toHaveAttribute(
+        "src",
+        "blob:source-document",
+    );
+    await user.click(screen.getByRole("button", { name: "Close source PDF" }));
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:source-document");
+    expect(screen.queryByTitle("Source PDF preview")).not.toBeInTheDocument();
+    vi.unstubAllGlobals();
+});
+
+test("shows a safe message when loading the source PDF fails", async () => {
+    const getSourceDocument = vi
+        .fn<DocumentApi["getSourceDocument"]>()
+        .mockRejectedValue(new Error("private storage path"));
+    const user = userEvent.setup();
+
+    render(
+        <ReviewResolutionPanel
+            api={{ resolveReview: vi.fn(), getSourceDocument }}
+            documentId={DOCUMENT_ID}
+            run={reviewRequiredRun()}
+        />,
+        { wrapper: QueryWrapper },
+    );
+    await user.type(screen.getByLabelText("Operator token"), "operator-token");
+    await user.click(screen.getByRole("button", { name: "View source PDF" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+        "The source PDF could not be loaded.",
+    );
+    expect(screen.queryByText("private storage path")).not.toBeInTheDocument();
+});
+
+test("aborts a source-PDF request when the review panel unmounts", async () => {
+    let requestSignal: AbortSignal | undefined;
+    const getSourceDocument = vi
+        .fn<DocumentApi["getSourceDocument"]>()
+        .mockImplementation((_documentId, _operatorToken, signal) => {
+            requestSignal = signal;
+            return new Promise(() => undefined);
+        });
+    const user = userEvent.setup();
+    const { unmount } = render(
+        <ReviewResolutionPanel
+            api={{ resolveReview: vi.fn(), getSourceDocument }}
+            documentId={DOCUMENT_ID}
+            run={reviewRequiredRun()}
+        />,
+        { wrapper: QueryWrapper },
+    );
+    await user.type(screen.getByLabelText("Operator token"), "operator-token");
+    await user.click(screen.getByRole("button", { name: "View source PDF" }));
+
+    expect(requestSignal?.aborted).toBe(false);
+    unmount();
+    expect(requestSignal?.aborted).toBe(true);
 });
 
 test("shows the immutable outcome after a refresh", () => {

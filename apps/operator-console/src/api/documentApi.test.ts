@@ -91,6 +91,31 @@ test("retrieves document status and forwards cancellation", async () => {
     );
 });
 
+test("retrieves the source PDF with the operator token and forwards cancellation", async () => {
+    const pdf = new Blob(["synthetic pdf"], { type: "application/pdf" });
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(pdf, {
+            headers: { "content-type": "application/pdf" },
+        }),
+    );
+    const controller = new AbortController();
+
+    const result = await createDocumentApi(fetcher).getSourceDocument(
+        acceptedDocument.document_id,
+        "operator-token",
+        controller.signal,
+    );
+
+    expect(result).toEqual(pdf);
+    expect(fetcher).toHaveBeenCalledWith(
+        `/api/v1/documents/${acceptedDocument.document_id}/source`,
+        {
+            headers: { Authorization: "Bearer operator-token" },
+            signal: controller.signal,
+        },
+    );
+});
+
 test("resolves a review with the configured bearer token", async () => {
     const resolution = {
         processing_run_id: acceptedDocument.processing_run_id,
