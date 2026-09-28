@@ -24,5 +24,8 @@ issue date and therefore requires operator review after OCR. The scanned example
 needs the configured English Tesseract data. These files demonstrate the
 processing workflow, not an AI model's accuracy. Since the scanned source has
 no issue date, do not invent one to approve it; leave it pending or reject it
-with a reason. The console does not display the source PDF or extracted text,
-so verify values against the original file outside the console.
+with a reason. In the review panel, enter the configured operator token and
+select **View source PDF** to check the original before adopting or correcting
+values. The PDF is fetched on demand; extracted raw text and storage paths
+remain excluded from status responses. The unrelated equipment report appears
+in the **Unsupported** queue without an invoice review form.

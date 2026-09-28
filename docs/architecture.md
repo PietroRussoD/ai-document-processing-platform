@@ -24,6 +24,8 @@ flowchart LR
     Worker -->|read PDF| Storage
     Worker -->|persist outputs and state| PostgreSQL
     Worker -->|extract text| PDF[PyMuPDF and Tesseract]
+    Worker -.->|optional invoice proposal| Ollama[Host Ollama]
+    API -->|authenticated source-PDF read| Storage
     Prometheus[Prometheus] -.->|scrape /metrics| API
     Grafana[Grafana] -.->|query| Prometheus
 ```
@@ -35,7 +37,7 @@ execution history while PostgreSQL remains authoritative for business state.
 The dispatcher starts workflows from committed PostgreSQL requests; the API
 does not start them inside the upload transaction. The console reads business
 state through the API, not directly from Temporal or PostgreSQL. Dashed edges
-are the optional local observability profile. The invoice workflow invokes the
+mark optional model and observability integrations. The invoice workflow invokes the
 local proposal adapter only after deterministic completion and only when the
 worker's Ollama setting is enabled.
 
@@ -210,7 +212,29 @@ runs whose document was left in `PROCESSING`. All activity outputs are
 immutable and keyed by processing run, which makes retries safe. The status API
 and console expose safe structured values and reason codes, never source text
 or storage paths. A separate bearer-protected local endpoint returns the source
-PDF for review; the console viewer is not implemented yet.
+PDF for review. The review panel fetches it on demand with the operator token
+held in memory and displays it through a temporary browser object URL. Closing
+the preview or unmounting the component revokes that URL; unmounting also aborts
+an in-flight request. PDF responses use `no-store`, `nosniff` and a generic
+inline filename. The shared local token can retrieve any stored document.
+
+```mermaid
+sequenceDiagram
+    actor Operator
+    participant UI as Review console
+    participant API as FastAPI
+    participant DB as PostgreSQL
+    participant Storage as Local blob volume
+    Operator->>UI: Enter token and request source PDF
+    UI->>API: GET source with bearer token
+    API->>API: Authenticate before document lookup
+    API->>DB: Resolve document ID to storage key
+    API->>Storage: Read bounded PDF bytes
+    API-->>UI: PDF with no-store and nosniff
+    UI->>UI: Create temporary object URL and render preview
+    Operator->>UI: Close preview
+    UI->>UI: Revoke object URL
+```
 
 An operator may approve a review-required invoice with a non-empty set of typed
 field corrections. The application applies that set only in memory to validate
@@ -230,6 +254,9 @@ metadata exposed by the status endpoint. It does not query Temporal directly,
 and it does not receive document text or blob paths. A stage is shown as
 completed only after its immutable output is persisted; the next stages remain
 in progress or pending until their own metadata appears.
+The timeline currently covers deterministic processing and review, not a
+separate AI progress stage. A proposal and a provider failure appear in the
+comparison panel only after their outcomes have been persisted.
 
 The separate System Map page is static architecture documentation. Its document
 journey illustrates possible approval, review and failure/reprocessing paths
@@ -245,7 +272,7 @@ before configurable parallelism is introduced with operational evidence.
 Status queries use a dedicated read-model port. Its PostgreSQL adapter joins the
 document with its most recently queued processing run and returns only the fields
 required by the public API; it does not load aggregates or open a write transaction.
-The same adapter exposes paginated `ACTIVE`, `REVIEW` and `FAILED` work queues,
+The same adapter exposes paginated `ACTIVE`, `REVIEW`, `FAILED` and `UNSUPPORTED` work queues,
 selecting each document's latest run and returning metadata only. Queue listing
 is bounded to 100 rows per request and ordered by document acceptance time.
 When processing output is available, the same snapshot includes extraction
@@ -259,16 +286,21 @@ provenance; it excludes source text, prompts and raw provider responses. This
 local demo does not authenticate status reads, so only synthetic documents
 should be uploaded.
 The operator console renders recorded advisory fields beside the original
-rule-based extraction and never applies them to review decisions. A completed
-run stops automatic polling; a manual refresh retrieves advisory results that
-were persisted afterward. A missing result is not displayed as a failure.
+rule-based extraction. An operator can explicitly adopt a field as a correction;
+the API checks that it matches the persisted proposal before resolving review.
+Automatic polling stops at terminal processing-run states, including
+`REVIEW_REQUIRED`. A manual refresh retrieves advisory results persisted
+afterward. Null proposal and failure fields do not distinguish a disabled
+provider from work still in progress. The source preview is stacked above the
+correction fields on desktop and mobile; a side-by-side review layout remains
+planned.
 
 The React upload feature keeps temporary file selection in local component state
 and delegates the remote mutation lifecycle to TanStack Query. One client-generated
 idempotency key is retained across retries of the same selection and replaced when
 the selected document changes. Transport types come from the versioned OpenAPI
 contract; unexpected technical error details are not rendered to operators.
-The work-queue view queries one bounded `ACTIVE`, `REVIEW` or `FAILED` page at a
+The work-queue view queries one bounded `ACTIVE`, `REVIEW`, `FAILED` or `UNSUPPORTED` page at a
 time, refreshes it periodically or on request, and opens the existing persisted
 status view for a selected document. The selected document ID is reflected in
 the `documentId` query parameter, so a detail can be reopened directly and
@@ -590,7 +622,7 @@ tests/e2e/           API and browser journeys
 | --- | --- | --- |
 | Object storage | Local filesystem | S3-compatible adapter |
 | Original document access | Separate review-token-protected PDF endpoint and on-demand console preview with in-memory token and revoked object URL | Production identity, authorization and document isolation |
-| Invoice extraction | Deterministic extraction, validation, immutable review corrections, opt-in advisory local-model proposal, status API projection and read-only console comparison | Operator evaluation and correction of advisory output |
+| Invoice extraction | Deterministic extraction and validation, opt-in advisory proposals, API/console comparison, explicit proposal adoption and immutable correction provenance | Broader corpus and model-quality evaluation |
 | Text extraction | Embedded/OCR extraction and persisted canonical source selection | OCR quality calibration and language policy |
 | Document classification | Deterministic canonical-text keyword policy | Evaluated local model policy |
 | Workflow execution | Temporal development server with local worker | Managed/self-hosted Temporal later |
@@ -612,4 +644,5 @@ records the demo trust boundary and controls not yet implemented.
 - [ADR 0007: Create Immutable Processing-Run Lineage for Controlled Reprocessing](decisions/0007-create-immutable-reprocessing-lineage.md)
 - [ADR 0008: Record Safe Terminal Workflow Failure Evidence](decisions/0008-record-safe-terminal-workflow-failure-evidence.md)
 - [ADR 0009: Use Explicit, Safe Document Retention](decisions/0009-use-explicit-safe-document-retention.md)
+- [ADR 0010: Record Unsupported Document Outcomes](decisions/0010-record-unsupported-document-outcomes.md)
 - [ADR 0011: Protect Local Source-Document Preview](decisions/0011-protect-local-source-document-preview.md)

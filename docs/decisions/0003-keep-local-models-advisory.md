@@ -2,8 +2,8 @@
 
 ## Status
 
-Accepted. Amended 2026-09-27 to allow a separate, immutable proposal while
-keeping model output outside the authoritative processing result.
+Accepted. Amended 2026-09-27 for immutable workflow proposals and 2026-09-28 for
+API/console visibility and explicit operator adoption.
 
 ## Context
 
@@ -28,8 +28,9 @@ to replace deterministic extraction or to approve a document automatically.
 - The invoice workflow invokes the advisory activity only after deterministic
   completion and only in histories with the `advisory-invoice-proposal-v1`
   patch. The worker skips the model when disabled (the default). Provider
-  failures use bounded Temporal retries and a separate durable outcome;
-  operator visibility remains pending.
+  failures use bounded Temporal retries and a separate durable outcome.
+  The status API and console expose proposals and terminal provider failures
+  separately from deterministic processing output.
 - The current benchmark is evidence for an advisory demo only, not a real-world
   accuracy claim. Any later move toward authoritative extraction requires a
   broader versioned corpus and measured policy gate.
@@ -51,6 +52,7 @@ to replace deterministic extraction or to approve a document automatically.
   `INVALID` proposal, not a provider outage. A separate immutable persistence
   contract now stores terminal provider failures without failing the document.
   The proposal and failure repositories serialize writes per run and reject
-  opposite outcomes. Operator visibility remains pending.
+  opposite outcomes. A missing outcome does not yet distinguish a disabled
+  provider from work still in progress; operators can refresh the status.
 - A public demo must disclose the local model, benchmark limitations and human
   review requirement.

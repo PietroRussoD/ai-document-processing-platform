@@ -22,13 +22,22 @@ no timestamps, so reports can be diffed between implementations.
 ## Local Ollama spike
 
 The Ollama comparison command is an isolated local experiment. It does not
-replace deterministic extraction or persist its comparison output. Separately,
-the opt-in invoice workflow can persist an advisory proposal after deterministic
-completion; this is not exposed by the current API. The comparison sends the
-same corpus text to Ollama's structured-output API and validates each response
-against an explicit JSON schema before evaluation.
-Thinking is explicitly disabled because it adds reasoning-token latency without
-improving the five-field structured extraction contract.
+replace deterministic extraction or persist its comparison output.
+The comparison sends the same corpus text to Ollama's structured-output API
+and validates each response against an explicit JSON schema before evaluation.
+
+Separately, the opt-in invoice workflow persists an advisory proposal after
+deterministic completion. The status API exposes proposed fields, typed issues
+and model provenance in `current_run.ai_proposal`, or a terminal provider
+failure in `current_run.ai_proposal_failure`. The console compares proposals
+with deterministic values, supports explicit field adoption and records
+correction provenance after operator approval. See
+[ADR 0003](decisions/0003-keep-local-models-advisory.md) and the
+[v1.0 demo verification](runbooks/v1.0-verification.md).
+
+The console supports evaluation of an individual document during review.
+Corpus-wide exact-match and latency reports remain CLI outputs; there is no
+aggregate evaluation dashboard.
 
 After starting Ollama locally and making a model available, run:
 
@@ -40,8 +49,8 @@ The command intentionally requires an explicit model name. Record the model,
 its version or digest, hardware context, and command output with any comparison
 result; exact-match scores alone do not measure production extraction quality.
 Its JSON output also records request latency measured around each local API call
-and the number of failed requests. Thinking is explicitly disabled because it
-adds reasoning-token latency without improving this five-field extraction task.
+and the number of failed requests. Requests set `think: false` to keep the
+structured extraction comparison bounded.
 
 The first recorded local comparison is
 [Qwen3 8B on 2026-09-19](evaluation/results/ollama-qwen3-8b-2026-09-19.md).

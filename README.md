@@ -5,76 +5,56 @@ data from business documents.
 
 ## Status
 
-Development now targets `v1.0.0`; the packages report `1.0.0.dev0` and
-`1.0.0-dev.0` until that release is cut. The tagged `v0.9.0` remains a local
-demonstration release for synthetic documents, not a production deployment.
+Development targets `v1.0.0`; the packages report `1.0.0.dev0` and
+`1.0.0-dev.0` until that release is cut. The latest tagged release is
+[`v0.9.0`](https://github.com/PietroRussoD/ai-document-processing-platform/tree/v0.9.0).
+The behavior below describes current development; historical release scope is
+recorded in [release notes](docs/releases/).
 
-The [`v0.7.0` tagged release](https://github.com/PietroRussoD/ai-document-processing-platform/tree/v0.7.0),
-documented in the [release notes](docs/releases/v0.7.0.md), adds operational
-failure handling to the durable document-processing and review flow.
-The worker performs bounded embedded-text extraction, local OCR fallback,
-canonical-text selection, deterministic document classification and invoice
-validation. A complete invoice is automatically approved; an incomplete one is
-handed off to review. The console derives a safe timeline from persisted
-metadata and never renders extracted document text. The API accepts bounded PDF
-uploads through real validation, local blob storage and atomic PostgreSQL
-registration.
-A read endpoint exposes the current document and processing-run status. The
-operator console provides tested PDF selection and submission, including
-acceptance identifiers, safe error feedback and polling of the persisted
-document and processing-run status. Once available, the same status snapshot
-also exposes safe extraction, selection, classification and review-resolution
-metadata; it never returns extracted document text or blob paths.
+The local demo provides:
 
-`v0.5.0` exposes low-cardinality Prometheus metrics for requests and durable
-pipeline state, returns bounded correlation IDs, and emits allowlisted JSON
-application logs. An optional local Prometheus/Grafana profile provides a
-version-controlled dashboard without pretending to be a production monitoring
-deployment.
+- bounded, idempotent PDF upload, filesystem storage and atomic PostgreSQL registration;
+- durable Temporal processing with embedded-text extraction, Tesseract OCR fallback,
+  canonical-text selection and deterministic document classification;
+- invoice-only structured extraction and validation: complete invoices can be
+  approved by deterministic rules, while incomplete ones require operator review;
+- an optional local Ollama stage after deterministic completion, with separate
+  immutable proposals and safe terminal provider-failure records;
+- a React console with active, review, failed and unsupported queues, persisted
+  processing results, AI comparison, field corrections and approval/rejection;
+- authenticated, on-demand source-PDF preview during review, using an in-memory token;
+- controlled reprocessing with immutable run lineage, safe processing-failure
+  evidence, bounded database retention and report-only blob auditing;
+- Prometheus metrics, allowlisted JSON logs, request correlation, an optional
+  Grafana dashboard and a static System Map.
 
-`v0.6.0` added controlled reprocessing and an Operations Console backed by
-persisted run data. An authenticated reprocessing request creates a new,
-immutable run linked to its predecessor; it cannot rewrite past evidence or
-create a concurrent active run for the same document.
+Unknown documents and recognized types without structured extraction support
+finish as `UNSUPPORTED`, with a `COMPLETED` run and an explicit classification
+reason. The status and queue APIs exclude extracted text and storage paths;
+source PDF bytes are served by a separate review-token-protected endpoint.
 
-`v0.7.0` makes processing failure states operationally truthful. Terminal
-Temporal activity failures now persist safe stage/code evidence and reconcile
-the processing run and document with PostgreSQL before the workflow remains
-failed. The status API and console expose the bounded failure stage and code
-for the current run. A paginated API exposes active, review and failed work
-queues as metadata-only summaries. The operator console can browse these
-queues, refresh them and open the existing document detail and review flows.
-Documents whose type is unknown or lacks structured extraction support now
-finish as `UNSUPPORTED`, appear in their own queue and retain their classification
-reason. Their processing run is `COMPLETED`; this is a business outcome, not a
-technical failure.
-See the [v0.7.0 release notes](docs/releases/v0.7.0.md). `v0.8.0` adds bounded
-database retention, report-only blob auditing, an opt-in local processing
-stack and delivery/security checks. Its [release notes](docs/releases/v0.8.0.md)
-describe the verified scope and limitations. `v0.9.0` includes a System Map
-and reproducible demo walkthrough. Its
-[release notes](docs/releases/v0.9.0.md) record the local verification and
-limits. `v1.0.0` development now first fixes unsupported-document outcomes.
-The invoice workflow finishes deterministic extraction and validation before
-its advisory AI stage. Local Ollama calls are disabled by default; set
-`DOCUMENT_PLATFORM_OLLAMA_ENABLED=true` on the worker and run Ollama with the
-configured model to generate proposals. Deterministic extraction remains
-authoritative and structured extraction is invoice-only. Proposals and provider
-failures are exposed as optional, separate fields in the document-status API.
-The operator console compares recorded proposal fields with rule-based values
-and shows terminal provider failures. This is a
-local portfolio demo, not a public backend. Physical blob deletion, malware
-scanning and production deployment are not implemented.
+Local Ollama calls are disabled by default. Enable
+`DOCUMENT_PLATFORM_OLLAMA_ENABLED=true` on the worker and run the configured model
+on the host. Proposals never change deterministic extraction or approve a
+document. An operator can adopt individual proposed values as corrections;
+the API verifies their provenance and validates the effective invoice before
+persisting an immutable decision.
+
+Remaining v1.0 work includes clearer AI progress feedback, review-layout and
+Storybook alignment, final demo evidence, documentation/security review and
+verification on the final candidate commit. The
+[v1.0 verification record](docs/runbooks/v1.0-verification.md) separates observed
+results from open checks. This is a local synthetic-data demo. Physical blob
+deletion, malware scanning and production deployment are not implemented.
 
 The model adapter classifies provider timeouts, unavailability and invalid
-response envelopes using safe error codes. A separate immutable PostgreSQL
-record can store a terminal provider failure without changing document status.
-The workflow makes at most two provider attempts within a five-minute
-total bound, then records the safe terminal code without failing the document.
-Invalid response envelopes are non-retryable; malformed invoice JSON content
-is saved as an `INVALID` proposal. The per-worker model concurrency limit is
-one by default. Repository writes serialize on the processing run so a proposal
-and a failure cannot both be stored through the application.
+response envelopes using safe error codes. The workflow makes at most two
+provider attempts within a five-minute total bound, then records the safe
+terminal code without changing document status. Invalid response envelopes
+are non-retryable; malformed invoice JSON content is saved as an `INVALID`
+proposal. The per-worker model concurrency limit is one by default.
+Repository writes serialize on the processing run so a proposal and a failure
+cannot both be stored through the application.
 
 For a host-run worker, the default Ollama URL is `http://localhost:11434`. In
 Compose, the worker uses `http://host.docker.internal:11434`; set
@@ -89,6 +69,7 @@ Compose stack does not start or download a model server.
 - PyMuPDF for PDF validation and embedded-text extraction;
 - Temporal for durable local workflow execution;
 - bounded local Tesseract OCR fallback;
+- opt-in Ollama for advisory invoice-field proposals;
 - React and TypeScript for the operator console.
 
 ## Planned Extensions
@@ -146,6 +127,8 @@ Safe document retention and blob garbage-collection boundaries are defined by
 [ADR 0009](docs/decisions/0009-use-explicit-safe-document-retention.md).
 Unsupported document outcomes and their operator queue are defined by
 [ADR 0010](docs/decisions/0010-record-unsupported-document-outcomes.md).
+Authenticated source-PDF preview is defined by
+[ADR 0011](docs/decisions/0011-protect-local-source-document-preview.md).
 
 ## Repository Layout
 

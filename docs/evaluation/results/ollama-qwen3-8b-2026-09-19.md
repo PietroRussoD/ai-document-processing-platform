@@ -39,9 +39,12 @@ non-invoice payment sentence. It also left one date in its original format.
 ## Decision
 
 Keep the deterministic extraction policy as the implemented workflow baseline.
-The local Ollama adapter remains evaluation-only. Any later model integration
-requires a separately versioned routing and validation design, a broader corpus,
-and a measurable improvement over this result.
+At this benchmark checkpoint, the local Ollama adapter was evaluation-only.
+The later opt-in workflow integration stores separate advisory proposals under
+[ADR 0003](../../decisions/0003-keep-local-models-advisory.md). This historical
+result does not establish model accuracy or authorize automatic approval.
+Replacing deterministic extraction would still require a broader corpus and
+a measured policy gate.
 
 ## Reproduction
 

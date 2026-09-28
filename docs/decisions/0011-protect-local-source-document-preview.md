@@ -2,13 +2,13 @@
 
 ## Status
 
-Accepted. Local-demo scope only.
+Accepted. Endpoint and on-demand review preview implemented. Local-demo scope only.
 
 ## Context
 
 Operators must compare extracted and proposed invoice fields with the original
-PDF before approving or correcting them. The console currently shows structured
-results but does not provide the source document. Status APIs intentionally do
+PDF before approving or correcting them. Before this decision, the console
+showed structured results without the source document. Status APIs intentionally do
 not expose document text or storage paths. The existing review credential is a
 shared static bearer token, suitable only for this loopback-bound synthetic
 demo, not real customer documents.
