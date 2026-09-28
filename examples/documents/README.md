@@ -22,4 +22,7 @@ currency and amount; the operator must still select and approve the values.
 Without Ollama, they can be entered manually. The scanned invoice omits its
 issue date and therefore requires operator review after OCR. The scanned example
 needs the configured English Tesseract data. These files demonstrate the
-processing workflow, not an AI model's accuracy.
+processing workflow, not an AI model's accuracy. Since the scanned source has
+no issue date, do not invent one to approve it; leave it pending or reject it
+with a reason. The console does not display the source PDF or extracted text,
+so verify values against the original file outside the console.
