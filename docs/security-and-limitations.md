@@ -30,6 +30,10 @@ machine and the private Compose network, not a public HTTP service.
   request details and should not be treated as a secret-free audit trail.
 - Database retention is explicit and dry-run-first. Blob auditing reports
   potential orphans but never deletes files.
+- A separate local PDF-preview endpoint is planned to require the configured
+  review bearer token, resolve blob keys server-side and return non-cacheable
+  PDF bytes only. It is not implemented yet; see
+  [ADR 0011](decisions/0011-protect-local-source-document-preview.md).
 
 ## Gaps Before Real Use
 

@@ -588,6 +588,7 @@ tests/e2e/           API and browser journeys
 | Boundary | Current implementation | Planned extension |
 | --- | --- | --- |
 | Object storage | Local filesystem | S3-compatible adapter |
+| Original document access | Not exposed over HTTP; inspect local synthetic source files separately | Explicit, review-token-protected local PDF preview, isolated from status and queue responses |
 | Invoice extraction | Deterministic extraction, validation, immutable review corrections, opt-in advisory local-model proposal, status API projection and read-only console comparison | Operator evaluation and correction of advisory output |
 | Text extraction | Embedded/OCR extraction and persisted canonical source selection | OCR quality calibration and language policy |
 | Document classification | Deterministic canonical-text keyword policy | Evaluated local model policy |
@@ -610,3 +611,4 @@ records the demo trust boundary and controls not yet implemented.
 - [ADR 0007: Create Immutable Processing-Run Lineage for Controlled Reprocessing](decisions/0007-create-immutable-reprocessing-lineage.md)
 - [ADR 0008: Record Safe Terminal Workflow Failure Evidence](decisions/0008-record-safe-terminal-workflow-failure-evidence.md)
 - [ADR 0009: Use Explicit, Safe Document Retention](decisions/0009-use-explicit-safe-document-retention.md)
+- [ADR 0011: Protect Local Source-Document Preview](decisions/0011-protect-local-source-document-preview.md)
