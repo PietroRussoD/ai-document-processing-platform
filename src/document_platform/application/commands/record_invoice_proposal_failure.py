@@ -59,6 +59,13 @@ class RecordInvoiceProposalFailureHandler:
         try:
             async with self._unit_of_work_factory() as unit_of_work:
                 await unit_of_work.invoice_proposal_failures.add(failure)
+                execution = await unit_of_work.invoice_proposal_executions.get(
+                    command.processing_run_id
+                )
+                if execution is not None:
+                    await unit_of_work.invoice_proposal_executions.finish(
+                        execution.fail(at=failure.failed_at)
+                    )
                 await unit_of_work.commit()
         except InvoiceProposalFailureAlreadyExists:
             async with self._unit_of_work_factory() as unit_of_work:

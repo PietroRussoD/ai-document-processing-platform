@@ -31,6 +31,9 @@ from document_platform.application.ports import (
     UploadIdempotencyRepository,
     WorkflowStartRequestRepository,
 )
+from document_platform.application.ports.invoice_proposal_execution_repository import (
+    InvoiceProposalExecutionRepository,
+)
 from document_platform.application.upload_idempotency import (
     ConflictingIdempotencyKey,
     IdempotencyKey,
@@ -289,6 +292,10 @@ class RecordingUnitOfWork:
     @property
     def invoice_proposal_failures(self) -> InvoiceProposalFailureRepository:
         return self._invoice_proposal_failures  # type: ignore[return-value]
+
+    @property
+    def invoice_proposal_executions(self) -> InvoiceProposalExecutionRepository:
+        raise AssertionError("document registration must not access AI execution state")
 
     @property
     def invoice_review_corrections(self) -> InvoiceReviewCorrectionRepository:

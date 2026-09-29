@@ -14,6 +14,8 @@ from document_platform.application.commands import (
 )
 from document_platform.application.ports import InvoiceProposalOutcomeConflict, UnitOfWork
 from document_platform.domain.processing import (
+    AiInvoiceProposalExecution,
+    AiInvoiceProposalExecutionStatus,
     AiInvoiceProposalFailure,
     InvoiceModelProvider,
     InvoiceProposalGenerationFailureCode,
@@ -37,6 +39,7 @@ class RecordingFailureRepository:
 class RecordingUnitOfWork:
     def __init__(self) -> None:
         self.invoice_proposal_failures = RecordingFailureRepository()
+        self.invoice_proposal_executions = RecordingExecutionRepository()
         self.commit_count = 0
 
     async def __aenter__(self) -> Self:
@@ -52,6 +55,17 @@ class RecordingUnitOfWork:
 
     async def commit(self) -> None:
         self.commit_count += 1
+
+
+class RecordingExecutionRepository:
+    def __init__(self) -> None:
+        self.value: AiInvoiceProposalExecution | None = None
+
+    async def get(self, processing_run_id: UUID) -> AiInvoiceProposalExecution | None:
+        return self.value
+
+    async def finish(self, execution: AiInvoiceProposalExecution) -> None:
+        self.value = execution
 
 
 def handler(unit_of_work: RecordingUnitOfWork) -> RecordInvoiceProposalFailureHandler:
@@ -112,4 +126,21 @@ async def test_rejects_a_different_terminal_failure_for_the_same_run() -> None:
     with pytest.raises(InvoiceProposalOutcomeConflict):
         await recorder(command(InvoiceProposalGenerationFailureCode.UNAVAILABLE))
 
+    assert unit_of_work.commit_count == 1
+
+
+@pytest.mark.anyio
+async def test_failure_and_execution_finish_share_one_commit() -> None:
+    unit_of_work = RecordingUnitOfWork()
+    unit_of_work.invoice_proposal_executions.value = AiInvoiceProposalExecution.begin(
+        processing_run_id=RUN_ID, enabled=True, at=AT
+    )
+
+    await handler(unit_of_work)(command())
+
+    execution = unit_of_work.invoice_proposal_executions.value
+    assert execution is not None
+    assert execution.status is AiInvoiceProposalExecutionStatus.FAILED
+    assert execution.finished_at == AT
+    assert unit_of_work.invoice_proposal_failures.value is not None
     assert unit_of_work.commit_count == 1

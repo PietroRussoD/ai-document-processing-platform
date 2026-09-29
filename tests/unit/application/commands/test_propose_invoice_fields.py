@@ -24,8 +24,13 @@ from document_platform.application.ports import (
     InvoiceProposalRequest,
     UnitOfWork,
 )
+from document_platform.application.ports.invoice_proposal_execution_repository import (
+    AiInvoiceProposalExecutionAlreadyExists,
+)
 from document_platform.domain.processing import (
     AiInvoiceExtractionProposal,
+    AiInvoiceProposalExecution,
+    AiInvoiceProposalExecutionStatus,
     AiInvoiceProposalFailure,
     BusinessDocumentType,
     DocumentClassification,
@@ -60,6 +65,9 @@ class ValueRepository:
         self.value = value
         self.added.append(value)
 
+    async def finish(self, value: object) -> None:
+        self.value = value
+
 
 class RecordingUnitOfWork:
     def __init__(self) -> None:
@@ -67,6 +75,7 @@ class RecordingUnitOfWork:
         self.commit_count = 0
         self.invoice_proposals = ValueRepository()
         self.invoice_proposal_failures = ValueRepository()
+        self.invoice_proposal_executions = ValueRepository()
         self.document_classifications = ValueRepository(
             DocumentClassification(
                 processing_run_id=RUN_ID,
@@ -175,6 +184,7 @@ def handler(
     return ProposeInvoiceFieldsHandler(
         unit_of_work_factory=lambda: cast(UnitOfWork, unit_of_work),
         proposal_generator=generator,
+        clock=lambda: AT,
     )
 
 
@@ -301,4 +311,110 @@ async def test_rejects_a_proposal_for_different_source_text() -> None:
         await handler(unit_of_work, generator)(ProposeInvoiceFields(RUN_ID))
 
     assert unit_of_work.invoice_proposals.added == []
+    assert unit_of_work.commit_count == 0
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("enabled", [False, True])
+async def test_records_initial_execution_before_model_call(enabled: bool) -> None:
+    unit_of_work = RecordingUnitOfWork()
+    generator = RecordingGenerator(unit_of_work)
+
+    proceed = await handler(unit_of_work, generator).begin_execution(
+        ProposeInvoiceFields(RUN_ID), enabled=enabled
+    )
+
+    assert proceed is enabled
+    assert unit_of_work.invoice_proposal_executions.value == AiInvoiceProposalExecution.begin(
+        processing_run_id=RUN_ID, enabled=enabled, at=AT
+    )
+    assert generator.requests == []
+    assert unit_of_work.commit_count == 1
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("enabled", [False, True])
+async def test_retry_keeps_existing_running_execution(enabled: bool) -> None:
+    unit_of_work = RecordingUnitOfWork()
+    initial = AiInvoiceProposalExecution.begin(processing_run_id=RUN_ID, enabled=True, at=AT)
+    unit_of_work.invoice_proposal_executions.value = initial
+    generator = RecordingGenerator(unit_of_work)
+
+    assert await handler(unit_of_work, generator).begin_execution(
+        ProposeInvoiceFields(RUN_ID), enabled=enabled
+    )
+    assert unit_of_work.invoice_proposal_executions.value is initial
+    assert unit_of_work.commit_count == 0
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("state", ["disabled", "completed", "failed"])
+async def test_terminal_execution_does_not_restart(state: str) -> None:
+    unit_of_work = RecordingUnitOfWork()
+    initial = AiInvoiceProposalExecution.begin(
+        processing_run_id=RUN_ID, enabled=state != "disabled", at=AT
+    )
+    if state == "completed":
+        initial = initial.complete(at=AT)
+    elif state == "failed":
+        initial = initial.fail(at=AT)
+    unit_of_work.invoice_proposal_executions.value = initial
+    generator = RecordingGenerator(unit_of_work)
+
+    assert not await handler(unit_of_work, generator).begin_execution(
+        ProposeInvoiceFields(RUN_ID), enabled=True
+    )
+    assert unit_of_work.commit_count == 0
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("outcome", ["invoice_proposals", "invoice_proposal_failures"])
+async def test_legacy_outcome_does_not_create_historical_execution(outcome: str) -> None:
+    unit_of_work = RecordingUnitOfWork()
+    cast(ValueRepository, getattr(unit_of_work, outcome)).value = object()
+    generator = RecordingGenerator(unit_of_work)
+
+    assert not await handler(unit_of_work, generator).begin_execution(
+        ProposeInvoiceFields(RUN_ID), enabled=True
+    )
+    assert unit_of_work.invoice_proposal_executions.value is None
+    assert unit_of_work.commit_count == 0
+
+
+@pytest.mark.anyio
+async def test_proposal_and_completed_execution_share_one_commit() -> None:
+    unit_of_work = RecordingUnitOfWork()
+    generator = RecordingGenerator(unit_of_work)
+    proposer = handler(unit_of_work, generator)
+    await proposer.begin_execution(ProposeInvoiceFields(RUN_ID), enabled=True)
+
+    await proposer(ProposeInvoiceFields(RUN_ID))
+
+    execution = unit_of_work.invoice_proposal_executions.value
+    assert isinstance(execution, AiInvoiceProposalExecution)
+    assert execution.status is AiInvoiceProposalExecutionStatus.COMPLETED
+    assert len(unit_of_work.invoice_proposals.added) == 1
+    assert unit_of_work.commit_count == 2
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("enabled", [False, True])
+async def test_concurrent_initialization_uses_the_winning_execution(enabled: bool) -> None:
+    class ContendedExecutionRepository(ValueRepository):
+        async def add(self, value: object) -> None:
+            self.value = AiInvoiceProposalExecution.begin(
+                processing_run_id=RUN_ID, enabled=enabled, at=AT
+            )
+            raise AiInvoiceProposalExecutionAlreadyExists(RUN_ID)
+
+    unit_of_work = RecordingUnitOfWork()
+    unit_of_work.invoice_proposal_executions = ContendedExecutionRepository()
+    generator = RecordingGenerator(unit_of_work)
+
+    assert (
+        await handler(unit_of_work, generator).begin_execution(
+            ProposeInvoiceFields(RUN_ID), enabled=not enabled
+        )
+        is enabled
+    )
     assert unit_of_work.commit_count == 0

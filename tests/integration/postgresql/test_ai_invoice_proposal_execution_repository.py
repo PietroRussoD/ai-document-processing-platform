@@ -10,6 +10,7 @@ from pydantic import PostgresDsn
 from sqlalchemy import delete, text
 from sqlalchemy.exc import IntegrityError
 
+from document_platform.adapters.outbound.postgresql import SqlAlchemyUnitOfWork
 from document_platform.adapters.outbound.postgresql.database import Database, create_database
 from document_platform.adapters.outbound.postgresql.models import (
     AiInvoiceProposalExecutionRecord,
@@ -20,6 +21,13 @@ from document_platform.adapters.outbound.postgresql.repositories import (
     SqlAlchemyDocumentRepository,
     SqlAlchemyProcessingRunRepository,
 )
+from document_platform.application.commands import (
+    ProposeInvoiceFields,
+    ProposeInvoiceFieldsHandler,
+    RecordInvoiceProposalFailure,
+    RecordInvoiceProposalFailureHandler,
+)
+from document_platform.application.ports import InvoiceProposalRequest
 from document_platform.application.ports.invoice_proposal_execution_repository import (
     AiInvoiceProposalExecutionAlreadyExists,
     ConcurrentAiInvoiceProposalExecutionUpdate,
@@ -27,9 +35,26 @@ from document_platform.application.ports.invoice_proposal_execution_repository i
 )
 from document_platform.domain.documents import Document
 from document_platform.domain.processing import (
+    AiInvoiceExtractionProposal,
     AiInvoiceProposalExecution,
+    AiInvoiceProposalExecutionStatus,
+    BusinessDocumentType,
+    DocumentClassification,
+    DocumentClassificationReason,
+    DocumentTextExtraction,
+    DocumentTextSelection,
+    EmbeddedTextQuality,
+    InvalidAiInvoiceProposalExecutionTransition,
+    InvoiceModelProvider,
+    InvoiceProposalGenerationFailureCode,
+    InvoiceProposalIssue,
+    InvoiceProposalIssueCode,
+    InvoiceProposalStatus,
     ProcessingRun,
     ProcessingRunStatus,
+    ProcessingTextSelectionReason,
+    ProcessingTextSource,
+    TextExtractionMethod,
 )
 from document_platform.settings import Settings
 
@@ -301,3 +326,162 @@ async def test_creates_only_execution_columns(
         "started_at",
         "finished_at",
     }
+
+
+class InvalidProposalGenerator:
+    async def generate(self, request: InvoiceProposalRequest) -> AiInvoiceExtractionProposal:
+        return AiInvoiceExtractionProposal(
+            processing_run_id=request.processing_run_id,
+            schema_version=1,
+            provider=InvoiceModelProvider.OLLAMA,
+            model_reference="synthetic-test-model",
+            model_digest=None,
+            prompt_version="invoice-fields-v1",
+            selected_text_sha256=request.selected_text_sha256,
+            status=InvoiceProposalStatus.INVALID,
+            invoice_number=None,
+            issue_date=None,
+            supplier_name=None,
+            currency=None,
+            total_amount=None,
+            issues=(InvoiceProposalIssue(InvoiceProposalIssueCode.MALFORMED_RESPONSE, None),),
+            proposed_at=AT,
+        )
+
+
+def proposer(database: Database) -> ProposeInvoiceFieldsHandler:
+    return ProposeInvoiceFieldsHandler(
+        unit_of_work_factory=lambda: SqlAlchemyUnitOfWork(database.sessions),
+        proposal_generator=InvalidProposalGenerator(),
+        clock=lambda: AT,
+    )
+
+
+async def seed_invoice_text(database: Database, run_id: UUID) -> None:
+    async with SqlAlchemyUnitOfWork(database.sessions) as unit_of_work:
+        await unit_of_work.document_classifications.add(
+            DocumentClassification(
+                processing_run_id=run_id,
+                document_type=BusinessDocumentType.INVOICE,
+                reason=DocumentClassificationReason.KEYWORD_MATCHED,
+                classified_at=AT,
+            )
+        )
+        await unit_of_work.document_text_extractions.add(
+            DocumentTextExtraction(
+                processing_run_id=run_id,
+                method=TextExtractionMethod.PYMUPDF,
+                text="Synthetic invoice",
+                page_count=1,
+                character_count=17,
+                non_whitespace_character_count=16,
+                quality=EmbeddedTextQuality.SUFFICIENT,
+                extracted_at=AT,
+            )
+        )
+        await unit_of_work.document_text_selections.add(
+            DocumentTextSelection(
+                processing_run_id=run_id,
+                source=ProcessingTextSource.EMBEDDED,
+                reason=ProcessingTextSelectionReason.EMBEDDED_SUFFICIENT,
+                selected_at=AT,
+            )
+        )
+        await unit_of_work.commit()
+
+
+@pytest.mark.anyio
+async def test_application_commits_invalid_proposal_and_completed_execution_together(
+    execution_database: tuple[Database, UUID, UUID],
+) -> None:
+    database, run_id, _ = execution_database
+    await seed_invoice_text(database, run_id)
+    handler = proposer(database)
+    assert await handler.begin_execution(ProposeInvoiceFields(run_id), enabled=True)
+
+    result = await handler(ProposeInvoiceFields(run_id))
+
+    async with SqlAlchemyUnitOfWork(database.sessions) as unit_of_work:
+        proposal = await unit_of_work.invoice_proposals.get(run_id)
+        execution = await unit_of_work.invoice_proposal_executions.get(run_id)
+        run = await unit_of_work.processing_runs.get(run_id)
+    assert proposal == result.proposal
+    assert proposal is not None
+    assert proposal.status is InvoiceProposalStatus.INVALID
+    assert execution is not None and execution.status is AiInvoiceProposalExecutionStatus.COMPLETED
+    assert run is not None and run.status is ProcessingRunStatus.QUEUED
+    assert not await handler.begin_execution(ProposeInvoiceFields(run_id), enabled=True)
+
+
+@pytest.mark.anyio
+async def test_application_rolls_back_proposal_if_execution_cannot_finish(
+    execution_database: tuple[Database, UUID, UUID],
+) -> None:
+    database, run_id, _ = execution_database
+    await seed_invoice_text(database, run_id)
+    handler = proposer(database)
+    assert not await handler.begin_execution(ProposeInvoiceFields(run_id), enabled=False)
+
+    with pytest.raises(InvalidAiInvoiceProposalExecutionTransition):
+        await handler(ProposeInvoiceFields(run_id))
+
+    async with SqlAlchemyUnitOfWork(database.sessions) as unit_of_work:
+        assert await unit_of_work.invoice_proposals.get(run_id) is None
+        execution = await unit_of_work.invoice_proposal_executions.get(run_id)
+    assert execution is not None and execution.status is AiInvoiceProposalExecutionStatus.DISABLED
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("disabled", [False, True])
+async def test_application_failure_and_execution_are_atomic(
+    execution_database: tuple[Database, UUID, UUID],
+    disabled: bool,
+) -> None:
+    database, run_id, _ = execution_database
+    await proposer(database).begin_execution(ProposeInvoiceFields(run_id), enabled=not disabled)
+    handler = RecordInvoiceProposalFailureHandler(
+        unit_of_work_factory=lambda: SqlAlchemyUnitOfWork(database.sessions),
+        clock=lambda: LATER,
+    )
+    command = RecordInvoiceProposalFailure(
+        processing_run_id=run_id,
+        provider=InvoiceModelProvider.OLLAMA,
+        model_reference="synthetic-test-model",
+        code=InvoiceProposalGenerationFailureCode.TIMEOUT,
+    )
+    if disabled:
+        with pytest.raises(InvalidAiInvoiceProposalExecutionTransition):
+            await handler(command)
+    else:
+        await handler(command)
+        assert (await handler(command)).replayed
+
+    async with SqlAlchemyUnitOfWork(database.sessions) as unit_of_work:
+        failure = await unit_of_work.invoice_proposal_failures.get(run_id)
+        execution = await unit_of_work.invoice_proposal_executions.get(run_id)
+        run = await unit_of_work.processing_runs.get(run_id)
+    assert (failure is None) is disabled
+    assert execution is not None
+    assert execution.status is (
+        AiInvoiceProposalExecutionStatus.DISABLED
+        if disabled
+        else AiInvoiceProposalExecutionStatus.FAILED
+    )
+    assert run is not None and run.status is ProcessingRunStatus.QUEUED
+
+
+@pytest.mark.anyio
+async def test_concurrent_application_initialization_preserves_one_start(
+    execution_database: tuple[Database, UUID, UUID],
+) -> None:
+    database, run_id, _ = execution_database
+    handler = proposer(database)
+    outcomes = await asyncio.gather(
+        handler.begin_execution(ProposeInvoiceFields(run_id), enabled=True),
+        handler.begin_execution(ProposeInvoiceFields(run_id), enabled=True),
+    )
+    assert outcomes == [True, True]
+    async with SqlAlchemyUnitOfWork(database.sessions) as unit_of_work:
+        assert await unit_of_work.invoice_proposal_executions.get(run_id) == (
+            AiInvoiceProposalExecution.begin(processing_run_id=run_id, enabled=True, at=AT)
+        )

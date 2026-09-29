@@ -141,6 +141,7 @@ async def run_worker(settings: Settings) -> None:
         invoice_proposal_activity = ProposeInvoiceFieldsActivity(
             ProposeInvoiceFieldsHandler(
                 unit_of_work_factory=unit_of_work_factory,
+                clock=lambda: datetime.now(UTC),
                 proposal_generator=OllamaInvoiceProposalAdapter(
                     settings=OllamaInvoiceProposalSettings(
                         base_url=settings.ollama_base_url,

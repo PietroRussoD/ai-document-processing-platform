@@ -31,11 +31,12 @@ class ProposeInvoiceFieldsActivity:
 
     @activity.defn(name=PROPOSE_INVOICE_FIELDS_ACTIVITY)
     async def propose_invoice_fields(self, processing_run_id: str) -> None:
-        if not self._enabled:
+        command = ProposeInvoiceFields(UUID(processing_run_id))
+        if not await self._propose_invoice_fields.begin_execution(command, enabled=self._enabled):
             return
         try:
             async with self._request_slots:
-                await self._propose_invoice_fields(ProposeInvoiceFields(UUID(processing_run_id)))
+                await self._propose_invoice_fields(command)
         except InvoiceProposalGenerationFailed as error:
             raise ApplicationError(
                 "invoice proposal provider failed",

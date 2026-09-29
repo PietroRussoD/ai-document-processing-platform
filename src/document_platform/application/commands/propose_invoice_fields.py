@@ -1,6 +1,8 @@
 """Generate and persist an immutable AI proposal from canonical invoice text."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from uuid import UUID
 
 from document_platform.application.ports import (
@@ -10,8 +12,13 @@ from document_platform.application.ports import (
     InvoiceProposalRequest,
     UnitOfWorkFactory,
 )
+from document_platform.application.ports.invoice_proposal_execution_repository import (
+    AiInvoiceProposalExecutionAlreadyExists,
+)
 from document_platform.domain.processing import (
     AiInvoiceExtractionProposal,
+    AiInvoiceProposalExecution,
+    AiInvoiceProposalExecutionStatus,
     BusinessDocumentType,
     ProcessingTextSource,
 )
@@ -61,9 +68,38 @@ class ProposeInvoiceFieldsHandler:
         *,
         unit_of_work_factory: UnitOfWorkFactory,
         proposal_generator: InvoiceProposalGenerator,
+        clock: Callable[[], datetime],
     ) -> None:
         self._unit_of_work_factory = unit_of_work_factory
         self._proposal_generator = proposal_generator
+        self._clock = clock
+
+    async def begin_execution(self, command: ProposeInvoiceFields, *, enabled: bool) -> bool:
+        try:
+            async with self._unit_of_work_factory() as unit_of_work:
+                existing = await unit_of_work.invoice_proposal_executions.get(
+                    command.processing_run_id
+                )
+                if existing is not None:
+                    return existing.status is AiInvoiceProposalExecutionStatus.RUNNING
+                if await unit_of_work.invoice_proposals.get(
+                    command.processing_run_id
+                ) or await unit_of_work.invoice_proposal_failures.get(command.processing_run_id):
+                    return False
+                execution = AiInvoiceProposalExecution.begin(
+                    processing_run_id=command.processing_run_id, enabled=enabled, at=self._clock()
+                )
+                await unit_of_work.invoice_proposal_executions.add(execution)
+                await unit_of_work.commit()
+                return enabled
+        except AiInvoiceProposalExecutionAlreadyExists:
+            async with self._unit_of_work_factory() as unit_of_work:
+                existing = await unit_of_work.invoice_proposal_executions.get(
+                    command.processing_run_id
+                )
+            if existing is None:
+                raise
+            return existing.status is AiInvoiceProposalExecutionStatus.RUNNING
 
     async def __call__(self, command: ProposeInvoiceFields) -> InvoiceProposalGenerated:
         async with self._unit_of_work_factory() as unit_of_work:
@@ -114,6 +150,13 @@ class ProposeInvoiceFieldsHandler:
         try:
             async with self._unit_of_work_factory() as unit_of_work:
                 await unit_of_work.invoice_proposals.add(proposal)
+                execution = await unit_of_work.invoice_proposal_executions.get(
+                    command.processing_run_id
+                )
+                if execution is not None:
+                    await unit_of_work.invoice_proposal_executions.finish(
+                        execution.complete(at=self._clock())
+                    )
                 await unit_of_work.commit()
         except InvoiceProposalAlreadyExists:
             async with self._unit_of_work_factory() as unit_of_work:

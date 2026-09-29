@@ -17,6 +17,11 @@ RUN_ID = UUID("a7a7a7a7-a7a7-47a7-87a7-a7a7a7a7a7a7")
 class RecordingProposeInvoiceFields:
     def __init__(self) -> None:
         self.commands: list[ProposeInvoiceFields] = []
+        self.beginnings: list[tuple[ProposeInvoiceFields, bool]] = []
+
+    async def begin_execution(self, command: ProposeInvoiceFields, *, enabled: bool) -> bool:
+        self.beginnings.append((command, enabled))
+        return enabled
 
     async def __call__(self, command: ProposeInvoiceFields) -> None:
         self.commands.append(command)
@@ -30,6 +35,7 @@ async def test_maps_run_id_without_returning_proposal_to_temporal() -> None:
     result = await activity.propose_invoice_fields(str(RUN_ID))
 
     assert handler.commands == [ProposeInvoiceFields(RUN_ID)]
+    assert handler.beginnings == [(ProposeInvoiceFields(RUN_ID), True)]
     assert result is None
 
 
@@ -41,11 +47,15 @@ async def test_skips_model_when_disabled() -> None:
     await activity.propose_invoice_fields(str(RUN_ID))
 
     assert handler.commands == []
+    assert handler.beginnings == [(ProposeInvoiceFields(RUN_ID), False)]
 
 
 class FailingProposeInvoiceFields:
     def __init__(self, code: InvoiceProposalGenerationFailureCode) -> None:
         self.code = code
+
+    async def begin_execution(self, command: ProposeInvoiceFields, *, enabled: bool) -> bool:
+        return enabled
 
     async def __call__(self, command: ProposeInvoiceFields) -> None:
         raise InvoiceProposalGenerationFailed(self.code)
@@ -91,6 +101,11 @@ async def test_limits_simultaneous_model_calls_per_worker() -> None:
     class BlockingProposeInvoiceFields:
         active = 0
         max_active = 0
+        begun = 0
+
+        async def begin_execution(self, command: ProposeInvoiceFields, *, enabled: bool) -> bool:
+            self.begun += 1
+            return enabled
 
         async def __call__(self, command: ProposeInvoiceFields) -> None:
             self.active += 1
@@ -106,6 +121,8 @@ async def test_limits_simultaneous_model_calls_per_worker() -> None:
     await first_started.wait()
     second = asyncio.create_task(activity.propose_invoice_fields(str(RUN_ID)))
     await asyncio.sleep(0)
+    assert handler.begun == 2
+    assert handler.active == 1
     release_first.set()
     await asyncio.gather(first, second)
 

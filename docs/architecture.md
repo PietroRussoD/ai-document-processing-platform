@@ -300,9 +300,10 @@ planned.
 The domain now defines a separate `AiInvoiceProposalExecution` lifecycle.
 Migration `20260929_01` and a PostgreSQL repository now support storing this
 lifecycle in `ai_invoice_proposal_executions`, with one row per processing run.
-The worker does not write it yet and the API/console do not expose it; null
-outcomes still have the ambiguity described above. The migration does not
-backfill legacy runs.
+The worker records it when entering the proposal activity, before acquiring
+the per-worker model slot. The API/console do not expose it yet; null outcomes
+still have the ambiguity described above. The migration does not backfill
+legacy runs.
 
 ```mermaid
 stateDiagram-v2
@@ -327,9 +328,46 @@ Database constraints enforce timestamp/status coherence and cascade deletion
 with the owning processing run. Repository creation accepts only `DISABLED` or
 `RUNNING`; completion updates only a matching `RUNNING` row with the same start
 time. Concurrent terminal updates cannot overwrite one another. The repository
-uses the caller's transaction, so later activity wiring can persist execution
-completion and its proposal/failure evidence atomically. Cross-table outcome
-coherence is not enforced by this table alone.
+uses the caller's transaction. The proposal handler commits `COMPLETED` with
+the proposal, and the terminal-failure handler commits `FAILED` with the safe
+failure evidence; either both changes commit or neither does. Cross-table
+outcome coherence is not enforced by this table alone.
+
+```mermaid
+sequenceDiagram
+    participant Activity as Proposal activity
+    participant Handler as Application handler
+    participant DB as PostgreSQL
+    participant Model as Host Ollama
+    Activity->>Handler: Begin execution with enabled setting
+    Handler->>DB: Read existing execution and outcomes
+    alt No existing execution or outcome
+        Handler->>DB: Commit RUNNING or DISABLED
+    end
+    alt Existing or new RUNNING execution
+        Activity->>Activity: Wait for model slot
+        Activity->>Handler: Propose invoice fields
+        Handler->>Model: Generate outside DB transaction
+        alt Proposal returned (including INVALID fields)
+            Handler->>DB: Commit proposal and COMPLETED together
+        else Retryable provider failure
+            Note over Activity,DB: Keep RUNNING during bounded Temporal retries
+            Note over Activity,DB: After retries, terminal-failure activity commits failure and FAILED together
+        end
+    else DISABLED, terminal execution or legacy outcome
+        Activity-->>Activity: Return without another model call
+    end
+```
+
+Retries preserve the original execution start and enablement decision, including
+after worker configuration changes. Existing proposals/failures without an
+execution record remain historical outcomes and are not re-generated. Outcomes
+from older activities can still be recorded without an execution row; this also
+covers a timeout before the proposal activity records its start. Unexpected
+technical failures are not mislabelled as provider failures and may leave a
+`RUNNING` marker for diagnosis: this record is not a Temporal liveness check.
+No workflow command sequence changed; these writes occur inside existing
+Activities, preserving the existing patch/replay contract.
 
 The React upload feature keeps temporary file selection in local component state
 and delegates the remote mutation lifecycle to TanStack Query. One client-generated
