@@ -298,8 +298,11 @@ planned.
 ### Advisory Execution Contract
 
 The domain now defines a separate `AiInvoiceProposalExecution` lifecycle.
-It is not yet persisted or exposed by the API or console; null outcomes still
-have the ambiguity described above.
+Migration `20260929_01` and a PostgreSQL repository now support storing this
+lifecycle in `ai_invoice_proposal_executions`, with one row per processing run.
+The worker does not write it yet and the API/console do not expose it; null
+outcomes still have the ambiguity described above. The migration does not
+backfill legacy runs.
 
 ```mermaid
 stateDiagram-v2
@@ -320,6 +323,13 @@ finish times are timezone-aware and cannot move backwards; terminal records
 cannot transition again. A missing execution record must not be interpreted as
 `DISABLED`: older histories and runs that have not reached the activity need
 an explicit unknown/not-started policy when the read model is implemented.
+Database constraints enforce timestamp/status coherence and cascade deletion
+with the owning processing run. Repository creation accepts only `DISABLED` or
+`RUNNING`; completion updates only a matching `RUNNING` row with the same start
+time. Concurrent terminal updates cannot overwrite one another. The repository
+uses the caller's transaction, so later activity wiring can persist execution
+completion and its proposal/failure evidence atomically. Cross-table outcome
+coherence is not enforced by this table alone.
 
 The React upload feature keeps temporary file selection in local component state
 and delegates the remote mutation lifecycle to TanStack Query. One client-generated

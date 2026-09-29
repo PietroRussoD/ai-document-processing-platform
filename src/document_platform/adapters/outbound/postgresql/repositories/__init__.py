@@ -23,6 +23,9 @@ from . import (
 from .ai_invoice_extraction_proposal_repository import (
     SqlAlchemyAiInvoiceExtractionProposalRepository,
 )
+from .ai_invoice_proposal_execution_repository import (
+    SqlAlchemyAiInvoiceProposalExecutionRepository,
+)
 from .ai_invoice_proposal_failure_repository import (
     SqlAlchemyAiInvoiceProposalFailureRepository,
 )
@@ -64,6 +67,7 @@ __all__ = [
     "SqlAlchemyDocumentTextSelectionRepository",
     "SqlAlchemyInvoiceExtractionRepository",
     "SqlAlchemyAiInvoiceExtractionProposalRepository",
+    "SqlAlchemyAiInvoiceProposalExecutionRepository",
     "SqlAlchemyAiInvoiceProposalFailureRepository",
     "SqlAlchemyInvoiceReviewCorrectionRepository",
     "SqlAlchemyInvoiceValidationRepository",
