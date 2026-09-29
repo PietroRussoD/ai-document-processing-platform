@@ -6,6 +6,7 @@ export default defineConfig({
     reporter: "line",
     use: {
         browserName: "chromium",
+        channel: "chromium",
         trace: "retain-on-failure",
     },
     projects: [
