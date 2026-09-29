@@ -46,7 +46,14 @@ machine and the private Compose network, not a public HTTP service.
 | --- | --- |
 | Unauthorized local access | Most HTTP endpoints and Temporal UI have no authentication; Grafana and PostgreSQL use documented development credentials. No TLS, per-user authorization or tenant isolation exists. |
 | Hostile PDFs | Size, page and parser checks limit routine inputs, but there is no malware scan, dedicated parser sandbox or container CPU/memory budget. Do not upload untrusted files. |
-| Vulnerable image packages | A 2026-09-27 Trivy 0.74.0 scan of freshly rebuilt images reported 1 CRITICAL and 76 HIGH API package findings (34 distinct IDs), including `libxml2` and Tesseract, and no HIGH/CRITICAL console findings. These are point-in-time scanner results, not distinct exploitable paths or security clearance. Rebuild, rescan and review exposure before later releases; do not claim a clean API image. |
+| Vulnerable image packages | A 2026-09-29 Trivy 0.74.0 scan of freshly rebuilt images reported 1 CRITICAL and 76 HIGH API package findings (34 distinct IDs), including `libxml2` and Tesseract, and no HIGH/CRITICAL console findings. The CRITICAL `libxml2` finding is `CVE-2026-6653`; the scanner report lists no fixed version. These are point-in-time package findings, not distinct exploitable paths or security clearance. Review exposure and rescan the exact release candidate; do not claim a clean API image. |
+
+The [Debian security tracker for CVE-2026-6653](https://security-tracker.debian.org/tracker/CVE-2026-6653)
+lists the installed Trixie `libxml2` version as vulnerable but marks the issue
+`no-dsa`/minor for that release. That is Debian's remediation assessment, not
+proof that crafted XML cannot reach the package here. The local-only,
+synthetic-document boundary is retained; this finding is not accepted for a
+publicly exposed document-processing service.
 | Data at rest | Local named volumes are not application-encrypted and have no managed backup or recovery policy. Database retention does not remove blob bytes. |
 | Advisory model availability | An unavailable Ollama connection records a failed AI execution without changing deterministic extraction or the human-review outcome. Later documents can succeed after connectivity returns; a failed proposal is not automatically replayed, and an in-flight Ollama process restart was not verified. |
 | Operational assurance | Readiness and local smoke tests are not production SLOs, alerting or a security review. The UI has accessibility checks but no formal WCAG conformance claim. |
