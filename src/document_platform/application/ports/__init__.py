@@ -34,6 +34,7 @@ from document_platform.application.ports.document_retention_reader import (
 )
 from document_platform.application.ports.document_source_reader import DocumentSourceReader
 from document_platform.application.ports.document_status_reader import (
+    AiInvoiceProposalExecutionMetadataView,
     AiInvoiceProposalFailureMetadataView,
     AiInvoiceProposalMetadataView,
     ClassificationMetadataView,
@@ -143,6 +144,7 @@ from document_platform.application.ports.workflow_start_request_repository impor
 from document_platform.application.ports.workflow_starter import WorkflowStarter
 
 __all__ = [
+    "AiInvoiceProposalExecutionMetadataView",
     "AiInvoiceProposalFailureMetadataView",
     "AiInvoiceProposalMetadataView",
     "BlobIntegrityConflict",

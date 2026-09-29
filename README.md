@@ -181,6 +181,12 @@ The API is available at `http://localhost:8000`. Current endpoints:
 - OpenAPI document: `GET http://localhost:8000/openapi.json`;
 - interactive API documentation: `http://localhost:8000/docs`.
 
+Document status includes `current_run.ai_execution` with the persisted AI
+state (`DISABLED`, `RUNNING`, `COMPLETED` or `FAILED`) and timestamps. A null
+value means no recorded execution, not disabled; historical runs and runs
+that have not entered the activity can both have no record. The console does
+not display this state yet. See the [execution contract](docs/architecture.md#advisory-execution-contract).
+
 ### Backend Image
 
 Build the shared API/worker image from the locked production dependencies:

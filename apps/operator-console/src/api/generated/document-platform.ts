@@ -148,6 +148,24 @@ export interface components {
             /** Replayed */
             replayed: boolean;
         };
+        /** AiInvoiceProposalExecutionMetadataResponse */
+        AiInvoiceProposalExecutionMetadataResponse: {
+            /** Finished At */
+            finished_at: string | null;
+            /** Started At */
+            started_at: string | null;
+            status: components["schemas"]["AiInvoiceProposalExecutionStatus"];
+            /**
+             * Status Changed At
+             * Format: date-time
+             */
+            status_changed_at: string;
+        };
+        /**
+         * AiInvoiceProposalExecutionStatus
+         * @enum {string}
+         */
+        AiInvoiceProposalExecutionStatus: "DISABLED" | "RUNNING" | "COMPLETED" | "FAILED";
         /** AiInvoiceProposalFailureMetadataResponse */
         AiInvoiceProposalFailureMetadataResponse: {
             code: components["schemas"]["InvoiceProposalGenerationFailureCode"];
@@ -540,6 +558,8 @@ export interface components {
         ProcessingRunStatus: "QUEUED" | "RUNNING" | "WAITING_RETRY" | "REVIEW_REQUIRED" | "COMPLETED" | "FAILED" | "CANCELLED";
         /** ProcessingRunStatusResponse */
         ProcessingRunStatusResponse: {
+            /** @description Persisted advisory AI execution state, independent of document status and proposal validity. Null means no recorded execution, not disabled: the run may be historical or may not have entered the AI activity. RUNNING includes slot waits and retries; it is not a workflow liveness signal. */
+            ai_execution?: components["schemas"]["AiInvoiceProposalExecutionMetadataResponse"] | null;
             ai_proposal: components["schemas"]["AiInvoiceProposalMetadataResponse"] | null;
             ai_proposal_failure: components["schemas"]["AiInvoiceProposalFailureMetadataResponse"] | null;
             /** Attempt Count */

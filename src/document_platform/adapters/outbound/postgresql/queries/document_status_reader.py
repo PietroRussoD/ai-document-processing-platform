@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from document_platform.adapters.outbound.postgresql.models import (
     AiInvoiceExtractionProposalRecord,
+    AiInvoiceProposalExecutionRecord,
     AiInvoiceProposalFailureRecord,
     DocumentClassificationRecord,
     DocumentOcrExtractionRecord,
@@ -20,6 +21,7 @@ from document_platform.adapters.outbound.postgresql.models import (
     ReviewResolutionRecord,
 )
 from document_platform.application.ports import (
+    AiInvoiceProposalExecutionMetadataView,
     AiInvoiceProposalFailureMetadataView,
     AiInvoiceProposalMetadataView,
     ClassificationMetadataView,
@@ -40,6 +42,7 @@ from document_platform.application.ports import (
 )
 from document_platform.domain.documents import DocumentStatus
 from document_platform.domain.processing import (
+    AiInvoiceProposalExecutionStatus,
     BusinessDocumentType,
     DocumentClassificationReason,
     EmbeddedTextQuality,
@@ -83,6 +86,7 @@ class SqlAlchemyDocumentStatusReader:
                 ReviewResolutionRecord,
                 AiInvoiceExtractionProposalRecord,
                 AiInvoiceProposalFailureRecord,
+                AiInvoiceProposalExecutionRecord,
             )
             .join(ProcessingRunRecord, ProcessingRunRecord.document_id == DocumentRecord.id)
             .outerjoin(
@@ -121,6 +125,10 @@ class SqlAlchemyDocumentStatusReader:
                 AiInvoiceProposalFailureRecord,
                 AiInvoiceProposalFailureRecord.processing_run_id == ProcessingRunRecord.id,
             )
+            .outerjoin(
+                AiInvoiceProposalExecutionRecord,
+                AiInvoiceProposalExecutionRecord.processing_run_id == ProcessingRunRecord.id,
+            )
             .where(DocumentRecord.id == document_id)
             .order_by(ProcessingRunRecord.queued_at.desc(), ProcessingRunRecord.id.desc())
             .limit(1)
@@ -153,6 +161,7 @@ class SqlAlchemyDocumentStatusReader:
         review_resolution = row[8]
         ai_proposal = row[9]
         ai_proposal_failure = row[10]
+        ai_execution = row[11]
         return DocumentStatusView(
             id=document.id,
             original_filename=document.original_filename,
@@ -237,6 +246,16 @@ class SqlAlchemyDocumentStatusReader:
                         failed_at=ai_proposal_failure.failed_at,
                     )
                     if ai_proposal_failure is not None
+                    else None
+                ),
+                ai_execution=(
+                    AiInvoiceProposalExecutionMetadataView(
+                        status=AiInvoiceProposalExecutionStatus(ai_execution.status),
+                        status_changed_at=ai_execution.status_changed_at,
+                        started_at=ai_execution.started_at,
+                        finished_at=ai_execution.finished_at,
+                    )
+                    if ai_execution is not None
                     else None
                 ),
             ),

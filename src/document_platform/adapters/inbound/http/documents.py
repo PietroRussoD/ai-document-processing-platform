@@ -34,6 +34,7 @@ from document_platform.application.queries import (
 )
 from document_platform.domain.documents import DocumentStatus
 from document_platform.domain.processing import (
+    AiInvoiceProposalExecutionStatus,
     BusinessDocumentType,
     DocumentClassificationReason,
     EmbeddedTextQuality,
@@ -211,6 +212,15 @@ class AiInvoiceProposalFailureMetadataResponse(BaseModel):
     failed_at: datetime
 
 
+class AiInvoiceProposalExecutionMetadataResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    status: AiInvoiceProposalExecutionStatus
+    status_changed_at: datetime
+    started_at: datetime | None
+    finished_at: datetime | None
+
+
 class ProcessingRunStatusResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -227,6 +237,15 @@ class ProcessingRunStatusResponse(BaseModel):
     review_resolution: ReviewResolutionMetadataResponse | None
     ai_proposal: AiInvoiceProposalMetadataResponse | None
     ai_proposal_failure: AiInvoiceProposalFailureMetadataResponse | None
+    ai_execution: AiInvoiceProposalExecutionMetadataResponse | None = Field(
+        default=None,
+        description=(
+            "Persisted advisory AI execution state, independent of document status and proposal "
+            "validity. Null means no recorded execution, not disabled: the run may be historical "
+            "or may not have entered the AI activity. RUNNING includes slot waits and retries; "
+            "it is not a workflow liveness signal."
+        ),
+    )
 
 
 class DocumentStatusResponse(BaseModel):

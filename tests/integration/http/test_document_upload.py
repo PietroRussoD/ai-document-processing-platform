@@ -1,8 +1,10 @@
 """Document-upload HTTP integration tests."""
 
+from datetime import datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
 from typing import TypedDict, cast
+from uuid import UUID, uuid4
 
 import pymupdf
 import pytest
@@ -11,7 +13,14 @@ from pydantic import PostgresDsn
 from sqlalchemy import text
 
 from document_platform.adapters.outbound.postgresql.database import Database
+from document_platform.adapters.outbound.postgresql.repositories import (
+    SqlAlchemyAiInvoiceProposalExecutionRepository,
+)
 from document_platform.bootstrap import create_app
+from document_platform.domain.processing import (
+    AiInvoiceProposalExecution,
+    AiInvoiceProposalExecutionStatus,
+)
 from document_platform.settings import Settings
 
 
@@ -20,6 +29,72 @@ class AcceptedDocumentBody(TypedDict):
     processing_run_id: str
     accepted_at: str
     replayed: bool
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("state", list(AiInvoiceProposalExecutionStatus))
+async def test_status_endpoint_exposes_persisted_ai_execution(
+    migrated_postgres_url: str,
+    tmp_path: Path,
+    state: AiInvoiceProposalExecutionStatus,
+) -> None:
+    application = create_app(
+        Settings(
+            environment="test",
+            database_url=PostgresDsn(migrated_postgres_url),
+            storage_root=tmp_path / "data",
+        )
+    )
+    database = cast(Database, application.state.database)
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=application), base_url="http://test"
+        ) as client:
+            accepted = await client.post(
+                "/api/v1/documents",
+                headers={"Idempotency-Key": str(uuid4())},
+                files={"document": ("ai-status.pdf", _pdf_bytes(), "application/pdf")},
+            )
+            assert accepted.status_code == 202
+            body = cast(AcceptedDocumentBody, accepted.json())
+            at = datetime.fromisoformat(body["accepted_at"])
+            execution = AiInvoiceProposalExecution.begin(
+                processing_run_id=UUID(body["processing_run_id"]),
+                enabled=state is not AiInvoiceProposalExecutionStatus.DISABLED,
+                at=at,
+            )
+            expected = execution
+            if state is AiInvoiceProposalExecutionStatus.COMPLETED:
+                expected = execution.complete(at=at + timedelta(seconds=30))
+            elif state is AiInvoiceProposalExecutionStatus.FAILED:
+                expected = execution.fail(at=at + timedelta(seconds=30))
+            async with database.sessions.begin() as session:
+                repository = SqlAlchemyAiInvoiceProposalExecutionRepository(session)
+                await repository.add(execution)
+                if expected is not execution:
+                    await repository.finish(expected)
+            response = await client.get(f"/api/v1/documents/{body['document_id']}")
+    finally:
+        await database.dispose()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "UPLOADED"
+    assert payload["current_run"]["status"] == "QUEUED"
+    assert payload["current_run"]["ai_execution"] == {
+        "status": state.value,
+        "status_changed_at": expected.status_changed_at.isoformat().replace("+00:00", "Z"),
+        "started_at": (
+            expected.started_at.isoformat().replace("+00:00", "Z")
+            if expected.started_at is not None
+            else None
+        ),
+        "finished_at": (
+            expected.finished_at.isoformat().replace("+00:00", "Z")
+            if expected.finished_at is not None
+            else None
+        ),
+    }
 
 
 def _pdf_bytes() -> bytes:
@@ -128,6 +203,7 @@ async def test_accepts_and_replays_a_pdf_upload(
             "review_resolution": None,
             "ai_proposal": None,
             "ai_proposal_failure": None,
+            "ai_execution": None,
         },
     }
     assert "storage_key" not in status_response.json()

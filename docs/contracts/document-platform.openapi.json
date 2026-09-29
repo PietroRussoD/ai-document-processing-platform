@@ -32,6 +32,60 @@
         "title": "AcceptedDocumentResponse",
         "type": "object"
       },
+      "AiInvoiceProposalExecutionMetadataResponse": {
+        "properties": {
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AiInvoiceProposalExecutionStatus"
+          },
+          "status_changed_at": {
+            "format": "date-time",
+            "title": "Status Changed At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "status_changed_at",
+          "started_at",
+          "finished_at"
+        ],
+        "title": "AiInvoiceProposalExecutionMetadataResponse",
+        "type": "object"
+      },
+      "AiInvoiceProposalExecutionStatus": {
+        "enum": [
+          "DISABLED",
+          "RUNNING",
+          "COMPLETED",
+          "FAILED"
+        ],
+        "title": "AiInvoiceProposalExecutionStatus",
+        "type": "string"
+      },
       "AiInvoiceProposalFailureMetadataResponse": {
         "properties": {
           "code": {
@@ -1011,6 +1065,17 @@
       },
       "ProcessingRunStatusResponse": {
         "properties": {
+          "ai_execution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AiInvoiceProposalExecutionMetadataResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Persisted advisory AI execution state, independent of document status and proposal validity. Null means no recorded execution, not disabled: the run may be historical or may not have entered the AI activity. RUNNING includes slot waits and retries; it is not a workflow liveness signal."
+          },
           "ai_proposal": {
             "anyOf": [
               {

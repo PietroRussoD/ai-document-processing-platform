@@ -290,9 +290,10 @@ rule-based extraction. An operator can explicitly adopt a field as a correction;
 the API checks that it matches the persisted proposal before resolving review.
 Automatic polling stops at terminal processing-run states, including
 `REVIEW_REQUIRED`. A manual refresh retrieves advisory results persisted
-afterward. Null proposal and failure fields do not distinguish a disabled
-provider from work still in progress. The source preview is stacked above the
-correction fields on desktop and mobile; a side-by-side review layout remains
+afterward. The API now exposes a separate `ai_execution` record; the console
+does not consume it yet, so null proposal/failure fields alone still cannot
+distinguish a disabled provider from work in progress. The source preview is
+stacked above the correction fields on desktop and mobile; a side-by-side review layout remains
 planned.
 
 ### Advisory Execution Contract
@@ -301,8 +302,10 @@ The domain now defines a separate `AiInvoiceProposalExecution` lifecycle.
 Migration `20260929_01` and a PostgreSQL repository now support storing this
 lifecycle in `ai_invoice_proposal_executions`, with one row per processing run.
 The worker records it when entering the proposal activity, before acquiring
-the per-worker model slot. The API/console do not expose it yet; null outcomes
-still have the ambiguity described above. The migration does not backfill
+the per-worker model slot. The status API now exposes its safe metadata under
+`current_run.ai_execution`: `status`, `status_changed_at`, `started_at` and
+`finished_at`. It is joined on the current run, never taken from a previous
+run. The console does not display it yet. The migration does not backfill
 legacy runs.
 
 ```mermaid
@@ -322,8 +325,12 @@ field validation is `INVALID`; it does not mean document approval. `FAILED`
 is a terminal provider outcome, not a change to the document status. Start and
 finish times are timezone-aware and cannot move backwards; terminal records
 cannot transition again. A missing execution record must not be interpreted as
-`DISABLED`: older histories and runs that have not reached the activity need
-an explicit unknown/not-started policy when the read model is implemented.
+`DISABLED`: the API returns `null` for older histories and runs that have not
+recorded entry into the activity. The field is nullable and optional in the
+OpenAPI schema for additive client compatibility; current status responses
+include it even when null. No execution status is inferred from the document
+status or from proposal/failure records. Only synthetic metadata is exposed,
+not prompts, source text, storage paths or credentials.
 Database constraints enforce timestamp/status coherence and cascade deletion
 with the owning processing run. Repository creation accepts only `DISABLED` or
 `RUNNING`; completion updates only a matching `RUNNING` row with the same start

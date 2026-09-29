@@ -9,6 +9,7 @@ from uuid import UUID
 
 from document_platform.domain.documents import DocumentStatus
 from document_platform.domain.processing import (
+    AiInvoiceProposalExecutionStatus,
     BusinessDocumentType,
     DocumentClassificationReason,
     EmbeddedTextQuality,
@@ -143,6 +144,14 @@ class AiInvoiceProposalFailureMetadataView:
 
 
 @dataclass(frozen=True, slots=True)
+class AiInvoiceProposalExecutionMetadataView:
+    status: AiInvoiceProposalExecutionStatus
+    status_changed_at: datetime
+    started_at: datetime | None
+    finished_at: datetime | None
+
+
+@dataclass(frozen=True, slots=True)
 class ProcessingRunStatusView:
     id: UUID
     previous_run_id: UUID | None
@@ -157,6 +166,7 @@ class ProcessingRunStatusView:
     review_resolution: ReviewResolutionMetadataView | None
     ai_proposal: AiInvoiceProposalMetadataView | None = None
     ai_proposal_failure: AiInvoiceProposalFailureMetadataView | None = None
+    ai_execution: AiInvoiceProposalExecutionMetadataView | None = None
 
 
 @dataclass(frozen=True, slots=True)
