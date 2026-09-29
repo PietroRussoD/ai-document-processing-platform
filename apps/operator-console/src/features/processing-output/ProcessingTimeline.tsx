@@ -1,12 +1,20 @@
-import { CheckCircle2, Circle, LoaderCircle } from "lucide-react";
+import {
+    CheckCircle2,
+    Circle,
+    CircleAlert,
+    CircleMinus,
+    LoaderCircle,
+} from "lucide-react";
 
 import { type DocumentStatus } from "../../api/documentApi";
+import { aiExecutionPollExpired } from "../document-status/statusPolling";
 
 type ProcessingOutput = NonNullable<
     DocumentStatus["current_run"]["processing_output"]
 >;
 type ProcessingRun = DocumentStatus["current_run"];
-type TimelineState = "completed" | "in-progress" | "pending";
+type TimelineState =
+    "completed" | "in-progress" | "pending" | "skipped" | "failed";
 
 type ProcessingTimelineProps = {
     run: ProcessingRun;
@@ -67,7 +75,25 @@ function StageIcon({ state }: { state: TimelineState }) {
         return (
             <LoaderCircle
                 aria-label="In progress"
-                className={`${className} animate-spin text-app-accent`}
+                className={`${className} animate-spin text-app-accent motion-reduce:animate-none`}
+                size={18}
+            />
+        );
+    }
+    if (state === "skipped") {
+        return (
+            <CircleMinus
+                aria-label="Skipped"
+                className={`${className} text-app-muted`}
+                size={18}
+            />
+        );
+    }
+    if (state === "failed") {
+        return (
+            <CircleAlert
+                aria-label="Failed"
+                className={`${className} text-app-muted`}
                 size={18}
             />
         );
@@ -116,7 +142,73 @@ function buildTimelineStages(run: ProcessingRun): TimelineStage[] {
         invoiceExtractionStage(output, automationFinished),
         invoiceValidationStage(output, automationFinished),
         completionStage(run),
+        advisoryAiStage(run),
     ];
+}
+
+function advisoryAiStage(run: ProcessingRun): TimelineStage {
+    const label = "Advisory AI proposal";
+    const execution = run.ai_execution;
+    if (execution != null) {
+        switch (execution.status) {
+            case "DISABLED":
+                return {
+                    label,
+                    state: "skipped",
+                    detail: "AI proposals are disabled for this run.",
+                };
+            case "RUNNING":
+                return aiExecutionPollExpired(execution)
+                    ? {
+                          label,
+                          state: "pending",
+                          detail: "AI execution still reports running; automatic updates are paused.",
+                      }
+                    : {
+                          label,
+                          state: "in-progress",
+                          detail: "AI proposal pending; document outcome unchanged.",
+                      };
+            case "COMPLETED":
+                return {
+                    label,
+                    state: "completed",
+                    detail: "AI execution completed; proposal validity and document approval are separate.",
+                };
+            case "FAILED":
+                return {
+                    label,
+                    state: "failed",
+                    detail: "AI proposal failed; document outcome unchanged.",
+                };
+        }
+    }
+    if (run.ai_proposal != null || run.ai_proposal_failure != null) {
+        return {
+            label,
+            state: "pending",
+            detail: "AI outcome recorded; execution state is not recorded.",
+        };
+    }
+    const classification = run.processing_output?.classification;
+    if (classification == null) {
+        return {
+            label,
+            state: "pending",
+            detail: "Waiting for invoice classification.",
+        };
+    }
+    return classification.document_type === "INVOICE"
+        ? {
+              label,
+              state: "pending",
+              detail: "AI execution state is not recorded.",
+          }
+        : {
+              label,
+              state: "skipped",
+              detail: "AI proposals are not applicable to this document type.",
+          };
 }
 
 function invoiceExtractionStage(
@@ -197,20 +289,20 @@ function completionStage(run: ProcessingRun): TimelineStage {
         return {
             label: "Processing completion",
             state: "completed",
-            detail: "All implemented stages finished.",
+            detail: "Deterministic processing finished.",
         };
     }
     if (run.status === "REVIEW_REQUIRED") {
         return {
             label: "Review handoff",
             state: "completed",
-            detail: "Automated processing paused for operator review.",
+            detail: "Deterministic processing finished; operator review is required.",
         };
     }
     return {
         label: "Processing completion",
         state: "pending",
-        detail: "Waiting for all processing stages to finish.",
+        detail: "Waiting for deterministic processing to finish.",
     };
 }
 

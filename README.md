@@ -40,8 +40,11 @@ document. An operator can adopt individual proposed values as corrections;
 the API verifies their provenance and validates the effective invoice before
 persisting an immutable decision.
 
-Remaining v1.0 work includes advisory-stage timeline alignment, review-layout
-and PDF-preview Storybook alignment, final demo evidence, documentation/security review and
+The processing timeline shows advisory AI execution separately from deterministic
+completion and review handoff; a completed AI execution does not approve a document.
+
+Remaining v1.0 work includes review-layout and PDF-preview Storybook alignment,
+final demo evidence, documentation/security review and
 verification on the final candidate commit. The
 [v1.0 verification record](docs/runbooks/v1.0-verification.md) separates observed
 results from open checks. This is a local synthetic-data demo. Physical blob

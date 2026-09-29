@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { expect, test } from "vitest";
 
+import { type DocumentStatus } from "../../api/documentApi";
 import { ProcessingTimeline } from "./ProcessingTimeline";
 
 test("shows active processing before output is persisted", () => {
@@ -87,7 +88,9 @@ test("shows completed and skipped stages after a successful run", () => {
     expect(
         screen.getByText("Skipped because embedded text was sufficient."),
     ).toBeVisible();
-    expect(screen.getByText("All implemented stages finished.")).toBeVisible();
+    expect(
+        screen.getByText("Deterministic processing finished."),
+    ).toBeVisible();
     expect(screen.getByText("Invoice approved automatically.")).toBeVisible();
     expect(screen.getAllByLabelText("Completed")).toHaveLength(7);
 });
@@ -151,6 +154,154 @@ test("shows the review handoff after an incomplete invoice", () => {
         screen.getByText("Invoice requires an operator review."),
     ).toBeVisible();
     expect(
-        screen.getByText("Automated processing paused for operator review."),
+        screen.getByText(
+            "Deterministic processing finished; operator review is required.",
+        ),
+    ).toBeVisible();
+});
+
+type ProcessingRun = DocumentStatus["current_run"];
+const invoiceRun: ProcessingRun = {
+    id: "run-42",
+    previous_run_id: null,
+    status: "REVIEW_REQUIRED",
+    queued_at: "2026-09-29T12:00:00Z",
+    started_at: "2026-09-29T12:00:01Z",
+    status_changed_at: "2026-09-29T12:00:05Z",
+    finished_at: null,
+    attempt_count: 1,
+    failure: null,
+    review_resolution: null,
+    ai_proposal: null,
+    ai_proposal_failure: null,
+    processing_output: {
+        embedded_text: null,
+        ocr_text: null,
+        selected_text: null,
+        classification: {
+            document_type: "INVOICE",
+            reason: "KEYWORD_MATCHED",
+            classified_at: "2026-09-29T12:00:04Z",
+        },
+        invoice_extraction: null,
+        invoice_validation: null,
+    },
+};
+
+test.each([
+    ["DISABLED", "Skipped", "AI proposals are disabled for this run."],
+    [
+        "RUNNING",
+        "In progress",
+        "AI proposal pending; document outcome unchanged.",
+    ],
+    [
+        "COMPLETED",
+        "Completed",
+        "AI execution completed; proposal validity and document approval are separate.",
+    ],
+    ["FAILED", "Failed", "AI proposal failed; document outcome unchanged."],
+] as const)(
+    "renders recorded AI %s independently of review handoff",
+    (status, icon, detail) => {
+        const at = new Date().toISOString();
+        render(
+            <ProcessingTimeline
+                run={{
+                    ...invoiceRun,
+                    ai_execution: {
+                        status,
+                        started_at: status === "DISABLED" ? null : at,
+                        finished_at: status === "RUNNING" ? null : at,
+                        status_changed_at: at,
+                    },
+                }}
+            />,
+        );
+        const stages = screen.getAllByRole("listitem");
+        const aiStage = stages.at(-1)!;
+        expect(within(aiStage).getByText("Advisory AI proposal")).toBeVisible();
+        expect(within(aiStage).getByLabelText(icon)).toBeVisible();
+        expect(within(aiStage).getByText(detail)).toBeVisible();
+        expect(
+            within(stages.at(-2)!).getByText("Review handoff"),
+        ).toBeVisible();
+    },
+);
+
+test("does not animate a stale running AI marker as live progress", () => {
+    render(
+        <ProcessingTimeline
+            run={{
+                ...invoiceRun,
+                ai_execution: {
+                    status: "RUNNING",
+                    started_at: "2026-09-16T12:00:04Z",
+                    finished_at: null,
+                    status_changed_at: "2026-09-16T12:00:04Z",
+                },
+            }}
+        />,
+    );
+    const aiStage = screen.getAllByRole("listitem").at(-1)!;
+    expect(within(aiStage).getByLabelText("Pending")).toBeVisible();
+    expect(
+        within(aiStage).getByText(
+            "AI execution still reports running; automatic updates are paused.",
+        ),
+    ).toBeVisible();
+});
+
+test("does not infer disabled AI from a missing execution record", () => {
+    render(<ProcessingTimeline run={{ ...invoiceRun, ai_execution: null }} />);
+    expect(
+        screen.getByText("AI execution state is not recorded."),
+    ).toBeVisible();
+    expect(
+        screen.queryByText("AI proposals are disabled for this run."),
+    ).not.toBeInTheDocument();
+});
+
+test("preserves legacy failure evidence without inventing an execution state", () => {
+    render(
+        <ProcessingTimeline
+            run={{
+                ...invoiceRun,
+                ai_proposal_failure: {
+                    provider: "OLLAMA",
+                    model_reference: "qwen3:8b",
+                    code: "TIMEOUT",
+                    failed_at: "2026-09-29T12:00:06Z",
+                },
+            }}
+        />,
+    );
+    expect(
+        screen.getByText(
+            "AI outcome recorded; execution state is not recorded.",
+        ),
+    ).toBeVisible();
+});
+
+test("skips advisory AI for a classified non-invoice", () => {
+    render(
+        <ProcessingTimeline
+            run={{
+                ...invoiceRun,
+                processing_output: {
+                    ...invoiceRun.processing_output!,
+                    classification: {
+                        document_type: "UNKNOWN",
+                        reason: "NO_MATCH",
+                        classified_at: "2026-09-29T12:00:04Z",
+                    },
+                },
+            }}
+        />,
+    );
+    expect(
+        screen.getByText(
+            "AI proposals are not applicable to this document type.",
+        ),
     ).toBeVisible();
 });

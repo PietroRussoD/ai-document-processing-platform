@@ -251,12 +251,17 @@ browser cannot assert that provenance by itself.
 
 The operator console derives its processing timeline from the same persisted
 metadata exposed by the status endpoint. It does not query Temporal directly,
-and it does not receive document text or blob paths. A stage is shown as
+and it does not receive document text or blob paths. A deterministic stage is shown as
 completed only after its immutable output is persisted; the next stages remain
 in progress or pending until their own metadata appears.
-The timeline currently covers deterministic processing and review, not a
-separate AI progress stage. A proposal and a provider failure appear in the
-comparison panel only after their outcomes have been persisted.
+The advisory AI stage follows deterministic completion or review handoff. It
+renders recorded execution as running, completed, failed or disabled; non-invoice
+documents skip it. A missing execution record remains unrecorded, including
+historical outcomes. A stale running marker is shown without a live spinner,
+using the same six-minute polling boundary as the comparison panel. Completing
+AI execution does not assert proposal validity or document approval; provider
+failure does not change the deterministic document outcome. Proposal and failure
+details appear in the comparison panel only after persistence.
 
 The separate System Map page is static architecture documentation. Its document
 journey illustrates possible approval, review and failure/reprocessing paths

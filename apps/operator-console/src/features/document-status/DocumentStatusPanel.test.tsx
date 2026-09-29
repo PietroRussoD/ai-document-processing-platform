@@ -327,9 +327,11 @@ test("polls across deterministic completion and AI start, then stops at AI compl
         </QueryClientProvider>,
     );
     try {
-        expect(
-            screen.getByText("AI execution state is not recorded."),
-        ).toBeVisible();
+        const unrecordedMessages = screen.getAllByText(
+            "AI execution state is not recorded.",
+        );
+        expect(unrecordedMessages).toHaveLength(2);
+        for (const message of unrecordedMessages) expect(message).toBeVisible();
         await act(async () => {
             await vi.advanceTimersByTimeAsync(2_001);
         });
