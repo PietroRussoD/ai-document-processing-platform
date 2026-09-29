@@ -48,6 +48,7 @@ machine and the private Compose network, not a public HTTP service.
 | Hostile PDFs | Size, page and parser checks limit routine inputs, but there is no malware scan, dedicated parser sandbox or container CPU/memory budget. Do not upload untrusted files. |
 | Vulnerable image packages | A 2026-09-27 Trivy 0.74.0 scan of freshly rebuilt images reported 1 CRITICAL and 76 HIGH API package findings (34 distinct IDs), including `libxml2` and Tesseract, and no HIGH/CRITICAL console findings. These are point-in-time scanner results, not distinct exploitable paths or security clearance. Rebuild, rescan and review exposure before later releases; do not claim a clean API image. |
 | Data at rest | Local named volumes are not application-encrypted and have no managed backup or recovery policy. Database retention does not remove blob bytes. |
+| Advisory model availability | An unavailable Ollama connection records a failed AI execution without changing deterministic extraction or the human-review outcome. Later documents can succeed after connectivity returns; a failed proposal is not automatically replayed, and an in-flight Ollama process restart was not verified. |
 | Operational assurance | Readiness and local smoke tests are not production SLOs, alerting or a security review. The UI has accessibility checks but no formal WCAG conformance claim. |
 
 Use only synthetic, non-sensitive documents. `docker compose down` stops the
