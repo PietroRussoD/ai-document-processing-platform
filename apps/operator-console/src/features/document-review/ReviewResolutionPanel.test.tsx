@@ -143,9 +143,18 @@ test("loads the source PDF only on request and revokes its object URL on close",
         "src",
         "blob:source-document",
     );
+    expect(
+        screen.getByRole("link", { name: "Open PDF in new tab" }),
+    ).toHaveAttribute("href", "blob:source-document");
+    expect(
+        screen.getByRole("link", { name: "Open PDF in new tab" }),
+    ).toHaveAttribute("rel", "noopener noreferrer");
     await user.click(screen.getByRole("button", { name: "Close source PDF" }));
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:source-document");
     expect(screen.queryByTitle("Source PDF preview")).not.toBeInTheDocument();
+    expect(
+        screen.queryByRole("link", { name: "Open PDF in new tab" }),
+    ).not.toBeInTheDocument();
     vi.unstubAllGlobals();
 });
 

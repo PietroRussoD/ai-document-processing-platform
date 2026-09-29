@@ -19,6 +19,143 @@ const aiComparisonStory =
 
 for (const width of [1440, 320]) {
     for (const story of [
+        "with-source-pdf",
+        "loading-source-pdf",
+        "source-pdf-failure",
+    ]) {
+        test(`Source review ${story} is accessible and fits ${width}px`, async ({
+            page,
+        }, testInfo) => {
+            await page.setViewportSize({ width, height: 1000 });
+            await page.goto(
+                `/iframe.html?id=document-review-reviewresolutionform--${story}&viewMode=story`,
+            );
+            const openButton = page.getByRole("button", {
+                name: "View source PDF",
+            });
+            await expect(openButton).toBeDisabled();
+            await expect(page.getByTitle("Source PDF preview")).toHaveCount(0);
+            await page.getByLabel("Operator token").fill("storybook-token");
+            if (story === "with-source-pdf") {
+                const responsePromise = page.waitForResponse((response) =>
+                    response.url().endsWith("/fixtures/invoice-digital.pdf"),
+                );
+                await openButton.click();
+                const response = await responsePromise;
+                expect(response.ok()).toBe(true);
+                expect(response.headers()["content-type"]).toContain(
+                    "application/pdf",
+                );
+                await expect(
+                    page.getByTitle("Source PDF preview"),
+                ).toBeVisible();
+                const pdfHeader = await page
+                    .getByTitle("Source PDF preview")
+                    .evaluate(async (element) => {
+                        const previewResponse = await fetch(
+                            (element as HTMLIFrameElement).src,
+                        );
+                        return (await previewResponse.text()).slice(0, 4);
+                    });
+                expect(pdfHeader).toBe("%PDF");
+                await expect(
+                    page.getByRole("link", { name: "Open PDF in new tab" }),
+                ).toHaveAttribute("href", /^blob:/);
+            } else {
+                await openButton.click();
+                if (story === "loading-source-pdf") {
+                    await expect(
+                        page.getByRole("button", {
+                            name: "Loading source PDF",
+                        }),
+                    ).toBeDisabled();
+                } else {
+                    await expect(page.getByRole("alert")).toHaveText(
+                        "The source PDF could not be loaded.",
+                    );
+                    await expect(openButton).toBeEnabled();
+                }
+            }
+            const source = await page
+                .getByRole("heading", { name: "Original source document" })
+                .locator("..")
+                .boundingBox();
+            const corrections = await page
+                .getByRole("group", {
+                    name: "Correct extracted invoice fields",
+                })
+                .boundingBox();
+            expect(source).not.toBeNull();
+            expect(corrections).not.toBeNull();
+            if (width === 1440) {
+                expect(corrections!.x).toBeGreaterThanOrEqual(
+                    source!.x + source!.width,
+                );
+            } else {
+                expect(corrections!.y).toBeGreaterThanOrEqual(
+                    source!.y + source!.height,
+                );
+            }
+            const results = await new AxeBuilder({ page })
+                .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+                .disableRules(["landmark-one-main", "page-has-heading-one"])
+                .analyze();
+            expect(results.violations).toEqual([]);
+            expect(
+                await page.evaluate(
+                    () =>
+                        document.documentElement.scrollWidth >
+                        window.innerWidth,
+                ),
+            ).toBe(false);
+            await page.screenshot({
+                path: testInfo.outputPath(`review-${story}-${width}.png`),
+                fullPage: true,
+            });
+            if (story === "with-source-pdf") {
+                await page
+                    .getByRole("button", { name: "Close source PDF" })
+                    .click();
+                await expect(page.getByTitle("Source PDF preview")).toHaveCount(
+                    0,
+                );
+                await expect(
+                    page.getByRole("link", { name: "Open PDF in new tab" }),
+                ).toHaveCount(0);
+                await expect(page.getByLabel("Invoice number")).toHaveValue(
+                    "DEMO-INV-1001",
+                );
+            }
+        });
+    }
+}
+
+test("Source review stays stacked in a narrow desktop container", async ({
+    page,
+}) => {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto(
+        "/iframe.html?id=document-review-reviewresolutionform--with-source-pdf&viewMode=story",
+    );
+    const heading = page.getByRole("heading", {
+        name: "Resolve operator review",
+    });
+    await expect(heading).toBeVisible();
+    await heading.locator("xpath=ancestor::section").evaluate((element) => {
+        (element as HTMLElement).style.width = "620px";
+    });
+    const source = await page
+        .getByRole("heading", { name: "Original source document" })
+        .boundingBox();
+    const corrections = await page
+        .getByRole("group", { name: "Correct extracted invoice fields" })
+        .boundingBox();
+    expect(corrections!.y).toBeGreaterThan(source!.y);
+    expect(corrections!.x).toBe(source!.x);
+});
+
+for (const width of [1440, 320]) {
+    for (const story of [
         "running",
         "disabled",
         "failed",

@@ -217,6 +217,9 @@ held in memory and displays it through a temporary browser object URL. Closing
 the preview or unmounting the component revokes that URL; unmounting also aborts
 an in-flight request. PDF responses use `no-store`, `nosniff` and a generic
 inline filename. The shared local token can retrieve any stored document.
+The preview includes a new-tab link to that same temporary URL; the link is
+removed on close. Its document remains subject to the browser's native PDF
+viewer rather than a custom PDF.js implementation.
 
 ```mermaid
 sequenceDiagram
@@ -310,8 +313,12 @@ proposed field validity separately. A missing state is shown as not recorded
 for invoices, never as disabled. Legacy proposals/failures remain visible even
 without an execution record. Unknown non-invoice documents do not get an invoice
 AI panel or a start grace period. Feedback uses live status messages without
-moving focus. The source preview is stacked above the correction fields on
-desktop and mobile; a side-by-side review layout remains planned.
+moving focus. Credentials and the review note precede the source/field workspace
+in DOM order. At a panel content width of at least 48rem, a container query puts
+source PDF and correction controls side by side; narrower panels stack them,
+even on a large screen. The same controls, correction provenance and approval
+requests are used in both layouts. Storybook covers source availability, loading
+and safe failure using the existing synthetic invoice, not a real API token.
 
 ### Advisory Execution Contract
 

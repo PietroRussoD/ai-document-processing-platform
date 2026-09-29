@@ -5,6 +5,8 @@ export default defineConfig({
     outputDir: "./test-results",
     reporter: "line",
     use: {
+        // Full Chromium includes the native PDF viewer absent from headless shell.
+        channel: "chromium",
         baseURL: "http://127.0.0.1:6006",
         trace: "retain-on-failure",
     },

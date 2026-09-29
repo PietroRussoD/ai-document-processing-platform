@@ -98,7 +98,7 @@ export function ReviewResolutionForm({
 
     return (
         <section
-            className="mt-6 border border-amber-300 bg-amber-50 p-5"
+            className="@container mt-6 border border-amber-300 bg-amber-50 p-5"
             aria-labelledby="review-resolution-heading"
         >
             <div className="flex items-start gap-3">
@@ -120,8 +120,6 @@ export function ReviewResolutionForm({
                     </p>
                 </div>
             </div>
-
-            {sourcePreview}
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <label className="block text-sm font-medium text-app-foreground">
@@ -161,149 +159,175 @@ export function ReviewResolutionForm({
                 </label>
             </div>
 
-            {invoiceExtraction !== null ? (
-                <fieldset className="mt-5 border-t border-amber-200 pt-5">
-                    <legend className="text-sm font-semibold text-amber-950">
-                        Correct extracted invoice fields
-                    </legend>
-                    <p className="mt-1 text-sm text-amber-900">
-                        Only changed values are recorded with this approval.
-                    </p>
-                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                        <InvoiceField
-                            label="Invoice number"
-                            onSelectProposal={() =>
-                                selectProposalValue(
-                                    "invoiceNumber",
-                                    aiProposal?.invoice_number ?? null,
-                                )
-                            }
-                            onChange={(value) =>
-                                updateInvoiceValue("invoiceNumber", value)
-                            }
-                            proposalAvailable={
-                                aiProposal?.invoice_number != null
-                            }
-                            value={invoiceValues.invoiceNumber}
-                        />
-                        <InvoiceField
-                            label="Issue date"
-                            onSelectProposal={() =>
-                                selectProposalValue(
-                                    "issueDate",
-                                    aiProposal?.issue_date ?? null,
-                                )
-                            }
-                            onChange={(value) =>
-                                updateInvoiceValue("issueDate", value)
-                            }
-                            proposalAvailable={aiProposal?.issue_date != null}
-                            type="date"
-                            value={invoiceValues.issueDate}
-                        />
-                        <InvoiceField
-                            label="Supplier"
-                            onSelectProposal={() =>
-                                selectProposalValue(
-                                    "supplierName",
-                                    aiProposal?.supplier_name ?? null,
-                                )
-                            }
-                            onChange={(value) =>
-                                updateInvoiceValue("supplierName", value)
-                            }
-                            proposalAvailable={
-                                aiProposal?.supplier_name != null
-                            }
-                            value={invoiceValues.supplierName}
-                        />
-                        <InvoiceField
-                            label="Currency"
-                            maxLength={3}
-                            onSelectProposal={() =>
-                                selectProposalValue(
-                                    "currency",
-                                    aiProposal?.currency ?? null,
-                                )
-                            }
-                            onChange={(value) =>
-                                updateInvoiceValue(
-                                    "currency",
-                                    value.toUpperCase(),
-                                )
-                            }
-                            proposalAvailable={aiProposal?.currency != null}
-                            value={invoiceValues.currency}
-                        />
-                        <InvoiceField
-                            label="Total amount"
-                            min="0.0001"
-                            onSelectProposal={() =>
-                                selectProposalValue(
-                                    "totalAmount",
-                                    aiProposal?.total_amount ?? null,
-                                )
-                            }
-                            onChange={(value) =>
-                                updateInvoiceValue("totalAmount", value)
-                            }
-                            proposalAvailable={aiProposal?.total_amount != null}
-                            step="0.0001"
-                            type="number"
-                            value={invoiceValues.totalAmount}
-                        />
-                    </div>
-                </fieldset>
-            ) : (
-                <FeedbackMessage className="mt-5" tone="warning">
-                    An invoice extraction is required before approval.
-                </FeedbackMessage>
-            )}
-
-            <div className="mt-4 flex flex-wrap gap-3">
-                <Button
-                    disabled={!operatorToken || isSaving || !canApprove}
-                    onClick={() => onDecision("APPROVE", corrections)}
-                    variant="primary"
-                >
-                    {isSaving ? (
-                        <LoaderCircle
-                            aria-hidden="true"
-                            className="motion-safe:animate-spin"
-                            size={17}
-                        />
+            <div
+                className={
+                    sourcePreview
+                        ? "mt-5 grid gap-6 @min-[48rem]:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]"
+                        : "mt-5"
+                }
+            >
+                {sourcePreview ? (
+                    <div className="min-w-0">{sourcePreview}</div>
+                ) : null}
+                <div className="min-w-0">
+                    {invoiceExtraction !== null ? (
+                        <fieldset className="min-w-0 border-t border-amber-200 pt-5">
+                            <legend className="text-sm font-semibold text-amber-950">
+                                Correct extracted invoice fields
+                            </legend>
+                            <p className="mt-1 text-sm text-amber-900">
+                                Only changed values are recorded with this
+                                approval.
+                            </p>
+                            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                                <InvoiceField
+                                    label="Invoice number"
+                                    onSelectProposal={() =>
+                                        selectProposalValue(
+                                            "invoiceNumber",
+                                            aiProposal?.invoice_number ?? null,
+                                        )
+                                    }
+                                    onChange={(value) =>
+                                        updateInvoiceValue(
+                                            "invoiceNumber",
+                                            value,
+                                        )
+                                    }
+                                    proposalAvailable={
+                                        aiProposal?.invoice_number != null
+                                    }
+                                    value={invoiceValues.invoiceNumber}
+                                />
+                                <InvoiceField
+                                    label="Issue date"
+                                    onSelectProposal={() =>
+                                        selectProposalValue(
+                                            "issueDate",
+                                            aiProposal?.issue_date ?? null,
+                                        )
+                                    }
+                                    onChange={(value) =>
+                                        updateInvoiceValue("issueDate", value)
+                                    }
+                                    proposalAvailable={
+                                        aiProposal?.issue_date != null
+                                    }
+                                    type="date"
+                                    value={invoiceValues.issueDate}
+                                />
+                                <InvoiceField
+                                    label="Supplier"
+                                    onSelectProposal={() =>
+                                        selectProposalValue(
+                                            "supplierName",
+                                            aiProposal?.supplier_name ?? null,
+                                        )
+                                    }
+                                    onChange={(value) =>
+                                        updateInvoiceValue(
+                                            "supplierName",
+                                            value,
+                                        )
+                                    }
+                                    proposalAvailable={
+                                        aiProposal?.supplier_name != null
+                                    }
+                                    value={invoiceValues.supplierName}
+                                />
+                                <InvoiceField
+                                    label="Currency"
+                                    maxLength={3}
+                                    onSelectProposal={() =>
+                                        selectProposalValue(
+                                            "currency",
+                                            aiProposal?.currency ?? null,
+                                        )
+                                    }
+                                    onChange={(value) =>
+                                        updateInvoiceValue(
+                                            "currency",
+                                            value.toUpperCase(),
+                                        )
+                                    }
+                                    proposalAvailable={
+                                        aiProposal?.currency != null
+                                    }
+                                    value={invoiceValues.currency}
+                                />
+                                <InvoiceField
+                                    label="Total amount"
+                                    min="0.0001"
+                                    onSelectProposal={() =>
+                                        selectProposalValue(
+                                            "totalAmount",
+                                            aiProposal?.total_amount ?? null,
+                                        )
+                                    }
+                                    onChange={(value) =>
+                                        updateInvoiceValue("totalAmount", value)
+                                    }
+                                    proposalAvailable={
+                                        aiProposal?.total_amount != null
+                                    }
+                                    step="0.0001"
+                                    type="number"
+                                    value={invoiceValues.totalAmount}
+                                />
+                            </div>
+                        </fieldset>
                     ) : (
-                        <CheckCircle2 aria-hidden="true" size={17} />
+                        <FeedbackMessage className="mt-5" tone="warning">
+                            An invoice extraction is required before approval.
+                        </FeedbackMessage>
                     )}
-                    Approve document
-                </Button>
-                <Button
-                    disabled={!operatorToken || isSaving}
-                    onClick={() => onDecision("REJECT", [])}
-                    variant="danger"
-                >
-                    <XCircle aria-hidden="true" size={17} />
-                    Reject document
-                </Button>
-            </div>
 
-            <div>
-                {isSaving ? (
-                    <FeedbackMessage className="mt-4" tone="info">
-                        Saving review decision
-                    </FeedbackMessage>
-                ) : null}
-                {errorMessage !== null ? (
-                    <FeedbackMessage
-                        id={reviewResolutionErrorId}
-                        className="mt-4"
-                        focusOnMount
-                        role="alert"
-                        tone="danger"
-                    >
-                        {errorMessage}
-                    </FeedbackMessage>
-                ) : null}
+                    <div className="mt-4 flex flex-wrap gap-3">
+                        <Button
+                            disabled={!operatorToken || isSaving || !canApprove}
+                            onClick={() => onDecision("APPROVE", corrections)}
+                            variant="primary"
+                        >
+                            {isSaving ? (
+                                <LoaderCircle
+                                    aria-hidden="true"
+                                    className="motion-safe:animate-spin"
+                                    size={17}
+                                />
+                            ) : (
+                                <CheckCircle2 aria-hidden="true" size={17} />
+                            )}
+                            Approve document
+                        </Button>
+                        <Button
+                            disabled={!operatorToken || isSaving}
+                            onClick={() => onDecision("REJECT", [])}
+                            variant="danger"
+                        >
+                            <XCircle aria-hidden="true" size={17} />
+                            Reject document
+                        </Button>
+                    </div>
+
+                    <div>
+                        {isSaving ? (
+                            <FeedbackMessage className="mt-4" tone="info">
+                                Saving review decision
+                            </FeedbackMessage>
+                        ) : null}
+                        {errorMessage !== null ? (
+                            <FeedbackMessage
+                                id={reviewResolutionErrorId}
+                                className="mt-4"
+                                focusOnMount
+                                role="alert"
+                                tone="danger"
+                            >
+                                {errorMessage}
+                            </FeedbackMessage>
+                        ) : null}
+                    </div>
+                </div>
             </div>
         </section>
     );

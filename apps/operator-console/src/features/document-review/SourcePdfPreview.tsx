@@ -1,3 +1,4 @@
+import { ExternalLink, FileText, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { type DocumentApi } from "../../api/documentApi";
@@ -74,16 +75,12 @@ export function SourcePdfPreview({
     return (
         <div
             aria-busy={isLoading}
-            className="mt-5 border-t border-amber-200 pt-5"
+            className="min-w-0 border-t border-amber-200 pt-5"
         >
             <h4 className="text-sm font-semibold text-amber-950">
                 Original source document
             </h4>
-            <p className="mt-1 text-sm text-amber-900">
-                Inspect the original PDF before deciding whether to correct or
-                approve extracted values.
-            </p>
-            <div className="mt-3">
+            <div className="mt-3 flex flex-wrap items-center gap-3">
                 {sourceUrl === null ? (
                     <Button
                         aria-controls="source-pdf-preview"
@@ -92,6 +89,7 @@ export function SourcePdfPreview({
                         onClick={() => void openPreview()}
                         variant="secondary"
                     >
+                        <FileText aria-hidden="true" size={17} />
                         {isLoading ? "Loading source PDF" : "View source PDF"}
                     </Button>
                 ) : (
@@ -101,9 +99,21 @@ export function SourcePdfPreview({
                         onClick={closePreview}
                         variant="secondary"
                     >
+                        <X aria-hidden="true" size={17} />
                         Close source PDF
                     </Button>
                 )}
+                {sourceUrl !== null ? (
+                    <a
+                        className="inline-flex min-h-10 items-center gap-2 rounded px-2 text-sm font-medium text-app-accent underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                        href={sourceUrl}
+                        rel="noopener noreferrer"
+                        target="_blank"
+                    >
+                        <ExternalLink aria-hidden="true" size={17} />
+                        Open PDF in new tab
+                    </a>
+                ) : null}
             </div>
             {isLoading ? (
                 <FeedbackMessage className="mt-3" role="status" tone="info">

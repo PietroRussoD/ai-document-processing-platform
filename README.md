@@ -22,7 +22,9 @@ The local demo provides:
   immutable proposals and safe terminal provider-failure records;
 - a React console with active, review, failed and unsupported queues, persisted
   processing results, AI comparison, field corrections and approval/rejection;
-- authenticated, on-demand source-PDF preview during review, using an in-memory token;
+- authenticated, on-demand source-PDF preview during review, using an in-memory
+  token; source and correction fields sit side by side in wide panels and stack
+  in narrow ones;
 - controlled reprocessing with immutable run lineage, safe processing-failure
   evidence, bounded database retention and report-only blob auditing;
 - Prometheus metrics, allowlisted JSON logs, request correlation, an optional
@@ -43,8 +45,7 @@ persisting an immutable decision.
 The processing timeline shows advisory AI execution separately from deterministic
 completion and review handoff; a completed AI execution does not approve a document.
 
-Remaining v1.0 work includes review-layout and PDF-preview Storybook alignment,
-final demo evidence, documentation/security review and
+Remaining v1.0 work includes final demo evidence, documentation/security review and
 verification on the final candidate commit. The
 [v1.0 verification record](docs/runbooks/v1.0-verification.md) separates observed
 results from open checks. This is a local synthetic-data demo. Physical blob
@@ -522,6 +523,12 @@ inspection. Component tests also run axe semantic checks. Browser-based
 contrast and keyboard-flow verification remains separate; this project does
 not claim formal WCAG conformance.
 
+The review-form stories include on-demand preview of the existing synthetic
+invoice, loading and source-loading failure. Storybook serves only synthetic
+examples from `examples/documents` under `/fixtures`; its preview API is a demo
+stub, not an authenticated backend. Enter any non-empty dummy token and click
+**View source PDF**. The application itself still uses the protected endpoint.
+
 The review panel keeps native controls in a tested keyboard order. When a
 review decision is rejected by the API, focus moves to the associated alert and
 the operator-token field references that error message.
@@ -530,12 +537,15 @@ Run the browser accessibility checks locally with:
 
 ```bash
 cd apps/operator-console
+pnpm exec playwright install chromium
 pnpm test:a11y:browser
 ```
 
-The command starts Storybook when necessary, runs axe in Chromium against the
-review outcome, and checks the narrow 320 px layout. It is intentionally not
-part of the ordinary CI gate.
+The command starts Storybook when necessary, runs axe and layout checks against
+component states, and verifies narrow 320 px layouts. It uses full Chromium's
+headless mode (`channel: chromium`) so the native PDF viewer renders. Browser
+checks are intentionally not part of the ordinary CI gate. Native PDF-viewer
+accessibility and other browsers require separate manual verification.
 
 Tests enforce branch coverage of at least 85%. The same command writes a local
 HTML report to `htmlcov/index.html` and a machine-readable report to

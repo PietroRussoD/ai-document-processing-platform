@@ -170,6 +170,36 @@ test("has no detectable accessibility violations", async () => {
     expect((await axe(container)).violations).toEqual([]);
 });
 
+test("keeps credentials before source preview and corrections in DOM order", async () => {
+    const user = userEvent.setup();
+    const onDecision = vi.fn();
+    render(
+        <ReviewResolutionForm
+            errorMessage={null}
+            invoiceExtraction={invoiceExtraction()}
+            isSaving={false}
+            onDecision={onDecision}
+            onOperatorTokenChange={() => undefined}
+            onReviewNoteChange={() => undefined}
+            operatorToken="operator-token"
+            reviewNote=""
+            sourcePreview={<button type="button">View source PDF</button>}
+        />,
+    );
+    await user.tab();
+    expect(screen.getByLabelText("Operator token")).toHaveFocus();
+    await user.tab();
+    expect(screen.getByLabelText(/Review note/)).toHaveFocus();
+    await user.tab();
+    expect(
+        screen.getByRole("button", { name: "View source PDF" }),
+    ).toHaveFocus();
+    await user.tab();
+    expect(screen.getByLabelText("Invoice number")).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Approve document" }));
+    expect(onDecision).toHaveBeenCalledWith("APPROVE", []);
+});
+
 function invoiceExtraction() {
     return {
         method: "DETERMINISTIC_RULES" as const,
