@@ -36,7 +36,7 @@ export function DocumentStatusPanel({
         queryKey: ["document-status", documentId],
         queryFn: ({ signal }) => api.getStatus(documentId, signal),
         refetchInterval: (query) =>
-            statusPollInterval(query.state.data?.current_run.status),
+            statusPollInterval(query.state.data?.current_run),
     });
 
     if (statusQuery.isPending) {
@@ -159,6 +159,11 @@ export function DocumentStatusPanel({
                 }
                 proposal={document.current_run.ai_proposal}
                 failure={document.current_run.ai_proposal_failure}
+                execution={document.current_run.ai_execution}
+                applicable={
+                    document.current_run.processing_output?.classification
+                        ?.document_type === "INVOICE"
+                }
             />
             <ReviewResolutionPanel
                 documentId={document.id}

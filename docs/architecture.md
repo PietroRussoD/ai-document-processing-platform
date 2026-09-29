@@ -288,13 +288,25 @@ should be uploaded.
 The operator console renders recorded advisory fields beside the original
 rule-based extraction. An operator can explicitly adopt a field as a correction;
 the API checks that it matches the persisted proposal before resolving review.
-Automatic polling stops at terminal processing-run states, including
-`REVIEW_REQUIRED`. A manual refresh retrieves advisory results persisted
-afterward. The API now exposes a separate `ai_execution` record; the console
-does not consume it yet, so null proposal/failure fields alone still cannot
-distinguish a disabled provider from work in progress. The source preview is
-stacked above the correction fields on desktop and mobile; a side-by-side review layout remains
-planned.
+Terminal deterministic processing no longer stops periodic polling while an
+explicit AI execution is `RUNNING`. Polling remains every two seconds, with a
+six-minute window from the recorded AI start; older or unusable start timestamps
+pause periodic updates and display a diagnostic message. Active deterministic
+processing still polls normally. A newly finalized invoice with neither an
+execution nor an outcome gets a 30-second grace period, measured from its
+persisted run status-change timestamp, to cover the gap before AI activity entry.
+Unknown historical records do not poll forever. Disabled/completed/failed AI
+outcomes stop polling once deterministic processing is terminal. Manual refresh
+remains available. These are browser query limits, not cancellation or changes
+to the worker's five-minute retry budget.
+
+The comparison panel displays explicit execution state, provider failures and
+proposed field validity separately. A missing state is shown as not recorded
+for invoices, never as disabled. Legacy proposals/failures remain visible even
+without an execution record. Unknown non-invoice documents do not get an invoice
+AI panel or a start grace period. Feedback uses live status messages without
+moving focus. The source preview is stacked above the correction fields on
+desktop and mobile; a side-by-side review layout remains planned.
 
 ### Advisory Execution Contract
 
@@ -305,8 +317,8 @@ The worker records it when entering the proposal activity, before acquiring
 the per-worker model slot. The status API now exposes its safe metadata under
 `current_run.ai_execution`: `status`, `status_changed_at`, `started_at` and
 `finished_at`. It is joined on the current run, never taken from a previous
-run. The console does not display it yet. The migration does not backfill
-legacy runs.
+run. The console renders it in the comparison panel and uses it to control
+periodic status polling. The migration does not backfill legacy runs.
 
 ```mermaid
 stateDiagram-v2

@@ -40,8 +40,8 @@ document. An operator can adopt individual proposed values as corrections;
 the API verifies their provenance and validates the effective invoice before
 persisting an immutable decision.
 
-Remaining v1.0 work includes clearer AI progress feedback, review-layout and
-Storybook alignment, final demo evidence, documentation/security review and
+Remaining v1.0 work includes advisory-stage timeline alignment, review-layout
+and PDF-preview Storybook alignment, final demo evidence, documentation/security review and
 verification on the final candidate commit. The
 [v1.0 verification record](docs/runbooks/v1.0-verification.md) separates observed
 results from open checks. This is a local synthetic-data demo. Physical blob
@@ -184,8 +184,12 @@ The API is available at `http://localhost:8000`. Current endpoints:
 Document status includes `current_run.ai_execution` with the persisted AI
 state (`DISABLED`, `RUNNING`, `COMPLETED` or `FAILED`) and timestamps. A null
 value means no recorded execution, not disabled; historical runs and runs
-that have not entered the activity can both have no record. The console does
-not display this state yet. See the [execution contract](docs/architecture.md#advisory-execution-contract).
+that have not entered the activity can both have no record. The console displays
+this state in the AI comparison panel. Its periodic polling continues while
+recorded AI is running, with a six-minute window from its recorded start and
+a 30-second start grace period for newly finalized invoices with no AI record.
+Older unknown/running states retain manual refresh. See the
+[execution contract](docs/architecture.md#advisory-execution-contract).
 
 ### Backend Image
 

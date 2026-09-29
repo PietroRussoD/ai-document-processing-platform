@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { type PropsWithChildren } from "react";
 import { expect, test, vi } from "vitest";
 
@@ -247,12 +247,107 @@ test("shows bounded failure evidence for a failed run", async () => {
 
 test("polls active states and stops for every terminal run state", () => {
     expect(statusPollInterval(undefined)).toBe(2_000);
-    expect(statusPollInterval("QUEUED")).toBe(2_000);
-    expect(statusPollInterval("RUNNING")).toBe(2_000);
-    expect(statusPollInterval("COMPLETED")).toBe(false);
-    expect(statusPollInterval("FAILED")).toBe(false);
-    expect(statusPollInterval("CANCELLED")).toBe(false);
-    expect(statusPollInterval("REVIEW_REQUIRED")).toBe(false);
+    expect(statusPollInterval(status("UPLOADED", "QUEUED").current_run)).toBe(
+        2_000,
+    );
+    expect(
+        statusPollInterval(status("PROCESSING", "RUNNING").current_run),
+    ).toBe(2_000);
+    expect(
+        statusPollInterval(status("APPROVED", "COMPLETED").current_run),
+    ).toBe(false);
+    expect(statusPollInterval(status("FAILED", "FAILED").current_run)).toBe(
+        false,
+    );
+    expect(
+        statusPollInterval(status("PROCESSING", "CANCELLED").current_run),
+    ).toBe(false);
+    expect(
+        statusPollInterval(
+            status("REVIEW_REQUIRED", "REVIEW_REQUIRED").current_run,
+        ),
+    ).toBe(false);
+});
+
+test("polls across deterministic completion and AI start, then stops at AI completion", async () => {
+    vi.useFakeTimers();
+    const at = "2026-09-29T10:00:00Z";
+    vi.setSystemTime(new Date(at));
+    const initial = status("APPROVED", "COMPLETED");
+    initial.current_run.status_changed_at = at;
+    initial.current_run.processing_output = {
+        embedded_text: null,
+        ocr_text: null,
+        selected_text: null,
+        classification: {
+            document_type: "INVOICE",
+            reason: "KEYWORD_MATCHED",
+            classified_at: at,
+        },
+        invoice_extraction: null,
+        invoice_validation: null,
+    };
+    const running: DocumentStatus = {
+        ...initial,
+        current_run: {
+            ...initial.current_run,
+            ai_execution: {
+                status: "RUNNING",
+                started_at: at,
+                finished_at: null,
+                status_changed_at: at,
+            },
+        },
+    };
+    const completed: DocumentStatus = {
+        ...initial,
+        current_run: {
+            ...initial.current_run,
+            ai_execution: {
+                status: "COMPLETED",
+                started_at: at,
+                finished_at: at,
+                status_changed_at: at,
+            },
+        },
+    };
+    const getStatus = vi
+        .fn()
+        .mockResolvedValueOnce(running)
+        .mockResolvedValue(completed);
+    const client = new QueryClient({
+        defaultOptions: {
+            queries: { retry: false, refetchOnMount: false, gcTime: Infinity },
+        },
+    });
+    client.setQueryData(["document-status", DOCUMENT_ID], initial);
+    const view = render(
+        <QueryClientProvider client={client}>
+            <DocumentStatusPanel api={{ getStatus }} documentId={DOCUMENT_ID} />
+        </QueryClientProvider>,
+    );
+    try {
+        expect(
+            screen.getByText("AI execution state is not recorded."),
+        ).toBeVisible();
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(2_001);
+        });
+        expect(screen.getByText("AI proposal pending.")).toBeVisible();
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(2_001);
+        });
+        expect(screen.getByText("Execution completed")).toBeVisible();
+        expect(getStatus).toHaveBeenCalledTimes(2);
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(10_000);
+        });
+        expect(getStatus).toHaveBeenCalledTimes(2);
+    } finally {
+        view.unmount();
+        client.clear();
+        vi.useRealTimers();
+    }
 });
 
 function status(

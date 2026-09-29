@@ -42,6 +42,12 @@ export const PartialProposal: Story = {
             proposed_at: "2026-09-16T12:00:06Z",
         },
         failure: null,
+        execution: {
+            status: "COMPLETED",
+            started_at: "2026-09-16T12:00:04Z",
+            finished_at: "2026-09-16T12:00:06Z",
+            status_changed_at: "2026-09-16T12:00:06Z",
+        },
     },
 };
 
@@ -54,6 +60,68 @@ export const ProviderTimeout: Story = {
             model_reference: "qwen3:8b",
             code: "TIMEOUT",
             failed_at: "2026-09-16T12:00:06Z",
+        },
+        execution: {
+            status: "FAILED",
+            started_at: "2026-09-16T12:00:04Z",
+            finished_at: "2026-09-16T12:00:06Z",
+            status_changed_at: "2026-09-16T12:00:06Z",
+        },
+    },
+};
+
+export const Running: Story = {
+    args: { extraction, proposal: null, failure: null },
+    render: (args) => {
+        const at = new Date().toISOString();
+        return (
+            <AiInvoiceComparison
+                {...args}
+                execution={{
+                    status: "RUNNING",
+                    started_at: at,
+                    finished_at: null,
+                    status_changed_at: at,
+                }}
+            />
+        );
+    },
+};
+
+export const Disabled: Story = {
+    args: {
+        extraction,
+        proposal: null,
+        failure: null,
+        execution: {
+            status: "DISABLED",
+            started_at: null,
+            finished_at: "2026-09-29T10:00:00Z",
+            status_changed_at: "2026-09-29T10:00:00Z",
+        },
+    },
+};
+
+export const Unrecorded: Story = {
+    args: {
+        extraction,
+        proposal: null,
+        failure: null,
+        execution: null,
+        applicable: true,
+    },
+};
+
+export const StaleRunning: Story = {
+    args: {
+        extraction,
+        proposal: null,
+        failure: null,
+        execution: {
+            status: "RUNNING",
+            started_at: "2026-09-16T12:00:04Z",
+            finished_at: null,
+            status_changed_at: "2026-09-16T12:00:04Z",
         },
     },
 };

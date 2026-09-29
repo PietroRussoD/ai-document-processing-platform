@@ -3,6 +3,7 @@ import { Sparkles } from "lucide-react";
 import { type DocumentStatus } from "../../api/documentApi";
 import { FeedbackMessage } from "../../components/ui/FeedbackMessage";
 import { StatusBadge } from "../../components/ui/StatusBadge";
+import { aiExecutionPollExpired } from "../document-status/statusPolling";
 
 type ProcessingRun = DocumentStatus["current_run"];
 type InvoiceExtraction = NonNullable<
@@ -14,6 +15,8 @@ type AiInvoiceComparisonProps = {
     extraction: InvoiceExtraction | null;
     proposal: ProcessingRun["ai_proposal"];
     failure: ProcessingRun["ai_proposal_failure"];
+    execution?: ProcessingRun["ai_execution"];
+    applicable?: boolean;
 };
 
 const fields = [
@@ -28,8 +31,15 @@ export function AiInvoiceComparison({
     extraction,
     proposal,
     failure,
+    execution,
+    applicable = false,
 }: AiInvoiceComparisonProps) {
-    if (proposal === null && failure === null) {
+    if (
+        proposal === null &&
+        failure === null &&
+        execution == null &&
+        !applicable
+    ) {
         return null;
     }
 
@@ -51,6 +61,16 @@ export function AiInvoiceComparison({
                     AI proposal comparison
                 </h3>
                 <StatusBadge label="Advisory" tone="info" />
+                {execution != null ? (
+                    <StatusBadge
+                        label={`Execution ${formatLabel(execution.status).toLowerCase()}`}
+                        tone={
+                            execution.status === "FAILED"
+                                ? "warning"
+                                : "neutral"
+                        }
+                    />
+                ) : null}
                 {proposal !== null ? (
                     <StatusBadge
                         label={formatLabel(proposal.status)}
@@ -60,6 +80,34 @@ export function AiInvoiceComparison({
                     />
                 ) : null}
             </div>
+
+            {execution?.status === "DISABLED" ? (
+                <FeedbackMessage className="mt-4" tone="info">
+                    AI proposals are disabled for this run.
+                </FeedbackMessage>
+            ) : null}
+            {execution?.status === "RUNNING" ? (
+                <FeedbackMessage className="mt-4" tone="info">
+                    {aiExecutionPollExpired(execution)
+                        ? "AI execution still reports running; automatic updates are paused."
+                        : "AI proposal pending."}
+                </FeedbackMessage>
+            ) : null}
+            {execution == null && proposal === null && failure === null ? (
+                <FeedbackMessage className="mt-4" tone="info">
+                    AI execution state is not recorded.
+                </FeedbackMessage>
+            ) : null}
+            {execution?.status === "COMPLETED" && proposal === null ? (
+                <FeedbackMessage className="mt-4" tone="warning">
+                    AI execution completed; proposal details are unavailable.
+                </FeedbackMessage>
+            ) : null}
+            {execution?.status === "FAILED" && failure === null ? (
+                <FeedbackMessage className="mt-4" tone="warning">
+                    AI proposal failed; failure details are unavailable.
+                </FeedbackMessage>
+            ) : null}
 
             {failure !== null ? (
                 <FeedbackMessage className="mt-4" tone="warning">

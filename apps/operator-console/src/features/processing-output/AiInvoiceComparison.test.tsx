@@ -1,5 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 
 import { AiInvoiceComparison } from "./AiInvoiceComparison";
 
@@ -86,4 +86,70 @@ test("shows a bounded provider failure instead of a proposal", () => {
 
     expect(screen.getByText("AI proposal unavailable: Timeout.")).toBeVisible();
     expect(screen.queryByText("Invoice number")).not.toBeInTheDocument();
+});
+
+test("does not label an unknown invoice execution as disabled", () => {
+    render(
+        <AiInvoiceComparison
+            extraction={extraction}
+            proposal={null}
+            failure={null}
+            applicable
+        />,
+    );
+    expect(
+        screen.getByText("AI execution state is not recorded."),
+    ).toBeVisible();
+    expect(screen.queryByText(/disabled/)).not.toBeInTheDocument();
+});
+
+test.each([
+    ["DISABLED", "AI proposals are disabled for this run."],
+    ["COMPLETED", "AI execution completed; proposal details are unavailable."],
+    ["FAILED", "AI proposal failed; failure details are unavailable."],
+] as const)("shows persisted %s execution feedback", (status, message) => {
+    render(
+        <AiInvoiceComparison
+            extraction={extraction}
+            proposal={null}
+            failure={null}
+            execution={{
+                status,
+                started_at: null,
+                finished_at: "2026-09-29T10:00:00Z",
+                status_changed_at: "2026-09-29T10:00:00Z",
+            }}
+        />,
+    );
+    expect(screen.getByText(message)).toBeVisible();
+});
+
+test.each([
+    [0, "AI proposal pending."],
+    [
+        360_000,
+        "AI execution still reports running; automatic updates are paused.",
+    ],
+])("shows running feedback after %s ms", (age, message) => {
+    const at = Date.parse("2026-09-29T10:00:00Z");
+    const clock = vi.spyOn(Date, "now").mockReturnValue(at + Number(age));
+    try {
+        render(
+            <AiInvoiceComparison
+                extraction={extraction}
+                proposal={null}
+                failure={null}
+                execution={{
+                    status: "RUNNING",
+                    started_at: "2026-09-29T10:00:00Z",
+                    finished_at: null,
+                    status_changed_at: "2026-09-29T10:00:00Z",
+                }}
+            />,
+        );
+        expect(screen.getByText(message)).toBeVisible();
+        expect(screen.getByRole("status")).toBeVisible();
+    } finally {
+        clock.mockRestore();
+    }
 });

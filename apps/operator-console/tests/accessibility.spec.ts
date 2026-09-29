@@ -17,6 +17,44 @@ const primaryButtonStory = "/iframe.html?id=ui-button--primary&viewMode=story";
 const aiComparisonStory =
     "/iframe.html?id=processing-output-aiinvoicecomparison--partial-proposal&viewMode=story";
 
+for (const width of [1440, 320]) {
+    for (const [story, message] of [
+        ["running", "AI proposal pending."],
+        ["disabled", "AI proposals are disabled for this run."],
+        ["unrecorded", "AI execution state is not recorded."],
+        [
+            "stale-running",
+            "AI execution still reports running; automatic updates are paused.",
+        ],
+    ]) {
+        test(`AI execution ${story} is accessible and fits ${width}px`, async ({
+            page,
+        }, testInfo) => {
+            await page.setViewportSize({ width, height: 900 });
+            await page.goto(
+                `/iframe.html?id=processing-output-aiinvoicecomparison--${story}&viewMode=story`,
+            );
+            await expect(page.getByText(message)).toBeVisible();
+            const results = await new AxeBuilder({ page })
+                .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+                .disableRules(["landmark-one-main", "page-has-heading-one"])
+                .analyze();
+            expect(results.violations).toEqual([]);
+            expect(
+                await page.evaluate(
+                    () =>
+                        document.documentElement.scrollWidth >
+                        window.innerWidth,
+                ),
+            ).toBe(false);
+            await page.screenshot({
+                path: testInfo.outputPath(`ai-${story}-${width}.png`),
+                fullPage: true,
+            });
+        });
+    }
+}
+
 test("AI comparison has no browser-detected accessibility violations", async ({
     page,
 }) => {
