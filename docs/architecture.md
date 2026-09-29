@@ -295,6 +295,32 @@ provider from work still in progress. The source preview is stacked above the
 correction fields on desktop and mobile; a side-by-side review layout remains
 planned.
 
+### Advisory Execution Contract
+
+The domain now defines a separate `AiInvoiceProposalExecution` lifecycle.
+It is not yet persisted or exposed by the API or console; null outcomes still
+have the ambiguity described above.
+
+```mermaid
+stateDiagram-v2
+    [*] --> DISABLED: activity entered with provider disabled
+    [*] --> RUNNING: activity entered with provider enabled
+    RUNNING --> COMPLETED: proposal persisted
+    RUNNING --> FAILED: terminal provider failure persisted
+    DISABLED --> [*]
+    COMPLETED --> [*]
+    FAILED --> [*]
+```
+
+`RUNNING` includes waiting for the local model slot and bounded retries, not
+only model inference. `COMPLETED` means a proposal was recorded, even if its
+field validation is `INVALID`; it does not mean document approval. `FAILED`
+is a terminal provider outcome, not a change to the document status. Start and
+finish times are timezone-aware and cannot move backwards; terminal records
+cannot transition again. A missing execution record must not be interpreted as
+`DISABLED`: older histories and runs that have not reached the activity need
+an explicit unknown/not-started policy when the read model is implemented.
+
 The React upload feature keeps temporary file selection in local component state
 and delegates the remote mutation lifecycle to TanStack Query. One client-generated
 idempotency key is retained across retries of the same selection and replaced when

@@ -9,6 +9,12 @@ from document_platform.domain.processing.ai_invoice_extraction_proposal import (
     InvoiceProposalIssueCode,
     InvoiceProposalStatus,
 )
+from document_platform.domain.processing.ai_invoice_proposal_execution import (
+    AiInvoiceProposalExecution,
+    AiInvoiceProposalExecutionStatus,
+    InvalidAiInvoiceProposalExecution,
+    InvalidAiInvoiceProposalExecutionTransition,
+)
 from document_platform.domain.processing.ai_invoice_proposal_failure import (
     AiInvoiceProposalFailure,
     InvalidAiInvoiceProposalFailure,
@@ -95,6 +101,10 @@ from document_platform.domain.processing.workflow_start_request import (
 
 __all__ = [
     "AiInvoiceExtractionProposal",
+    "AiInvoiceProposalExecution",
+    "AiInvoiceProposalExecutionStatus",
+    "InvalidAiInvoiceProposalExecution",
+    "InvalidAiInvoiceProposalExecutionTransition",
     "AiInvoiceProposalFailure",
     "InvalidAiInvoiceProposalFailure",
     "InvoiceProposalGenerationFailureCode",
