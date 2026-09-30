@@ -405,6 +405,9 @@ and delegates the remote mutation lifecycle to TanStack Query. One client-genera
 idempotency key is retained across retries of the same selection and replaced when
 the selected document changes. Transport types come from the versioned OpenAPI
 contract; unexpected technical error details are not rendered to operators.
+The upload controls form a compact row above the work queues and stack on narrow
+screens. The picker displays PDF limits or the selected file name and size;
+selection, removal and submission remain separate actions.
 The work-queue view queries one bounded `ACTIVE`, `REVIEW`, `FAILED` or `UNSUPPORTED` page at a
 time, refreshes it periodically or on request, and opens the existing persisted
 status view for a selected document. The selected document ID is reflected in

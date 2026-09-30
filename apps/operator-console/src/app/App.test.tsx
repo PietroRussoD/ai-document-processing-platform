@@ -16,7 +16,7 @@ test("renders the document intake shell", () => {
     );
 
     expect(
-        screen.getByRole("heading", { name: "Upload a business document" }),
+        screen.getByRole("heading", { name: "Upload a document" }),
     ).toBeVisible();
     expect(screen.getByLabelText("Choose a PDF")).toHaveAttribute(
         "accept",
@@ -48,6 +48,6 @@ test("renders the system map at its direct URL", () => {
         "page",
     );
     expect(
-        screen.queryByRole("heading", { name: "Upload a business document" }),
+        screen.queryByRole("heading", { name: "Upload a document" }),
     ).not.toBeInTheDocument();
 });

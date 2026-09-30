@@ -46,65 +46,58 @@ export function DocumentFilePicker({
     }
 
     return (
-        <div className="border border-app-border bg-app-surface p-5 sm:p-7">
-            <label
-                htmlFor="document-file"
-                className="flex min-h-44 cursor-pointer flex-col items-center justify-center border border-dashed border-app-border-strong bg-app-canvas px-5 py-8 text-center transition-colors hover:border-app-accent focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-app-focus"
-            >
-                <FileText
-                    aria-hidden="true"
-                    className="mb-4 text-app-accent"
-                    size={28}
-                    strokeWidth={1.6}
-                />
-                <span className="font-semibold">Choose a PDF</span>
-                <span className="mt-1 text-sm text-app-muted">
-                    The document stays local until submitted.
-                </span>
-                <input
-                    ref={inputRef}
-                    id="document-file"
-                    type="file"
-                    accept="application/pdf,.pdf"
-                    aria-label="Choose a PDF"
-                    disabled={disabled}
-                    className="sr-only"
-                    onChange={(event) => selectFile(event.target.files?.[0])}
-                />
-            </label>
-
-            {error !== null ? (
-                <FeedbackMessage className="mt-4" role="alert" tone="danger">
-                    {error}
-                </FeedbackMessage>
-            ) : null}
-
-            {selectedFile !== null ? (
-                <div className="mt-4 flex min-w-0 items-center gap-3 border-t border-app-border pt-4">
+        <div>
+            <div className="flex min-w-0 items-center gap-2">
+                <label
+                    htmlFor="document-file"
+                    className={`flex min-h-18 min-w-0 flex-1 items-center gap-3 rounded border border-dashed border-app-border-strong bg-app-surface px-4 py-3 transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-app-focus ${disabled ? "cursor-default opacity-60" : "cursor-pointer hover:border-app-accent"}`}
+                >
                     <FileText
                         aria-hidden="true"
                         className="shrink-0 text-app-accent"
-                        size={20}
+                        size={24}
+                        strokeWidth={1.6}
                     />
-                    <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">
-                            {selectedFile.name}
-                        </p>
-                        <p className="text-xs text-app-muted">
-                            {formatBytes(selectedFile.size)}
-                        </p>
-                    </div>
+                    <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold">
+                            {selectedFile?.name ?? "Choose a PDF"}
+                        </span>
+                        <span className="mt-1 block text-xs text-app-muted">
+                            {selectedFile === null
+                                ? "PDF / Up to 20 MiB / Up to 50 pages"
+                                : formatBytes(selectedFile.size)}
+                        </span>
+                    </span>
+                    <input
+                        ref={inputRef}
+                        id="document-file"
+                        type="file"
+                        accept="application/pdf,.pdf"
+                        aria-label="Choose a PDF"
+                        disabled={disabled}
+                        className="sr-only"
+                        onChange={(event) =>
+                            selectFile(event.target.files?.[0])
+                        }
+                    />
+                </label>
+                {selectedFile !== null ? (
                     <button
                         type="button"
                         onClick={clearSelection}
                         disabled={disabled}
-                        className="grid size-9 shrink-0 place-items-center rounded text-app-muted hover:bg-app-canvas hover:text-app-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                        className="grid size-11 shrink-0 place-items-center rounded text-app-muted hover:bg-app-canvas hover:text-app-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
                         aria-label="Remove selected document"
                         title="Remove selected document"
                     >
                         <X aria-hidden="true" size={18} />
                     </button>
-                </div>
+                ) : null}
+            </div>
+            {error !== null ? (
+                <FeedbackMessage className="mt-3" role="alert" tone="danger">
+                    {error}
+                </FeedbackMessage>
             ) : null}
         </div>
     );

@@ -52,14 +52,16 @@ export function DocumentUploadPanel({
 
     return (
         <form onSubmit={submit}>
-            <DocumentFilePicker
-                disabled={upload.isPending}
-                selectedFile={selectedFile}
-                onSelectionChange={changeSelection}
-            />
-
-            <div className="mt-4 flex justify-end">
+            <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-start">
+                <div className="min-w-0 flex-1">
+                    <DocumentFilePicker
+                        disabled={upload.isPending}
+                        selectedFile={selectedFile}
+                        onSelectionChange={changeSelection}
+                    />
+                </div>
                 <Button
+                    className="shrink-0 sm:mt-3"
                     type="submit"
                     disabled={
                         selectedFile === null ||

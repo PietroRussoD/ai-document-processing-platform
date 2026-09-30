@@ -62,39 +62,17 @@ export function App() {
                     <SystemMapPage />
                 ) : (
                     <>
-                        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
-                            <section aria-labelledby="intake-heading">
-                                <div className="mb-6">
-                                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-app-accent">
-                                        Document intake
-                                    </p>
-                                    <h1
-                                        id="intake-heading"
-                                        className="text-3xl font-semibold sm:text-4xl"
-                                    >
-                                        Upload a business document
-                                    </h1>
-                                </div>
-                                <DocumentUploadPanel />
-                            </section>
-
-                            <aside
-                                className="border-l-2 border-app-border pl-5"
-                                aria-labelledby="requirements-heading"
-                            >
-                                <h2
-                                    id="requirements-heading"
-                                    className="text-sm font-semibold"
+                        <section aria-labelledby="intake-heading">
+                            <div className="mb-4">
+                                <h1
+                                    id="intake-heading"
+                                    className="text-xl font-semibold"
                                 >
-                                    File requirements
-                                </h2>
-                                <ul className="mt-3 space-y-2 text-sm text-app-muted">
-                                    <li>PDF format</li>
-                                    <li>Up to 20 MiB</li>
-                                    <li>Up to 50 pages</li>
-                                </ul>
-                            </aside>
-                        </div>
+                                    Upload a document
+                                </h1>
+                            </div>
+                            <DocumentUploadPanel />
+                        </section>
                         <DocumentWorkQueuesPanel />
                     </>
                 )}
