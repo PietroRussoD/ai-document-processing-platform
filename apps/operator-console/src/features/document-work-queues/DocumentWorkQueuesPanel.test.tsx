@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+    fireEvent,
+    render,
+    screen,
+    waitFor,
+    within,
+} from "@testing-library/react";
 import { type PropsWithChildren } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 
@@ -30,14 +36,15 @@ test("shows an active document and opens its persisted detail", async () => {
 
     renderPanel(api);
 
-    expect(await screen.findByText("invoice-42.pdf")).toBeVisible();
+    const row = (await screen.findByText("invoice-42.pdf")).closest("li");
+    expect(row).not.toBeNull();
     expect(screen.getByText("PROCESSING")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "View details" }));
 
     expect(new URL(window.location.href).searchParams.get("documentId")).toBe(
         documentId,
     );
-    expect(await screen.findByText("Persisted status")).toBeVisible();
+    expect(row).toContainElement(await screen.findByText("Persisted status"));
     expect(api.getStatus).toHaveBeenCalledWith(
         documentId,
         expect.any(AbortSignal),
@@ -50,6 +57,47 @@ test("shows an active document and opens its persisted detail", async () => {
     expect(screen.queryByText("Persisted status")).not.toBeInTheDocument();
 });
 
+test("moves the inline detail to the next selected row", async () => {
+    const secondId = "33333333-3333-4333-8333-333333333333";
+    const api = createApi({
+        listWorkQueue: vi.fn().mockResolvedValue(
+            queuePage([
+                queueItem(),
+                queueItem({
+                    document_id: secondId,
+                    original_filename: "invoice-43.pdf",
+                }),
+            ]),
+        ),
+    });
+
+    renderPanel(api);
+    const firstRow = (await screen.findByText("invoice-42.pdf")).closest("li")!;
+    const secondRow = screen.getByText("invoice-43.pdf").closest("li")!;
+
+    fireEvent.click(
+        within(firstRow).getByRole("button", { name: "View details" }),
+    );
+    expect(firstRow).toContainElement(
+        await screen.findByText("Persisted status"),
+    );
+
+    fireEvent.click(
+        within(secondRow).getByRole("button", { name: "View details" }),
+    );
+    await waitFor(() =>
+        expect(secondRow).toContainElement(
+            screen.getByText("Persisted status"),
+        ),
+    );
+    expect(
+        within(firstRow).queryByText("Persisted status"),
+    ).not.toBeInTheDocument();
+    expect(new URL(window.location.href).searchParams.get("documentId")).toBe(
+        secondId,
+    );
+});
+
 test("opens a document detail from a direct URL and follows browser history", async () => {
     window.history.replaceState({}, "", `/?documentId=${documentId}`);
     const api = createApi({
@@ -59,6 +107,7 @@ test("opens a document detail from a direct URL and follows browser history", as
     renderPanel(api);
 
     expect(await screen.findByText("Persisted status")).toBeVisible();
+    expect(screen.getByText("Persisted status").closest("li")).toBeNull();
     expect(api.getStatus).toHaveBeenCalledWith(
         documentId,
         expect.any(AbortSignal),

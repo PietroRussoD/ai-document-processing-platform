@@ -50,6 +50,9 @@ export function DocumentWorkQueuesPanel({
         queryFn: ({ signal }) => api.listWorkQueue(queue, offset, signal),
         refetchInterval: 15_000,
     });
+    const selectedDocumentInQueue = workQueueQuery.data?.items.some(
+        (item) => item.document_id === selectedDocumentId,
+    );
 
     useEffect(() => {
         function syncSelectedDocument() {
@@ -190,6 +193,7 @@ export function DocumentWorkQueuesPanel({
                     <ul className="mt-4 divide-y divide-app-border border-y border-app-border">
                         {workQueueQuery.data.items.map((item) => (
                             <QueueRow
+                                api={api}
                                 key={item.document_id}
                                 item={item}
                                 isSelected={
@@ -260,7 +264,9 @@ export function DocumentWorkQueuesPanel({
             ) : null}
 
             <div id="selected-document-details" className="mt-4">
-                {selectedDocumentId !== null ? (
+                {selectedDocumentId !== null &&
+                !workQueueQuery.isPending &&
+                !selectedDocumentInQueue ? (
                     <DocumentStatusPanel
                         api={api}
                         documentId={selectedDocumentId}
@@ -290,14 +296,17 @@ function updateDocumentUrl(documentId: string | null) {
 }
 
 function QueueRow({
+    api,
     item,
     isSelected,
     onSelect,
 }: {
+    api: WorkQueueApi;
     item: QueueItem;
     isSelected: boolean;
     onSelect: () => void;
 }) {
+    const detailsId = `document-details-${item.document_id}`;
     return (
         <li className="py-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -339,7 +348,7 @@ function QueueRow({
                     </dl>
                 </div>
                 <Button
-                    aria-controls="selected-document-details"
+                    aria-controls={detailsId}
                     aria-expanded={isSelected}
                     onClick={onSelect}
                     size="sm"
@@ -355,6 +364,14 @@ function QueueRow({
             <p className="mt-2 truncate font-mono text-xs text-app-muted">
                 {item.document_id}
             </p>
+            <div id={detailsId}>
+                {isSelected ? (
+                    <DocumentStatusPanel
+                        api={api}
+                        documentId={item.document_id}
+                    />
+                ) : null}
+            </div>
         </li>
     );
 }

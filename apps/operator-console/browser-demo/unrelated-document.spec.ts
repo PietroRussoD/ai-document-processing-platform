@@ -71,12 +71,15 @@ test("unrelated report finishes as unsupported without invoice review", async ({
         .getByRole("button", { name: "Unsupported", exact: true })
         .click();
     await expect(page.getByText(documentId)).toBeVisible();
-    await expect(page.getByText("equipment-report.pdf")).toBeVisible();
+    const row = page.getByText(documentId).locator("..");
+    await expect(row.getByText("equipment-report.pdf")).toBeVisible();
     await expect(page.getByText("No unsupported documents found.")).toHaveCount(
         0,
     );
+    await row.getByRole("button", { name: "View details" }).click();
+    await expect(row.getByText("Persisted status")).toBeVisible();
     await page.screenshot({
-        path: testInfo.outputPath("unrelated-report-queue.png"),
+        path: testInfo.outputPath("unrelated-report-inline-details.png"),
         fullPage: true,
     });
     expect(browserErrors).toEqual([]);
