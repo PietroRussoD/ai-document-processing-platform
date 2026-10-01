@@ -48,8 +48,9 @@ by the locked `iso4217` dependency.
 The processing timeline shows advisory AI execution separately from deterministic
 completion and review handoff; a completed AI execution does not approve a document.
 
-Remaining v1.0 work includes final demo evidence, documentation/security review and
-verification on the final candidate commit. The
+The three synthetic demo outcomes and local-model failure/recovery have been
+exercised. Remaining v1.0 work is the final documentation/security review and
+verification on the release-candidate commit. The
 [v1.0 verification record](docs/runbooks/v1.0-verification.md) separates observed
 results from open checks. This is a local synthetic-data demo. Physical blob
 deletion, malware scanning and production deployment are not implemented.
