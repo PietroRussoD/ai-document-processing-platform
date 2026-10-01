@@ -42,9 +42,9 @@ export function DocumentStatusPanel({
     if (statusQuery.isPending) {
         return (
             <section className="mt-4 border border-app-border bg-app-surface p-5">
-                <h3 className="text-sm font-semibold">Persisted status</h3>
+                <h3 className="text-sm font-semibold">Document details</h3>
                 <FeedbackMessage className="mt-3" tone="info">
-                    Loading persisted status
+                    Loading document details
                 </FeedbackMessage>
             </section>
         );
@@ -53,9 +53,10 @@ export function DocumentStatusPanel({
     if (statusQuery.isError) {
         return (
             <section className="mt-4 border border-app-border bg-app-surface p-5">
-                <h3 className="text-sm font-semibold">Persisted status</h3>
+                <h3 className="text-sm font-semibold">Document details</h3>
                 <FeedbackMessage className="mt-3" role="alert" tone="danger">
-                    The persisted status could not be loaded.
+                    The document details could not be loaded. Check your
+                    connection and try again.
                 </FeedbackMessage>
                 <Button
                     className="mt-4"
@@ -63,17 +64,52 @@ export function DocumentStatusPanel({
                     size="sm"
                 >
                     <RefreshCw aria-hidden="true" size={16} />
-                    Retry status
+                    Retry loading
                 </Button>
             </section>
         );
     }
 
     const document = statusQuery.data;
+    const guidance = documentGuidance(document);
     return (
-        <section className="mt-4 border border-app-border bg-app-surface p-5">
+        <section
+            aria-labelledby="document-status-heading"
+            className="mt-4 border border-app-border bg-app-surface p-4 sm:p-5"
+        >
             <div className="flex items-center justify-between gap-3">
-                <h3 className="text-sm font-semibold">Persisted status</h3>
+                <div className="min-w-0">
+                    <h3
+                        className="break-words text-base font-semibold"
+                        id="document-status-heading"
+                    >
+                        {statusQuery.data.original_filename}
+                    </h3>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-app-muted">
+                                Document
+                            </span>
+                            <StatusBadge
+                                label={formatStatus(statusQuery.data.status)}
+                                tone={statusTone(statusQuery.data.status)}
+                            />
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-xs text-app-muted">
+                                Processing
+                            </span>
+                            <StatusBadge
+                                label={formatStatus(
+                                    statusQuery.data.current_run.status,
+                                )}
+                                tone={statusTone(
+                                    statusQuery.data.current_run.status,
+                                )}
+                            />
+                        </div>
+                    </div>
+                </div>
                 <Button
                     aria-label="Refresh document status"
                     title="Refresh document status"
@@ -85,67 +121,57 @@ export function DocumentStatusPanel({
                     <RefreshCw aria-hidden="true" size={16} />
                 </Button>
             </div>
-            {document.current_run.status === "COMPLETED" &&
-            document.status !== "UNSUPPORTED" ? (
-                <FeedbackMessage className="mt-4" tone="success">
-                    Processing results are ready.
-                </FeedbackMessage>
-            ) : null}
-            {document.status === "UNSUPPORTED" ? (
-                <FeedbackMessage className="mt-4" tone="warning">
-                    {unsupportedDocumentMessage(document)}
-                </FeedbackMessage>
-            ) : null}
-            {document.current_run.status === "REVIEW_REQUIRED" ? (
-                <FeedbackMessage className="mt-4" tone="warning">
-                    Processing requires an operator review.
-                </FeedbackMessage>
-            ) : null}
-            {document.current_run.failure !== null ? (
-                <FeedbackMessage className="mt-4" tone="danger">
-                    Processing stopped after a terminal technical failure.
-                </FeedbackMessage>
-            ) : null}
-            <dl className="mt-4 grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
-                <StatusValue label="Document status" status={document.status} />
-                <StatusValue
-                    label="Processing status"
-                    status={document.current_run.status}
-                />
-                <Value label="Filename" value={document.original_filename} />
-                <Value label="Pages" value={String(document.page_count)} />
-                <Value
-                    label="Attempts"
-                    value={String(document.current_run.attempt_count)}
-                />
-                <Value
-                    label="Processing run ID"
-                    value={document.current_run.id}
-                    technical
-                />
-                {document.current_run.previous_run_id !== null ? (
+            <FeedbackMessage className="mt-4" tone={guidance.tone}>
+                <p className="font-semibold">{guidance.title}</p>
+                <p className="mt-1">{guidance.description}</p>
+                {document.status === "REVIEW_REQUIRED" ? (
+                    <a
+                        className="mt-2 inline-flex min-h-10 items-center font-semibold underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                        href="#review-resolution-heading"
+                    >
+                        Go to review form
+                    </a>
+                ) : null}
+            </FeedbackMessage>
+            <details className="mt-4 rounded border border-app-border">
+                <summary className="min-h-11 cursor-pointer px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus">
+                    Technical details
+                </summary>
+                <dl className="grid gap-x-6 gap-y-4 border-t border-app-border p-3 text-sm sm:grid-cols-2">
+                    <Value label="Pages" value={String(document.page_count)} />
                     <Value
-                        label="Previous processing run ID"
-                        value={document.current_run.previous_run_id}
+                        label="Attempts"
+                        value={String(document.current_run.attempt_count)}
+                    />
+                    <Value
+                        label="Processing run ID"
+                        value={document.current_run.id}
                         technical
                     />
-                ) : null}
-                {document.current_run.failure !== null ? (
-                    <>
+                    {document.current_run.previous_run_id !== null ? (
                         <Value
-                            label="Failure stage"
-                            value={formatStatus(
-                                document.current_run.failure.stage,
-                            )}
-                        />
-                        <Value
-                            label="Failure code"
-                            value={document.current_run.failure.code}
+                            label="Previous processing run ID"
+                            value={document.current_run.previous_run_id}
                             technical
                         />
-                    </>
-                ) : null}
-            </dl>
+                    ) : null}
+                    {document.current_run.failure !== null ? (
+                        <>
+                            <Value
+                                label="Failure stage"
+                                value={formatStatus(
+                                    document.current_run.failure.stage,
+                                )}
+                            />
+                            <Value
+                                label="Failure code"
+                                value={document.current_run.failure.code}
+                                technical
+                            />
+                        </>
+                    ) : null}
+                </dl>
+            </details>
             <ProcessingOutputPanel
                 corrections={
                     document.current_run.review_resolution?.corrections ?? []
@@ -175,28 +201,6 @@ export function DocumentStatusPanel({
             />
             <ProcessingTimeline run={document.current_run} />
         </section>
-    );
-}
-
-function StatusValue({
-    label,
-    status,
-}: {
-    label: string;
-    status: VisibleStatus;
-}) {
-    return (
-        <div>
-            <dt className="mb-1.5 text-xs font-medium text-app-muted">
-                {label}
-            </dt>
-            <dd>
-                <StatusBadge
-                    label={formatStatus(status)}
-                    tone={statusTone(status)}
-                />
-            </dd>
-        </div>
     );
 }
 
@@ -248,6 +252,63 @@ function statusTone(status: VisibleStatus): StatusTone {
             return "warning";
         default:
             return "neutral";
+    }
+}
+
+function documentGuidance(document: DocumentStatus): {
+    description: string;
+    title: string;
+    tone: Parameters<typeof FeedbackMessage>[0]["tone"];
+} {
+    switch (document.status) {
+        case "UPLOADED":
+            return {
+                title: "Waiting to start",
+                description:
+                    "The document was accepted and is waiting for processing.",
+                tone: "info",
+            };
+        case "PROCESSING":
+            return {
+                title: "Processing in progress",
+                description:
+                    "This view refreshes automatically while the document is processed.",
+                tone: "info",
+            };
+        case "REVIEW_REQUIRED":
+            return {
+                title: "Action required: review this document",
+                description:
+                    "Check the extracted values against the source, then approve or reject the document.",
+                tone: "warning",
+            };
+        case "APPROVED":
+            return {
+                title: "Document approved",
+                description:
+                    "The operator decision is saved. Processing results and the review record are below.",
+                tone: "success",
+            };
+        case "REJECTED":
+            return {
+                title: "Document rejected",
+                description:
+                    "The operator decision is saved. The review record is available below.",
+                tone: "danger",
+            };
+        case "UNSUPPORTED":
+            return {
+                title: "Unsupported document",
+                description: unsupportedDocumentMessage(document),
+                tone: "warning",
+            };
+        case "FAILED":
+            return {
+                title: "Processing stopped after a technical failure",
+                description:
+                    "Open Technical details to see the failed stage and error code.",
+                tone: "danger",
+            };
     }
 }
 

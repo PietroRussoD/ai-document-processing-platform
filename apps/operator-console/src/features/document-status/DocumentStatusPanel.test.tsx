@@ -64,14 +64,14 @@ test("allows a failed status request to be retried", async () => {
     );
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-        "The persisted status could not be loaded.",
+        "The document details could not be loaded.",
     );
-    fireEvent.click(screen.getByRole("button", { name: "Retry status" }));
+    fireEvent.click(screen.getByRole("button", { name: "Retry loading" }));
     expect(await screen.findByText("invoice.pdf")).toBeVisible();
     expect(getStatus).toHaveBeenCalledTimes(2);
 });
 
-test("confirms when processing results are ready", async () => {
+test("explains that an active document is still being processed", async () => {
     const getStatus = vi
         .fn<
             (
@@ -79,16 +79,14 @@ test("confirms when processing results are ready", async () => {
                 signal?: AbortSignal,
             ) => Promise<DocumentStatus>
         >()
-        .mockResolvedValue(status("PROCESSING", "COMPLETED"));
+        .mockResolvedValue(status("PROCESSING", "RUNNING"));
 
     render(
         <DocumentStatusPanel api={{ getStatus }} documentId={DOCUMENT_ID} />,
         { wrapper: QueryWrapper },
     );
 
-    expect(
-        await screen.findByText("Processing results are ready."),
-    ).toBeVisible();
+    expect(await screen.findByText("Processing in progress")).toBeVisible();
 });
 
 test("refreshes a completed run to reveal a later advisory proposal", async () => {
@@ -157,8 +155,11 @@ test("explains when processing requires an operator review", async () => {
     );
 
     expect(
-        await screen.findByText("Processing requires an operator review."),
+        await screen.findByText("Action required: review this document"),
     ).toBeVisible();
+    expect(
+        screen.getByRole("link", { name: "Go to review form" }),
+    ).toHaveAttribute("href", "#review-resolution-heading");
 });
 
 test("explains why a completed unknown document is unsupported", async () => {
@@ -214,6 +215,7 @@ test("shows the preceding run for a reprocessing lineage", async () => {
         { wrapper: QueryWrapper },
     );
 
+    fireEvent.click(await screen.findByText("Technical details"));
     expect(await screen.findByText("Previous processing run ID")).toBeVisible();
     expect(screen.getByText(previousRunId)).toBeVisible();
 });
@@ -237,10 +239,9 @@ test("shows bounded failure evidence for a failed run", async () => {
     );
 
     expect(
-        await screen.findByText(
-            "Processing stopped after a terminal technical failure.",
-        ),
+        await screen.findByText("Processing stopped after a technical failure"),
     ).toBeVisible();
+    fireEvent.click(screen.getByText("Technical details"));
     expect(screen.getByText("Embedded Text Extraction")).toBeVisible();
     expect(screen.getByText("ACTIVITY_RETRY_EXHAUSTED")).toBeVisible();
 });

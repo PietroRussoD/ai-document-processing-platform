@@ -415,6 +415,10 @@ the `documentId` query parameter, so a detail can be reopened directly and
 browser history restores the previous selection. Review and recovery actions
 continue to use their existing endpoints rather than mutating queue rows
 directly.
+The selected document view leads with the filename and separate document and
+processing statuses, followed by a status-specific explanation. Review-required
+documents link directly to the review form. Page count, attempts, run IDs and
+failure codes are grouped under a native expandable technical-details section.
 The result panel polls the same persisted status snapshot and renders the
 available processing stages without receiving document text.
 
