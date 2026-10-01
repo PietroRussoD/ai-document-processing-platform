@@ -609,8 +609,8 @@ database is cached under ignored `artifacts/trivy-cache/`:
 
 ```bash
 mkdir -p artifacts/trivy-cache
-docker build --pull -t document-platform-api:audit .
-docker build --pull -t document-platform-console:audit apps/operator-console
+docker build --pull --no-cache -t document-platform-api:audit .
+docker build --pull --no-cache -t document-platform-console:audit apps/operator-console
 docker save -o artifacts/api-audit.tar document-platform-api:audit
 docker save -o artifacts/console-audit.tar document-platform-console:audit
 docker run --rm -v "$PWD/artifacts:/artifacts" -v "$PWD/artifacts/trivy-cache:/root/.cache/trivy" aquasec/trivy:0.74.0 image --input /artifacts/api-audit.tar --scanners vuln --severity HIGH,CRITICAL --format json --output /artifacts/api-cves.json

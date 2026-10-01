@@ -18,6 +18,7 @@ FROM python:3.13-slim-trixie
 RUN python -m pip uninstall --yes --root-user-action=ignore pip
 
 RUN apt-get update \
+    && apt-get upgrade --no-install-recommends -y \
     && apt-get install --no-install-recommends -y tesseract-ocr tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 document-platform \
