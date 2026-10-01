@@ -32,8 +32,8 @@ export function DocumentJourney() {
                 How a document moves
             </h2>
             <p className="mt-2 max-w-3xl text-sm text-app-muted">
-                Reference paths through persisted states. These are not live
-                traces or example execution results.
+                Choose an outcome to follow each step, its owner and the saved
+                state changes. These are reference flows, not live traces.
             </p>
 
             <div

@@ -7,6 +7,7 @@ export type SystemNodeId =
     | "worker"
     | "blob"
     | "extractors"
+    | "aiProposal"
     | "observability";
 
 export type SystemNode = {
@@ -31,6 +32,7 @@ export const processingPath: readonly SystemNodeId[] = [
 export const supportingNodes: readonly SystemNodeId[] = [
     "blob",
     "extractors",
+    "aiProposal",
     "observability",
 ];
 
@@ -135,6 +137,18 @@ export const systemNodes: Record<SystemNodeId, SystemNode> = {
         receives: "PDF bytes from the worker",
         produces: "Embedded text and optional OCR text for persisted selection",
         referencePath: "docs/architecture.md#durable-workflow-handoff",
+    },
+    aiProposal: {
+        id: "aiProposal",
+        title: "Optional local AI proposal",
+        summary:
+            "Ollama suggests invoice fields after deterministic processing",
+        receives: "Selected invoice text from the worker when enabled",
+        produces:
+            "A separate field proposal or safe failure evidence; never an approval",
+        referencePath:
+            "src/document_platform/application/commands/propose_invoice_fields.py",
+        optional: true,
     },
     observability: {
         id: "observability",

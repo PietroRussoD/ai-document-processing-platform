@@ -66,6 +66,16 @@ const classification: JourneyStep = {
         "src/document_platform/application/commands/classify_document.py",
 };
 
+const aiProposal: JourneyStep = {
+    title: "Suggest invoice fields (optional)",
+    owner: "Worker / Ollama / PostgreSQL",
+    description:
+        "After deterministic processing, the worker can send the selected invoice text to a local model. A proposal or safe failure record is stored separately; the operator decides whether to use any suggested value.",
+    state: "AI execution DISABLED, COMPLETED or FAILED; document outcome is independent",
+    referencePath:
+        "src/document_platform/application/commands/propose_invoice_fields.py",
+};
+
 const invoiceSteps = [upload, handoff, processing, extraction, classification];
 
 export const journeys: readonly Journey[] = [
@@ -84,6 +94,7 @@ export const journeys: readonly Journey[] = [
                 referencePath:
                     "src/document_platform/application/commands/apply_invoice_validation.py",
             },
+            aiProposal,
         ],
     },
     {
@@ -102,6 +113,7 @@ export const journeys: readonly Journey[] = [
                 referencePath:
                     "src/document_platform/application/commands/apply_invoice_validation.py",
             },
+            aiProposal,
             {
                 title: "Resolve review",
                 owner: "Operator / API / PostgreSQL",

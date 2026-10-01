@@ -1,5 +1,6 @@
 import {
     BarChart3,
+    BrainCircuit,
     Cog,
     Database,
     ExternalLink,
@@ -34,6 +35,7 @@ const icons: Record<SystemNodeId, LucideIcon> = {
     worker: Cog,
     blob: HardDrive,
     extractors: ScanText,
+    aiProposal: BrainCircuit,
     observability: BarChart3,
 };
 
@@ -54,10 +56,14 @@ export function SystemMapPage() {
                     System Map
                 </h1>
                 <p className="mt-2 max-w-3xl text-sm text-app-muted">
-                    Implemented local topology. This reference map does not
-                    report live health or trace individual requests.
+                    Follow a PDF from upload to its final outcome. Invoice flows
+                    also show where an optional local model can suggest fields
+                    for an operator to review. These are reference flows, not
+                    live health checks or traces.
                 </p>
             </div>
+
+            <DocumentJourney />
 
             <section aria-labelledby="processing-path-heading" className="pt-7">
                 <h2
@@ -135,8 +141,6 @@ export function SystemMapPage() {
                     <ExternalLink aria-hidden="true" size={16} />
                 </a>
             </section>
-            <DocumentJourney />
-
             <section
                 aria-labelledby="technical-references-heading"
                 className="mt-12 border-t border-app-border pt-8"

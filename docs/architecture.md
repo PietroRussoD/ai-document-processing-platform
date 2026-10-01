@@ -268,7 +268,8 @@ details appear in the comparison panel only after persistence.
 
 The separate System Map page is static architecture documentation. Its document
 journey illustrates possible approval, review and failure/reprocessing paths
-using these persisted-state semantics and links to their implementations. It
+using these persisted-state semantics, including the optional advisory invoice
+proposal after deterministic completion. It links to the implementation and
 does not read a run, report live component health or reconstruct Temporal history.
 
 The local OCR adapter rasterizes pages with PyMuPDF and invokes the configured
