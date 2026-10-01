@@ -38,6 +38,7 @@ def test_accepts_a_partial_invoice_result() -> None:
         (UUID(int=0), "INV-42", "EUR", Decimal("12.50"), AT),
         (RUN_ID, "   ", "EUR", Decimal("12.50"), AT),
         (RUN_ID, "INV-42", "eur", Decimal("12.50"), AT),
+        (RUN_ID, "INV-42", "ZZZ", Decimal("12.50"), AT),
         (RUN_ID, "INV-42", "EUR", Decimal("-12.50"), AT),
         (RUN_ID, "INV-42", "EUR", Decimal("12.12345"), AT),
         (RUN_ID, "INV-42", "EUR", Decimal("12.50"), datetime(2026, 9, 16, 19, 0)),

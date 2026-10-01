@@ -32,6 +32,9 @@ machine and the private Compose network, not a public HTTP service.
   request details and should not be treated as a secret-free audit trail.
 - Database retention is explicit and dry-run-first. Blob auditing reports
   potential orphans but never deletes files.
+- Invoice currency values are checked against the ISO 4217 alpha-code data
+  bundled by the locked `iso4217` dependency; supported codes change only when
+  that dependency is updated.
 - The review console can fetch and display a source PDF only after an explicit
   operator action, using the in-memory review bearer token. It revokes its
   temporary object URL when the preview closes or unmounts. Blob bytes are

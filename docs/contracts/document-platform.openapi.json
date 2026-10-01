@@ -309,6 +309,7 @@
       "CurrencyReviewCorrectionRequest": {
         "properties": {
           "corrected_value": {
+            "description": "ISO 4217 alpha currency code.",
             "pattern": "^[A-Z]{3}$",
             "title": "Corrected Value",
             "type": "string"

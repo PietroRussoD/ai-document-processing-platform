@@ -42,6 +42,9 @@ document. An operator can adopt individual proposed values as corrections;
 the API verifies their provenance and validates the effective invoice before
 persisting an immutable decision.
 
+Currency values are checked against the ISO 4217 alpha-code registry supplied
+by the locked `iso4217` dependency.
+
 The processing timeline shows advisory AI execution separately from deterministic
 completion and review handoff; a completed AI execution does not approve a document.
 

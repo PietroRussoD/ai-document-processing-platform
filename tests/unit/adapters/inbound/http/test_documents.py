@@ -3,7 +3,11 @@
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
+import pytest
+from pydantic import ValidationError
+
 from document_platform.adapters.inbound.http.documents import (
+    CurrencyReviewCorrectionRequest,
     InvoiceExtractionMetadataResponse,
     InvoiceReviewCorrectionMetadataResponse,
 )
@@ -45,3 +49,17 @@ def test_serializes_a_review_correction_value_as_a_json_safe_string() -> None:
     )
 
     assert response.corrected_value == "39.9800"
+
+
+def test_validates_currency_corrections_against_iso_4217() -> None:
+    valid = CurrencyReviewCorrectionRequest(
+        field=InvoiceReviewField.CURRENCY,
+        corrected_value="CAD",
+    )
+
+    assert valid.corrected_value == "CAD"
+    with pytest.raises(ValidationError):
+        CurrencyReviewCorrectionRequest(
+            field=InvoiceReviewField.CURRENCY,
+            corrected_value="ZZZ",
+        )

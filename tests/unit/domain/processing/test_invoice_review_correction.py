@@ -59,6 +59,7 @@ def test_accepts_a_typed_immutable_correction_set() -> None:
         (InvoiceReviewField.ISSUE_DATE, datetime(2026, 9, 18, tzinfo=UTC)),
         (InvoiceReviewField.SUPPLIER_NAME, ""),
         (InvoiceReviewField.CURRENCY, "eur"),
+        (InvoiceReviewField.CURRENCY, "ZZZ"),
         (InvoiceReviewField.TOTAL_AMOUNT, Decimal("0")),
         (InvoiceReviewField.TOTAL_AMOUNT, Decimal("39.12345")),
     ],

@@ -6,6 +6,8 @@ from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID
 
+from document_platform.domain.processing.currency_code import is_iso_currency_code
+
 
 class InvoiceReviewField(StrEnum):
     INVOICE_NUMBER = "INVOICE_NUMBER"
@@ -61,10 +63,8 @@ def _validate_corrected_value(*, field: InvoiceReviewField, value: InvoiceReview
             raise InvalidInvoiceReviewCorrection(f"{field} must be a non-blank string")
         return
     if field is InvoiceReviewField.CURRENCY:
-        if not isinstance(value, str) or not _is_iso_currency_code(value):
-            raise InvalidInvoiceReviewCorrection(
-                "CURRENCY must be an uppercase ISO 4217 alpha code"
-            )
+        if not isinstance(value, str) or not is_iso_currency_code(value):
+            raise InvalidInvoiceReviewCorrection("CURRENCY must be an ISO 4217 alpha code")
         return
     if field is InvoiceReviewField.ISSUE_DATE:
         if not isinstance(value, date) or isinstance(value, datetime):
@@ -82,10 +82,6 @@ def _validate_corrected_value(*, field: InvoiceReviewField, value: InvoiceReview
             )
         return
     raise InvalidInvoiceReviewCorrection(f"unsupported review field: {field}")
-
-
-def _is_iso_currency_code(value: str) -> bool:
-    return len(value) == 3 and value.isascii() and value.isalpha() and value.isupper()
 
 
 def _is_timezone_aware(value: datetime) -> bool:

@@ -7,6 +7,8 @@ from decimal import Decimal
 from enum import StrEnum
 from uuid import UUID
 
+from document_platform.domain.processing.currency_code import is_iso_currency_code
+
 
 class InvoiceProposalStatus(StrEnum):
     VALID = "VALID"
@@ -105,10 +107,8 @@ class AiInvoiceExtractionProposal:
                 )
         if self.issue_date is not None and (isinstance(self.issue_date, datetime)):
             raise InvalidInvoiceExtractionProposal("issue_date must be a date")
-        if self.currency is not None and not _is_iso_currency_code(self.currency):
-            raise InvalidInvoiceExtractionProposal(
-                "currency must be an uppercase ISO 4217 alpha code"
-            )
+        if self.currency is not None and not is_iso_currency_code(self.currency):
+            raise InvalidInvoiceExtractionProposal("currency must be an ISO 4217 alpha code")
         if self.total_amount is not None:
             _validate_total_amount(self.total_amount)
         if not _is_timezone_aware(self.proposed_at):
@@ -154,10 +154,6 @@ def _validate_total_amount(value: Decimal) -> None:
     exponent = value.as_tuple().exponent
     if not isinstance(exponent, int) or -exponent > 4:
         raise InvalidInvoiceExtractionProposal("total_amount must have at most four decimal places")
-
-
-def _is_iso_currency_code(value: str) -> bool:
-    return len(value) == 3 and value.isascii() and value.isalpha() and value.isupper()
 
 
 def _is_timezone_aware(value: datetime) -> bool:

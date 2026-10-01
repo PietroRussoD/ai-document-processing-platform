@@ -98,6 +98,7 @@ def test_accepts_an_invalid_response_without_proposed_values() -> None:
         {"selected_text_sha256": "not-a-hash"},
         {"model_digest": "not-a-digest"},
         {"currency": "eur"},
+        {"currency": "ZZZ"},
         {"total_amount": Decimal("-1.00")},
         {"total_amount": Decimal("1.12345")},
         {"proposed_at": datetime(2026, 9, 27, 12, 0)},

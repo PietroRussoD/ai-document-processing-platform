@@ -58,6 +58,7 @@ from document_platform.domain.processing import (
     ReviewResolutionDecision,
     TextExtractionMethod,
 )
+from document_platform.domain.processing.currency_code import is_iso_currency_code
 from document_platform.settings import Settings
 
 
@@ -322,8 +323,18 @@ class SupplierNameReviewCorrectionRequest(BaseModel):
 
 class CurrencyReviewCorrectionRequest(BaseModel):
     field: Literal[InvoiceReviewField.CURRENCY]
-    corrected_value: str = Field(pattern=r"^[A-Z]{3}$")
+    corrected_value: str = Field(
+        pattern=r"^[A-Z]{3}$",
+        description="ISO 4217 alpha currency code.",
+    )
     source: InvoiceReviewCorrectionSource = InvoiceReviewCorrectionSource.MANUAL
+
+    @field_validator("corrected_value")
+    @classmethod
+    def validate_iso_currency_code(cls, value: str) -> str:
+        if not is_iso_currency_code(value):
+            raise ValueError("corrected_value must be an ISO 4217 alpha code")
+        return value
 
 
 class TotalAmountReviewCorrectionRequest(BaseModel):
