@@ -44,7 +44,9 @@ test("shows an active document and opens its persisted detail", async () => {
     expect(new URL(window.location.href).searchParams.get("documentId")).toBe(
         documentId,
     );
-    expect(row).toContainElement(await screen.findByText("Persisted status"));
+    expect(row).toContainElement(
+        await screen.findByRole("region", { name: "invoice-42.pdf" }),
+    );
     expect(api.getStatus).toHaveBeenCalledWith(
         documentId,
         expect.any(AbortSignal),
@@ -54,7 +56,9 @@ test("shows an active document and opens its persisted detail", async () => {
     expect(new URL(window.location.href).searchParams.has("documentId")).toBe(
         false,
     );
-    expect(screen.queryByText("Persisted status")).not.toBeInTheDocument();
+    expect(
+        screen.queryByRole("region", { name: "invoice-42.pdf" }),
+    ).not.toBeInTheDocument();
 });
 
 test("moves the inline detail to the next selected row", async () => {
@@ -79,7 +83,7 @@ test("moves the inline detail to the next selected row", async () => {
         within(firstRow).getByRole("button", { name: "View details" }),
     );
     expect(firstRow).toContainElement(
-        await screen.findByText("Persisted status"),
+        await screen.findByRole("region", { name: "invoice-42.pdf" }),
     );
 
     fireEvent.click(
@@ -87,11 +91,11 @@ test("moves the inline detail to the next selected row", async () => {
     );
     await waitFor(() =>
         expect(secondRow).toContainElement(
-            screen.getByText("Persisted status"),
+            screen.getByRole("region", { name: "invoice-42.pdf" }),
         ),
     );
     expect(
-        within(firstRow).queryByText("Persisted status"),
+        within(firstRow).queryByRole("region", { name: "invoice-42.pdf" }),
     ).not.toBeInTheDocument();
     expect(new URL(window.location.href).searchParams.get("documentId")).toBe(
         secondId,
@@ -106,8 +110,11 @@ test("opens a document detail from a direct URL and follows browser history", as
 
     renderPanel(api);
 
-    expect(await screen.findByText("Persisted status")).toBeVisible();
-    expect(screen.getByText("Persisted status").closest("li")).toBeNull();
+    const details = await screen.findByRole("region", {
+        name: "invoice-42.pdf",
+    });
+    expect(details).toBeVisible();
+    expect(details.closest("li")).toBeNull();
     expect(api.getStatus).toHaveBeenCalledWith(
         documentId,
         expect.any(AbortSignal),
@@ -117,7 +124,9 @@ test("opens a document detail from a direct URL and follows browser history", as
     window.dispatchEvent(new PopStateEvent("popstate"));
 
     await waitFor(() =>
-        expect(screen.queryByText("Persisted status")).not.toBeInTheDocument(),
+        expect(
+            screen.queryByRole("region", { name: "invoice-42.pdf" }),
+        ).not.toBeInTheDocument(),
     );
 });
 

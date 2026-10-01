@@ -240,7 +240,10 @@ export interface components {
         };
         /** CurrencyReviewCorrectionRequest */
         CurrencyReviewCorrectionRequest: {
-            /** Corrected Value */
+            /**
+             * Corrected Value
+             * @description ISO 4217 alpha currency code.
+             */
             corrected_value: string;
             /**
              * @description discriminator enum property added by openapi-typescript
