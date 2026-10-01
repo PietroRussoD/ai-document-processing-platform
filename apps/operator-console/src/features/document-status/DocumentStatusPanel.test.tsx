@@ -39,6 +39,7 @@ test.each([
         expect(await screen.findByText(documentLabel)).toBeVisible();
         expect(screen.getByText(runLabel)).toBeVisible();
         expect(screen.getByText("invoice.pdf")).toBeVisible();
+        fireEvent.click(screen.getByText("Technical details"));
         expect(screen.getByText("2")).toBeVisible();
         expect(getStatus).toHaveBeenCalledWith(
             DOCUMENT_ID,

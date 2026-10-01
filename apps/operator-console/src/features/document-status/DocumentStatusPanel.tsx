@@ -88,7 +88,7 @@ export function DocumentStatusPanel({
                     <div className="mt-2 flex flex-wrap gap-2">
                         <div className="flex items-center gap-1.5">
                             <span className="text-xs text-app-muted">
-                                Document
+                                Document status
                             </span>
                             <StatusBadge
                                 label={formatStatus(statusQuery.data.status)}
@@ -97,7 +97,7 @@ export function DocumentStatusPanel({
                         </div>
                         <div className="flex items-center gap-1.5">
                             <span className="text-xs text-app-muted">
-                                Processing
+                                Processing status
                             </span>
                             <StatusBadge
                                 label={formatStatus(

@@ -29,9 +29,15 @@ test("shows the implemented processing path and component evidence", () => {
 test("marks observability as optional and has no basic accessibility violations", async () => {
     const { container } = render(<SystemMapPage />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Observability/ }));
+    const supporting = within(
+        screen.getByRole("region", { name: "Supporting components" }),
+    );
+    const observability = supporting.getByRole("button", {
+        name: /Observability/,
+    });
+    fireEvent.click(observability);
 
-    expect(screen.getByText("Optional")).toBeVisible();
+    expect(within(observability).getByText("Optional")).toBeVisible();
     expect(
         screen.getByRole("heading", { name: "Observability" }),
     ).toBeVisible();
