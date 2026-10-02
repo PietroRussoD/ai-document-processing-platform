@@ -49,11 +49,13 @@ The processing timeline shows advisory AI execution separately from deterministi
 completion and review handoff; a completed AI execution does not approve a document.
 
 The three synthetic demo outcomes and local-model failure/recovery have been
-exercised. Remaining v1.0 work is the final documentation/security review and
-verification on the release-candidate commit. The
-[v1.0 verification record](docs/runbooks/v1.0-verification.md) separates observed
-results from open checks. This is a local synthetic-data demo. Physical blob
-deletion, malware scanning and production deployment are not implemented.
+exercised. Candidate `7d103f4` passed GitHub CI, clean-clone verification,
+browser accessibility checks and an isolated desktop/mobile Compose walkthrough.
+The API image still reports CRITICAL/HIGH OS-package findings; v1.0.0 is not
+released. Review the remaining security and release decisions in the
+[v1.0 verification record](docs/runbooks/v1.0-verification.md). This is a local
+synthetic-data demo. Physical blob deletion, malware scanning and production
+deployment are not implemented.
 
 The model adapter classifies provider timeouts, unavailability and invalid
 response envelopes using safe error codes. The workflow makes at most two
