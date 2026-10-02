@@ -102,6 +102,7 @@ test("shows invoice review reasons without exposing source text", () => {
         />,
     );
 
+    expect(screen.getByText("Original extraction validation")).toBeVisible();
     expect(screen.getByText("Review Required")).toBeVisible();
     expect(
         screen.getByText("Missing Issue Date, Missing Total Amount"),

@@ -199,7 +199,10 @@ export function ProcessingOutputPanel({
                         </>
                     )}
                 </ResultGroup>
-                <ResultGroup icon={ShieldCheck} title="Invoice validation">
+                <ResultGroup
+                    icon={ShieldCheck}
+                    title="Original extraction validation"
+                >
                     {output.invoice_validation === null ? (
                         <ResultValue
                             label="Decision"
