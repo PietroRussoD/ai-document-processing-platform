@@ -28,7 +28,7 @@ test("provider outage leaves review available and recovery restores proposals", 
     page.on("pageerror", (error) => browserErrors.push(error.message));
     await page.goto(failedUrl);
     await expect(
-        page.getByText("Processing requires an operator review."),
+        page.getByText("Action required: review this document"),
     ).toBeVisible();
     await expect(
         page.getByText("AI proposal unavailable: Unavailable."),
@@ -52,7 +52,7 @@ test("provider outage leaves review available and recovery restores proposals", 
 
     await page.goto(recoveredUrl);
     await expect(
-        page.getByText("Processing requires an operator review."),
+        page.getByText("Action required: review this document"),
     ).toBeVisible();
     await expect(page.getByText("AI proposal comparison")).toBeVisible();
     await expect(

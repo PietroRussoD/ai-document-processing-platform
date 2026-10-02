@@ -18,7 +18,7 @@ test("synthetic document remains inspectable across console views", async ({
 
     await page.goto(documentUrl);
     await expect(
-        page.getByText("Processing requires an operator review."),
+        page.getByText("Action required: review this document"),
     ).toBeVisible();
     await expect(page.getByText("Missing Invoice Number")).toBeVisible();
     await page.screenshot({

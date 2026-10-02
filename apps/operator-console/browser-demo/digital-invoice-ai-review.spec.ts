@@ -37,7 +37,7 @@ test("digital invoice AI proposal remains advisory until operator approval", asy
     page.on("pageerror", (error) => browserErrors.push(error.message));
     await page.goto(documentUrl);
     await expect(
-        page.getByText("Processing requires an operator review."),
+        page.getByText("Action required: review this document"),
     ).toBeVisible();
     await expect(
         page.getByText(
