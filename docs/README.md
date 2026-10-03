@@ -49,3 +49,5 @@ Read in this order to follow one document through the system.
   verified.
 - [Verification runbooks](runbooks/): the repeatable checks and observed
   results recorded for each release.
+- [Repository history](history.md): the 2026-10-03 history rewrite and the
+  old-to-new commit map.

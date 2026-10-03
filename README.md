@@ -11,6 +11,10 @@ release scope is recorded in [release notes](docs/releases/). Start with the
 [documentation index](docs/README.md) and the
 [product overview](docs/product-overview.md).
 
+The history of this repository was rewritten on 2026-10-03 to replace the commit author
+email. Hashes cited in the release records of earlier versions map to the current ones in
+[`docs/history.md`](docs/history.md).
+
 The local demo provides:
 
 - bounded, idempotent PDF upload, filesystem storage and atomic PostgreSQL registration;
