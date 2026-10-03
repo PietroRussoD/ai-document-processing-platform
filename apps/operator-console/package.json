@@ -1,7 +1,7 @@
 {
   "name": "@ai-document-processing-platform/operator-console",
   "private": true,
-  "version": "1.0.0-dev.0",
+  "version": "1.0.0",
   "packageManager": "pnpm@11.23.0",
   "type": "module",
   "engines": {

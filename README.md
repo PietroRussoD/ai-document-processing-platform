@@ -5,8 +5,8 @@ data from business documents.
 
 ## Status
 
-Development targets `v1.0.0`; the packages report `1.0.0.dev0` and
-`1.0.0-dev.0` until that release is cut. The latest tagged release is
+The `v1.0.0` release candidate reports package version `1.0.0`; it is not
+tagged yet. The latest tagged release is
 [`v0.9.0`](https://github.com/PietroRussoD/ai-document-processing-platform/tree/v0.9.0).
 The behavior below describes current development; historical release scope is
 recorded in [release notes](docs/releases/).
@@ -144,6 +144,8 @@ Unsupported document outcomes and their operator queue are defined by
 [ADR 0010](docs/decisions/0010-record-unsupported-document-outcomes.md).
 Authenticated source-PDF preview is defined by
 [ADR 0011](docs/decisions/0011-protect-local-source-document-preview.md).
+Durable document-processing orchestration is defined by
+[ADR 0012](docs/decisions/0012-use-temporal-for-durable-document-processing.md).
 
 ## Repository Layout
 

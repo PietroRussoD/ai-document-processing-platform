@@ -759,3 +759,4 @@ records the demo trust boundary and controls not yet implemented.
 - [ADR 0009: Use Explicit, Safe Document Retention](decisions/0009-use-explicit-safe-document-retention.md)
 - [ADR 0010: Record Unsupported Document Outcomes](decisions/0010-record-unsupported-document-outcomes.md)
 - [ADR 0011: Protect Local Source-Document Preview](decisions/0011-protect-local-source-document-preview.md)
+- [ADR 0012: Use Temporal for Durable Document-Processing Orchestration](decisions/0012-use-temporal-for-durable-document-processing.md)
