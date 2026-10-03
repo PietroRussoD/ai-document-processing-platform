@@ -49,13 +49,18 @@ The processing timeline shows advisory AI execution separately from deterministi
 completion and review handoff; a completed AI execution does not approve a document.
 
 The three synthetic demo outcomes and local-model failure/recovery have been
-exercised. Candidate `7d103f4` passed GitHub CI, clean-clone verification,
-browser accessibility checks and an isolated desktop/mobile Compose walkthrough.
-The API image still reports CRITICAL/HIGH OS-package findings; v1.0.0 is not
-released. Review the remaining security and release decisions in the
-[v1.0 verification record](docs/runbooks/v1.0-verification.md). This is a local
-synthetic-data demo. Physical blob deletion, malware scanning and production
-deployment are not implemented.
+exercised. Code candidate `86e86ae` passed GitHub CI, clean-clone verification,
+browser accessibility checks, an isolated desktop/mobile Compose walkthrough
+and a fresh ARM64 image scan. The later scoped-risk decision commit `760b50f`
+passed CI; the full local gate and all 35 Playwright browser checks also passed
+on that commit. Its changes since the image scan are documentation-only. The
+API image still reports CRITICAL/HIGH OS-package findings and is not a release
+artifact; the residual risk is accepted only for this local synthetic-data
+demo. v1.0.0 is not released. See the
+[v1.0 verification record](docs/runbooks/v1.0-verification.md) and
+[scoped risk decision](docs/security-and-limitations.md#v10-release-risk-decision).
+Physical blob deletion, malware scanning and production deployment are not
+implemented.
 
 The model adapter classifies provider timeouts, unavailability and invalid
 response envelopes using safe error codes. The workflow makes at most two
