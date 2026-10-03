@@ -3,13 +3,20 @@
 ## Purpose
 
 The platform accepts synthetic business documents and processes them
-asynchronously for validation and review. `v0.1` implemented the ingestion
-boundary; `v0.7` added safe terminal-failure reconciliation to bounded
-operational telemetry, text extraction, OCR fallback, canonical-text selection,
-deterministic classification, invoice extraction, invoice validation,
-authenticated review resolution and immutable field-level corrections. It is
-designed as a local-first system: a clean default run does not require cloud
-credentials or a paid AI provider.
+asynchronously for validation and review. Uploads are bounded, idempotent and
+stored by content hash. A dispatcher hands committed start requests to a
+Temporal workflow that extracts embedded text, falls back to OCR, selects the
+canonical text, classifies the document and validates invoices
+deterministically. Operators resolve review-required invoices with typed
+corrections that record their provenance; values taken from a model proposal
+are checked against the persisted proposal. An optional local model can propose
+invoice fields without becoming authoritative. Terminal failures record
+bounded evidence, and a failed run can be replaced through controlled
+reprocessing.
+
+It is designed as a local-first system: a clean default run does not require
+cloud credentials or a paid AI provider. The [product overview](product-overview.md)
+summarizes the same scope for a first reading.
 
 ## Runtime System Map
 
