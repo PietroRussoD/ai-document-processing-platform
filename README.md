@@ -5,11 +5,11 @@ data from business documents.
 
 ## Status
 
-The `v1.0.0` release candidate reports package version `1.0.0`; it is not
-tagged yet. The latest tagged release is
-[`v0.9.0`](https://github.com/PietroRussoD/ai-document-processing-platform/tree/v0.9.0).
-The behavior below describes current development; historical release scope is
-recorded in [release notes](docs/releases/).
+The `v1.0.0` packages report version `1.0.0`. This is a local demonstration
+release for synthetic documents, not a production deployment. Historical
+release scope is recorded in [release notes](docs/releases/). Start with the
+[documentation index](docs/README.md) and the
+[product overview](docs/product-overview.md).
 
 The local demo provides:
 
@@ -49,15 +49,11 @@ The processing timeline shows advisory AI execution separately from deterministi
 completion and review handoff; a completed AI execution does not approve a document.
 
 The three synthetic demo outcomes and local-model failure/recovery have been
-exercised. Code candidate `86e86ae` passed GitHub CI, clean-clone verification,
-browser accessibility checks, an isolated desktop/mobile Compose walkthrough
-and a fresh ARM64 image scan. The later scoped-risk decision commit `760b50f`
-passed CI; the full local gate and all 35 Playwright browser checks also passed
-on that commit. Its changes since the image scan are documentation-only. The
-API image still reports CRITICAL/HIGH OS-package findings and is not a release
-artifact; the residual risk is accepted only for this local synthetic-data
-demo. v1.0.0 is not released. See the
-[v1.0 verification record](docs/runbooks/v1.0-verification.md) and
+exercised. Release verification is recorded in the
+[v1.0.0 release notes](docs/releases/v1.0.0.md) and the
+[v1.0 verification record](docs/runbooks/v1.0-verification.md). The API image
+still reports CRITICAL/HIGH OS-package findings and is not a release artifact;
+the residual risk is accepted only for this local synthetic-data demo. See the
 [scoped risk decision](docs/security-and-limitations.md#v10-release-risk-decision).
 Physical blob deletion, malware scanning and production deployment are not
 implemented.

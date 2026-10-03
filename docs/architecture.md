@@ -477,22 +477,33 @@ it does not restart or mutate the failure evidence.
 
 ## Domain Lifecycles
 
-The domain model reserves the following document lifecycle for processing and
-review. Current worker execution transitions `UPLOADED` to `PROCESSING`:
+The document lifecycle allowed by the domain model
+(`src/document_platform/domain/documents/document.py`):
 
 ```mermaid
 stateDiagram-v2
     [*] --> UPLOADED
-    UPLOADED --> PROCESSING
+    UPLOADED --> PROCESSING: run started
     PROCESSING --> APPROVED: automatic validation
-    PROCESSING --> REVIEW_REQUIRED: uncertain result
+    PROCESSING --> REVIEW_REQUIRED: incomplete invoice
+    PROCESSING --> UNSUPPORTED: not an invoice
+    PROCESSING --> FAILED: retries exhausted
     REVIEW_REQUIRED --> APPROVED: reviewer approves
     REVIEW_REQUIRED --> REJECTED: reviewer rejects
+    APPROVED --> PROCESSING: reprocessing
+    REJECTED --> PROCESSING: reprocessing
+    FAILED --> PROCESSING: reprocessing
+    UNSUPPORTED --> PROCESSING: model only
 ```
 
+The reprocessing command reopens `APPROVED`, `REJECTED` and `FAILED`
+documents. It refuses `UNSUPPORTED` and `REVIEW_REQUIRED` documents, so the
+`UNSUPPORTED` transition is not reachable through the application today.
+
 Processing-run status describes one durable technical execution. Failures and
-retries belong here rather than in the document lifecycle. Current worker
-execution transitions a `QUEUED` run to `RUNNING`:
+retries belong here rather than in the document lifecycle. The transitions
+allowed by the domain model
+(`src/document_platform/domain/processing/processing_run.py`):
 
 ```mermaid
 stateDiagram-v2
@@ -502,8 +513,10 @@ stateDiagram-v2
     RUNNING --> COMPLETED
     RUNNING --> WAITING_RETRY
     WAITING_RETRY --> RUNNING: retry
+    WAITING_RETRY --> FAILED
     RUNNING --> REVIEW_REQUIRED
     REVIEW_REQUIRED --> COMPLETED: review resolved
+    REVIEW_REQUIRED --> RUNNING
     RUNNING --> FAILED
     RUNNING --> CANCELLED
     WAITING_RETRY --> CANCELLED
@@ -738,7 +751,7 @@ tests/e2e/           API and browser journeys
 | Invoice extraction | Deterministic extraction and validation, opt-in advisory proposals, API/console comparison, explicit proposal adoption and immutable correction provenance | Broader corpus and model-quality evaluation |
 | Text extraction | Embedded/OCR extraction and persisted canonical source selection | OCR quality calibration and language policy |
 | Document classification | Deterministic canonical-text keyword policy | Evaluated local model policy |
-| Workflow execution | Temporal development server with local worker | Managed/self-hosted Temporal later |
+| Workflow execution | Self-hosted `temporalio/auto-setup` server with a dedicated PostgreSQL database and a local worker | Managed or production self-hosted Temporal later |
 | Application containers | Multi-stage non-root Python image; static React build served by unprivileged NGINX with `/api` proxy; opt-in Compose `app` and local `processing` profiles with migration and Temporal readiness gates, shared document volume | Production deployment configuration outside local Compose |
 | Review authentication | Configured local static bearer token | Enterprise identity and authorization provider |
 | Operational telemetry | Prometheus metrics, provisioned local Grafana dashboard and allowlisted JSON logs with bounded HTTP correlation | Production monitoring, access policy and alerting |
