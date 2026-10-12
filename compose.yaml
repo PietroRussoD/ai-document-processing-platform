@@ -166,7 +166,7 @@ services:
 
   temporal-ui:
     profiles: ["temporal", "processing"]
-    image: temporalio/ui:2.54.1
+    image: temporalio/ui:2.55.0
     depends_on:
       temporal:
         condition: service_healthy
