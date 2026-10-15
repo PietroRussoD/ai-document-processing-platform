@@ -259,6 +259,18 @@ whether it was entered manually or selected from the proposal. The API verifies
 AI-sourced values against the persisted proposal before accepting them; the
 browser cannot assert that provenance by itself.
 
+The Documents page keeps review drafts in React memory, keyed by document,
+processing run and extraction timestamp. Switching or hiding a document,
+queue navigation and browser history preserve field values, correction sources
+and review notes. Operator tokens remain local to the mounted review panel and
+are not part of the draft. No draft data is written to browser storage.
+A successful review clears its draft; a failed request preserves it. Invoice
+fields and proposal adoption are disabled while the decision is being saved.
+When any draft has unsaved changes, the page registers a native browser
+`beforeunload` warning for reloads and full-page navigation, including System
+Map. The browser controls whether it displays that warning; drafts are not
+durable across page reloads or browser termination.
+
 The operator console derives its processing timeline from the same persisted
 metadata exposed by the status endpoint. It does not query Temporal directly,
 and it does not receive document text or blob paths. A deterministic stage is shown as

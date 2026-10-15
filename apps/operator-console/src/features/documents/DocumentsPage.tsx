@@ -7,6 +7,7 @@ import {
     type DocumentApi,
 } from "../../api/documentApi";
 import { DocumentStatusPanel } from "../document-status/DocumentStatusPanel";
+import { ReviewDraftProvider } from "../document-review/ReviewDraftProvider";
 import { DocumentUploadPanel } from "../document-upload/DocumentUploadPanel";
 import { DocumentWorkQueuesPanel } from "../document-work-queues/DocumentWorkQueuesPanel";
 
@@ -15,6 +16,14 @@ type DocumentsApi = Pick<DocumentApi, "upload" | "getStatus" | "listWorkQueue">;
 const defaultApi = createDocumentApi();
 
 export function DocumentsPage({ api = defaultApi }: { api?: DocumentsApi }) {
+    return (
+        <ReviewDraftProvider>
+            <DocumentsWorkspace api={api} />
+        </ReviewDraftProvider>
+    );
+}
+
+function DocumentsWorkspace({ api }: { api: DocumentsApi }) {
     const queryClient = useQueryClient();
     const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(
         selectedDocumentFromUrl,
@@ -69,6 +78,13 @@ export function DocumentsPage({ api = defaultApi }: { api?: DocumentsApi }) {
                 onSelectDocument={selectDocument}
             />
             <div id="selected-document-details" className="mt-4">
+                {selectedDocumentId !== null ? (
+                    <p className="text-sm text-app-muted">
+                        Unsaved review drafts are kept while you switch
+                        documents. Save your review before leaving or reloading
+                        this page.
+                    </p>
+                ) : null}
                 {selectedDocumentId !== null ? (
                     <DocumentStatusPanel
                         key={selectedDocumentId}

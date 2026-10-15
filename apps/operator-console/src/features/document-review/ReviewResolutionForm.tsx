@@ -14,26 +14,20 @@ import type {
 } from "../../api/documentApi";
 import { Button } from "../../components/ui/Button";
 import { FeedbackMessage } from "../../components/ui/FeedbackMessage";
+import {
+    useReviewDraft,
+    type InvoiceExtraction,
+    type InvoiceValues,
+} from "./reviewDraft";
 
 export type ReviewDecision = "APPROVE" | "REJECT";
 
-type InvoiceExtraction = NonNullable<
-    NonNullable<
-        DocumentStatus["current_run"]["processing_output"]
-    >["invoice_extraction"]
->;
 type AiProposal = DocumentStatus["current_run"]["ai_proposal"];
 type ReviewCorrections = ReviewResolutionRequest["corrections"];
-type InvoiceValues = {
-    invoiceNumber: string;
-    issueDate: string;
-    supplierName: string;
-    currency: string;
-    totalAmount: string;
-};
 
 type ReviewResolutionFormProps = {
     aiProposal?: AiProposal;
+    draftKey?: string;
     errorMessage: string | null;
     invoiceExtraction: InvoiceExtraction | null;
     isSaving: boolean;
@@ -52,6 +46,7 @@ const reviewResolutionErrorId = "review-resolution-error";
 
 export function ReviewResolutionForm({
     aiProposal = null,
+    draftKey,
     errorMessage,
     invoiceExtraction,
     isSaving,
@@ -62,12 +57,8 @@ export function ReviewResolutionForm({
     reviewNote,
     sourcePreview,
 }: ReviewResolutionFormProps) {
-    const [invoiceValues, setInvoiceValues] = useState(() =>
-        toInvoiceValues(invoiceExtraction),
-    );
-    const [correctionSources, setCorrectionSources] = useState<
-        Partial<Record<keyof InvoiceValues, "MANUAL" | "AI_PROPOSAL">>
-    >({});
+    const { draft, updateDraft } = useReviewDraft(draftKey, invoiceExtraction);
+    const { invoiceValues, correctionSources } = draft;
     const [fieldErrors, setFieldErrors] = useState<InvoiceFieldErrors>({});
     const canApprove = invoiceExtraction !== null;
     const corrections = invoiceExtraction
@@ -79,8 +70,14 @@ export function ReviewResolutionForm({
         : [];
 
     function updateInvoiceValue(field: keyof InvoiceValues, value: string) {
-        setInvoiceValues((current) => ({ ...current, [field]: value }));
-        setCorrectionSources((current) => ({ ...current, [field]: "MANUAL" }));
+        updateDraft((current) => ({
+            ...current,
+            invoiceValues: { ...current.invoiceValues, [field]: value },
+            correctionSources: {
+                ...current.correctionSources,
+                [field]: "MANUAL",
+            },
+        }));
         setFieldErrors((current) => ({ ...current, [field]: undefined }));
     }
 
@@ -91,10 +88,13 @@ export function ReviewResolutionForm({
         if (value === null) {
             return;
         }
-        setInvoiceValues((current) => ({ ...current, [field]: value }));
-        setCorrectionSources((current) => ({
+        updateDraft((current) => ({
             ...current,
-            [field]: "AI_PROPOSAL",
+            invoiceValues: { ...current.invoiceValues, [field]: value },
+            correctionSources: {
+                ...current.correctionSources,
+                [field]: "AI_PROPOSAL",
+            },
         }));
         setFieldErrors((current) => ({ ...current, [field]: undefined }));
     }
@@ -107,11 +107,12 @@ export function ReviewResolutionForm({
         const errors = validateInvoiceValues(invoiceExtraction, invoiceValues);
         setFieldErrors(errors);
         const firstInvalidField = Object.keys(errors)[0] as
-            | keyof InvoiceValues
-            | undefined;
+            keyof InvoiceValues | undefined;
         if (firstInvalidField !== undefined) {
             document
-                .getElementById(invoiceFieldId(invoiceFieldLabel(firstInvalidField)))
+                .getElementById(
+                    invoiceFieldId(invoiceFieldLabel(firstInvalidField)),
+                )
                 ?.focus();
             return;
         }
@@ -194,7 +195,10 @@ export function ReviewResolutionForm({
                 ) : null}
                 <div className="min-w-0">
                     {invoiceExtraction !== null ? (
-                        <fieldset className="min-w-0 border-t border-amber-200 pt-5">
+                        <fieldset
+                            className="min-w-0 border-t border-amber-200 pt-5"
+                            disabled={isSaving}
+                        >
                             <legend className="text-sm font-semibold text-amber-950">
                                 Correct extracted invoice fields
                             </legend>
@@ -402,7 +406,9 @@ function InvoiceField({
             </div>
             <input
                 id={invoiceFieldId(label)}
-                aria-describedby={error ? invoiceFieldErrorId(label) : undefined}
+                aria-describedby={
+                    error ? invoiceFieldErrorId(label) : undefined
+                }
                 aria-invalid={error ? true : undefined}
                 className="mt-1.5 h-10 w-full rounded border border-app-border-strong bg-app-surface px-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
                 maxLength={maxLength}
@@ -434,7 +440,8 @@ function validateInvoiceValues(
     const invoiceNumber = values.invoiceNumber.trim();
     if (invoiceNumber !== extraction.invoice_number) {
         if (!invoiceNumber) {
-            errors.invoiceNumber = "Enter a value or restore the extracted one.";
+            errors.invoiceNumber =
+                "Enter a value or restore the extracted one.";
         } else if (invoiceNumber.length > 128) {
             errors.invoiceNumber = "Use no more than 128 characters.";
         }
@@ -487,16 +494,6 @@ function isValidDate(value: string): boolean {
         date.getUTCMonth() + 1 === Number(month) &&
         date.getUTCDate() === Number(day)
     );
-}
-
-function toInvoiceValues(extraction: InvoiceExtraction | null): InvoiceValues {
-    return {
-        invoiceNumber: extraction?.invoice_number ?? "",
-        issueDate: extraction?.issue_date ?? "",
-        supplierName: extraction?.supplier_name ?? "",
-        currency: extraction?.currency ?? "",
-        totalAmount: extraction?.total_amount ?? "",
-    };
 }
 
 function collectCorrections(

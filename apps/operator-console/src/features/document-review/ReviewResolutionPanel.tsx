@@ -10,6 +10,7 @@ import {
 import { ReviewResolutionForm } from "./ReviewResolutionForm";
 import { ResolvedReview } from "./ResolvedReview";
 import { SourcePdfPreview } from "./SourcePdfPreview";
+import { useReviewDraft } from "./reviewDraft";
 
 type ReviewApi = Pick<DocumentApi, "resolveReview"> &
     Partial<Pick<DocumentApi, "getSourceDocument">>;
@@ -30,7 +31,13 @@ export function ReviewResolutionPanel({
 }: ReviewResolutionPanelProps) {
     const queryClient = useQueryClient();
     const [operatorToken, setOperatorToken] = useState("");
-    const [reviewNote, setReviewNote] = useState("");
+    const extraction = run.processing_output?.invoice_extraction ?? null;
+    const draftKey = `${documentId}:${run.id}:${extraction?.extracted_at ?? "no-extraction"}`;
+    const { draft, updateDraft, clearDraft } = useReviewDraft(
+        draftKey,
+        extraction,
+    );
+    const reviewNote = draft.reviewNote;
     const resolutionMutation = useMutation({
         mutationFn: ({
             corrections,
@@ -52,7 +59,7 @@ export function ReviewResolutionPanel({
             ),
         onSuccess: async () => {
             setOperatorToken("");
-            setReviewNote("");
+            clearDraft();
             await queryClient.invalidateQueries({
                 queryKey: ["document-status", documentId],
             });
@@ -81,6 +88,7 @@ export function ReviewResolutionPanel({
     return (
         <ReviewResolutionForm
             aiProposal={run.ai_proposal}
+            draftKey={draftKey}
             errorMessage={resolutionMutation.isError ? failureMessage : null}
             invoiceExtraction={
                 run.processing_output?.invoice_extraction ?? null
@@ -94,7 +102,9 @@ export function ReviewResolutionPanel({
                 resolutionMutation.mutate({ decision, corrections })
             }
             onOperatorTokenChange={setOperatorToken}
-            onReviewNoteChange={setReviewNote}
+            onReviewNoteChange={(reviewNote) =>
+                updateDraft((current) => ({ ...current, reviewNote }))
+            }
             operatorToken={operatorToken}
             reviewNote={reviewNote}
             sourcePreview={sourcePreview}

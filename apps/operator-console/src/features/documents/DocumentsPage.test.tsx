@@ -206,7 +206,7 @@ test("restores opening and closing details with browser back and forward", async
     );
 });
 
-test("replaces the selected document instead of adding another detail", async () => {
+test("restores isolated review drafts through document selection and browser history", async () => {
     const second = documentStatus(
         "REVIEW_REQUIRED",
         "33333333-3333-4333-8333-333333333333",
@@ -233,6 +233,12 @@ test("replaces the selected document instead of adding another detail", async ()
     fireEvent.change(screen.getByLabelText("Supplier"), {
         target: { value: "First Document Draft" },
     });
+    fireEvent.change(screen.getByLabelText(/Review note/), {
+        target: { value: "Verify the synthetic supplier." },
+    });
+    fireEvent.change(screen.getByLabelText("Operator token"), {
+        target: { value: "synthetic-token" },
+    });
 
     const secondRow = screen.getByText("invoice-2.pdf").closest("li")!;
     fireEvent.click(
@@ -242,13 +248,86 @@ test("replaces the selected document instead of adding another detail", async ()
         await screen.findByRole("region", { name: "invoice-2.pdf" }),
     ).toBeVisible();
     expect(screen.getByLabelText("Supplier")).toHaveValue("Synthetic Supplier");
+    expect(screen.getByLabelText(/Review note/)).toHaveValue("");
+    expect(screen.getByLabelText("Operator token")).toHaveValue("");
     expect(
         screen.queryByRole("region", { name: "invoice.pdf" }),
     ).not.toBeInTheDocument();
     expect(new URL(window.location.href).searchParams.get("documentId")).toBe(
         second.id,
     );
+
+    window.history.back();
+    await screen.findByRole("region", { name: "invoice.pdf" });
+    expect(screen.getByLabelText("Supplier")).toHaveValue(
+        "First Document Draft",
+    );
+    expect(screen.getByLabelText(/Review note/)).toHaveValue(
+        "Verify the synthetic supplier.",
+    );
+    expect(screen.getByLabelText("Operator token")).toHaveValue("");
+
+    window.history.forward();
+    await screen.findByRole("region", { name: "invoice-2.pdf" });
+    expect(screen.getByLabelText("Supplier")).toHaveValue("Synthetic Supplier");
 });
+
+test("warns before leaving only while unsaved drafts exist, including hidden details", async () => {
+    const reviewing = documentStatus("REVIEW_REQUIRED");
+    window.history.replaceState({}, "", `/?documentId=${documentId}`);
+    const { unmount } = renderPage(createApi(reviewing));
+    await screen.findByRole("region", { name: "invoice.pdf" });
+    expect(pageLeaveIsPrevented()).toBe(false);
+
+    fireEvent.change(screen.getByLabelText("Operator token"), {
+        target: { value: "synthetic-token" },
+    });
+    expect(pageLeaveIsPrevented()).toBe(false);
+    fireEvent.change(screen.getByLabelText("Supplier"), {
+        target: { value: "Corrected Supplier" },
+    });
+    expect(pageLeaveIsPrevented()).toBe(true);
+    fireEvent.change(screen.getByLabelText("Supplier"), {
+        target: { value: "Synthetic Supplier" },
+    });
+    expect(pageLeaveIsPrevented()).toBe(false);
+
+    fireEvent.change(screen.getByLabelText(/Review note/), {
+        target: { value: "Unfinished verification." },
+    });
+    expect(pageLeaveIsPrevented()).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Needs review" }));
+    fireEvent.click(
+        await screen.findByRole("button", { name: "Hide details" }),
+    );
+    expect(pageLeaveIsPrevented()).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "View details" }));
+    await screen.findByRole("region", { name: "invoice.pdf" });
+    expect(screen.getByLabelText(/Review note/)).toHaveValue(
+        "Unfinished verification.",
+    );
+    fireEvent.change(screen.getByLabelText(/Review note/), {
+        target: { value: "" },
+    });
+    expect(pageLeaveIsPrevented()).toBe(false);
+    fireEvent.change(screen.getByLabelText("Supplier"), {
+        target: { value: "Another unsaved correction" },
+    });
+    expect(pageLeaveIsPrevented()).toBe(true);
+    unmount();
+    expect(pageLeaveIsPrevented()).toBe(false);
+
+    renderPage(createApi(reviewing));
+    await screen.findByRole("region", { name: "invoice.pdf" });
+    expect(screen.getByLabelText("Supplier")).toHaveValue("Synthetic Supplier");
+    expect(pageLeaveIsPrevented()).toBe(false);
+});
+
+function pageLeaveIsPrevented(): boolean {
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+}
 
 test("preserves unrelated URL parameters and the fragment when opening and closing details", async () => {
     window.history.replaceState({}, "", "/?context=demo#main-content");

@@ -12,6 +12,7 @@ import {
 } from "../../api/documentApi";
 import { axe } from "../../test/accessibility";
 import { ReviewResolutionPanel } from "./ReviewResolutionPanel";
+import { ReviewDraftProvider } from "./ReviewDraftProvider";
 
 const DOCUMENT_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -88,6 +89,9 @@ test("shows a safe review failure message", async () => {
     fireEvent.change(screen.getByLabelText("Operator token"), {
         target: { value: "incorrect-token" },
     });
+    fireEvent.change(screen.getByLabelText(/Review note/), {
+        target: { value: "Unfinished review." },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Reject document" }));
 
     const errorMessage = await screen.findByRole("alert");
@@ -97,6 +101,135 @@ test("shows a safe review failure message", async () => {
         "aria-describedby",
         "review-resolution-error",
     );
+    expect(screen.getByLabelText(/Review note/)).toHaveValue(
+        "Unfinished review.",
+    );
+    const leaving = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(leaving);
+    expect(leaving.defaultPrevented).toBe(true);
+});
+
+test("restores AI and manual correction sources without restoring credentials and clears a saved draft", async () => {
+    let completeReview!: (resolution: ReviewResolution) => void;
+    const reviewCompletion = new Promise<ReviewResolution>((resolve) => {
+        completeReview = resolve;
+    });
+    const resolveReview = vi
+        .fn<DocumentApi["resolveReview"]>()
+        .mockReturnValue(reviewCompletion);
+    const run = reviewRequiredRunWithInvoice();
+    run.ai_proposal = {
+        schema_version: 1,
+        provider: "OLLAMA",
+        model_reference: "synthetic-model",
+        model_digest: null,
+        prompt_version: "invoice-v1",
+        selected_text_sha256: "a".repeat(64),
+        status: "VALID",
+        invoice_number: "INV-2026-001",
+        issue_date: "2026-09-17",
+        supplier_name: "Suggested Synthetic Supplier",
+        currency: "EUR",
+        total_amount: "149.9900",
+        issues: [],
+        proposed_at: "2026-09-17T18:00:00Z",
+    };
+    const { rerender } = render(
+        <ReviewResolutionPanel
+            key="first"
+            api={{ resolveReview }}
+            documentId={DOCUMENT_ID}
+            run={run}
+        />,
+        { wrapper: QueryWrapper },
+    );
+    fireEvent.click(
+        screen.getByRole("button", { name: "Use AI proposal for Supplier" }),
+    );
+    fireEvent.change(screen.getByLabelText("Total amount"), {
+        target: { value: "159.99" },
+    });
+    fireEvent.change(screen.getByLabelText(/Review note/), {
+        target: { value: "Verified against the source." },
+    });
+    fireEvent.change(screen.getByLabelText("Operator token"), {
+        target: { value: "synthetic-token" },
+    });
+
+    rerender(
+        <ReviewResolutionPanel
+            key="second"
+            api={{ resolveReview }}
+            documentId="33333333-3333-4333-8333-333333333333"
+            run={run}
+        />,
+    );
+    expect(screen.getByLabelText("Supplier")).toHaveValue("Acme Supplies Ltd");
+    const leavingAnotherDocument = new Event("beforeunload", {
+        cancelable: true,
+    });
+    window.dispatchEvent(leavingAnotherDocument);
+    expect(leavingAnotherDocument.defaultPrevented).toBe(true);
+
+    rerender(
+        <ReviewResolutionPanel
+            key="first"
+            api={{ resolveReview }}
+            documentId={DOCUMENT_ID}
+            run={run}
+        />,
+    );
+    expect(screen.getByLabelText("Supplier")).toHaveValue(
+        "Suggested Synthetic Supplier",
+    );
+    expect(screen.getByLabelText("Total amount")).toHaveValue(159.99);
+    expect(screen.getByLabelText(/Review note/)).toHaveValue(
+        "Verified against the source.",
+    );
+    expect(screen.getByLabelText("Operator token")).toHaveValue("");
+    fireEvent.change(screen.getByLabelText("Operator token"), {
+        target: { value: "new-token" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Approve document" }));
+    expect(await screen.findByText("Saving review decision")).toBeVisible();
+    expect(screen.getByLabelText("Supplier")).toBeDisabled();
+    expect(screen.getByLabelText("Total amount")).toBeDisabled();
+    expect(
+        screen.getByRole("button", { name: "Use AI proposal for Supplier" }),
+    ).toBeDisabled();
+    completeReview({
+        processing_run_id: "22222222-2222-4222-8222-222222222222",
+        decision: "APPROVE",
+        reviewer_id: "operator-42",
+        resolved_at: "2026-09-17T18:00:00Z",
+        replayed: false,
+    });
+    await waitFor(() =>
+        expect(screen.getByLabelText("Operator token")).toHaveValue(""),
+    );
+    expect(resolveReview).toHaveBeenCalledWith(
+        DOCUMENT_ID,
+        {
+            decision: "APPROVE",
+            review_note: "Verified against the source.",
+            corrections: [
+                {
+                    field: "SUPPLIER_NAME",
+                    corrected_value: "Suggested Synthetic Supplier",
+                    source: "AI_PROPOSAL",
+                },
+                {
+                    field: "TOTAL_AMOUNT",
+                    corrected_value: "159.99",
+                    source: "MANUAL",
+                },
+            ],
+        },
+        "new-token",
+    );
+    const leavingAfterSave = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(leavingAfterSave);
+    expect(leavingAfterSave.defaultPrevented).toBe(false);
 });
 
 test("loads the source PDF only on request and revokes its object URL on close", async () => {
@@ -292,6 +425,8 @@ function QueryWrapper({ children }: PropsWithChildren) {
         },
     });
     return (
-        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+        <QueryClientProvider client={client}>
+            <ReviewDraftProvider>{children}</ReviewDraftProvider>
+        </QueryClientProvider>
     );
 }
