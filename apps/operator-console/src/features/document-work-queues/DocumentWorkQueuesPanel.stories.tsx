@@ -37,10 +37,7 @@ const items: DocumentWorkQueuePage["items"] = [
     },
 ];
 
-const api: Pick<DocumentApi, "getStatus" | "listWorkQueue"> = {
-    getStatus: async () => {
-        throw new Error("This story does not open document details.");
-    },
+const api: Pick<DocumentApi, "listWorkQueue"> = {
     listWorkQueue: async () => ({
         items,
         total: items.length,
@@ -54,7 +51,7 @@ const meta = {
     component: DocumentWorkQueuesPanel,
     tags: ["autodocs"],
     parameters: { layout: "padded" },
-    args: { api },
+    args: { api, selectedDocumentId: null, onSelectDocument: () => undefined },
     decorators: [
         (Story) => (
             <QueryClientProvider

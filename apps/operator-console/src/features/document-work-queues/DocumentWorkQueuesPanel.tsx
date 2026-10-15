@@ -5,7 +5,7 @@ import {
     ChevronRight,
     RefreshCw,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
     createDocumentApi,
@@ -17,13 +17,15 @@ import {
 import { Button } from "../../components/ui/Button";
 import { FeedbackMessage } from "../../components/ui/FeedbackMessage";
 import { StatusBadge } from "../../components/ui/StatusBadge";
-import { DocumentStatusPanel } from "../document-status/DocumentStatusPanel";
 
-type WorkQueueApi = Pick<DocumentApi, "getStatus" | "listWorkQueue">;
+type WorkQueueApi = Pick<DocumentApi, "listWorkQueue">;
 type QueueItem = DocumentWorkQueuePage["items"][number];
 
 type DocumentWorkQueuesPanelProps = {
     api?: WorkQueueApi;
+    detailsId?: string;
+    selectedDocumentId: string | null;
+    onSelectDocument: (documentId: string | null) => void;
 };
 
 const defaultApi = createDocumentApi();
@@ -39,45 +41,27 @@ const queues: readonly {
 
 export function DocumentWorkQueuesPanel({
     api = defaultApi,
+    detailsId,
+    selectedDocumentId,
+    onSelectDocument,
 }: DocumentWorkQueuesPanelProps) {
     const [queue, setQueue] = useState<DocumentWorkQueue>("ACTIVE");
     const [offset, setOffset] = useState(0);
-    const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(
-        () => new URL(window.location.href).searchParams.get("documentId"),
-    );
     const workQueueQuery = useQuery({
         queryKey: ["document-work-queue", queue, offset],
         queryFn: ({ signal }) => api.listWorkQueue(queue, offset, signal),
         refetchInterval: 15_000,
     });
-    const selectedDocumentInQueue = workQueueQuery.data?.items.some(
-        (item) => item.document_id === selectedDocumentId,
-    );
-
-    useEffect(() => {
-        function syncSelectedDocument() {
-            setSelectedDocumentId(
-                new URL(window.location.href).searchParams.get("documentId"),
-            );
-        }
-
-        window.addEventListener("popstate", syncSelectedDocument);
-        return () =>
-            window.removeEventListener("popstate", syncSelectedDocument);
-    }, []);
 
     function selectQueue(nextQueue: DocumentWorkQueue) {
         setQueue(nextQueue);
         setOffset(0);
-        setSelectedDocumentId(null);
-        updateDocumentUrl(null);
     }
 
     function toggleDocumentDetails(documentId: string) {
         const nextDocumentId =
             selectedDocumentId === documentId ? null : documentId;
-        setSelectedDocumentId(nextDocumentId);
-        updateDocumentUrl(nextDocumentId);
+        onSelectDocument(nextDocumentId);
     }
 
     return (
@@ -193,8 +177,8 @@ export function DocumentWorkQueuesPanel({
                     <ul className="mt-4 divide-y divide-app-border border-y border-app-border">
                         {workQueueQuery.data.items.map((item) => (
                             <QueueRow
-                                api={api}
                                 key={item.document_id}
+                                detailsId={detailsId}
                                 item={item}
                                 isSelected={
                                     selectedDocumentId === item.document_id
@@ -262,51 +246,21 @@ export function DocumentWorkQueuesPanel({
                     ) : null}
                 </>
             ) : null}
-
-            <div id="selected-document-details" className="mt-4">
-                {selectedDocumentId !== null &&
-                !workQueueQuery.isPending &&
-                !selectedDocumentInQueue ? (
-                    <DocumentStatusPanel
-                        api={api}
-                        documentId={selectedDocumentId}
-                    />
-                ) : null}
-            </div>
         </section>
     );
 }
 
-function updateDocumentUrl(documentId: string | null) {
-    const url = new URL(window.location.href);
-    if (url.searchParams.get("documentId") === documentId) {
-        return;
-    }
-    if (documentId === null) {
-        url.searchParams.delete("documentId");
-    } else {
-        url.searchParams.set("documentId", documentId);
-    }
-    const nextUrl = `${url.pathname}${url.search}${url.hash}`;
-    if (documentId === null) {
-        window.history.replaceState({}, "", nextUrl);
-    } else {
-        window.history.pushState({}, "", nextUrl);
-    }
-}
-
 function QueueRow({
-    api,
+    detailsId,
     item,
     isSelected,
     onSelect,
 }: {
-    api: WorkQueueApi;
+    detailsId?: string;
     item: QueueItem;
     isSelected: boolean;
     onSelect: () => void;
 }) {
-    const detailsId = `document-details-${item.document_id}`;
     return (
         <li className="py-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -364,14 +318,6 @@ function QueueRow({
             <p className="mt-2 truncate font-mono text-xs text-app-muted">
                 {item.document_id}
             </p>
-            <div id={detailsId}>
-                {isSelected ? (
-                    <DocumentStatusPanel
-                        api={api}
-                        documentId={item.document_id}
-                    />
-                ) : null}
-            </div>
         </li>
     );
 }

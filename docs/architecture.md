@@ -423,6 +423,12 @@ the `documentId` query parameter, so a detail can be reopened directly and
 browser history restores the previous selection. Review and recovery actions
 continue to use their existing endpoints rather than mutating queue rows
 directly.
+The Documents page owns the selection and renders a single detail outside the
+upload form and queue rows. Successful uploads select the accepted document and
+refresh the work queues; selecting a queue item updates that same detail. Queue
+filtering, pagination and refresh do not remount the selected detail. Selecting a
+different document creates a new detail instance so local state cannot leak
+between documents. Source-PDF preview remains on demand.
 The selected document view leads with the filename and separate document and
 processing statuses, followed by a status-specific explanation. Review-required
 documents link directly to the review form. Page count, attempts, run IDs and

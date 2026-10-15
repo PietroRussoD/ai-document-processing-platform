@@ -1,7 +1,6 @@
 import { FileText } from "lucide-react";
 
-import { DocumentWorkQueuesPanel } from "../features/document-work-queues/DocumentWorkQueuesPanel";
-import { DocumentUploadPanel } from "../features/document-upload/DocumentUploadPanel";
+import { DocumentsPage } from "../features/documents/DocumentsPage";
 import { SystemMapPage } from "../features/system-map/SystemMapPage";
 
 export function App() {
@@ -58,24 +57,7 @@ export function App() {
                 id="main-content"
                 className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12"
             >
-                {isSystemMap ? (
-                    <SystemMapPage />
-                ) : (
-                    <>
-                        <section aria-labelledby="intake-heading">
-                            <div className="mb-4">
-                                <h1
-                                    id="intake-heading"
-                                    className="text-xl font-semibold"
-                                >
-                                    Upload a document
-                                </h1>
-                            </div>
-                            <DocumentUploadPanel />
-                        </section>
-                        <DocumentWorkQueuesPanel />
-                    </>
-                )}
+                {isSystemMap ? <SystemMapPage /> : <DocumentsPage />}
             </main>
         </div>
     );

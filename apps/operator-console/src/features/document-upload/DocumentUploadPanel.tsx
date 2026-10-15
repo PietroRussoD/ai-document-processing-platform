@@ -4,19 +4,20 @@ import { type FormEvent, useState } from "react";
 
 import {
     createDocumentApi,
+    type AcceptedDocument,
     type DocumentApi,
     DocumentApiProblem,
 } from "../../api/documentApi";
 import { Button } from "../../components/ui/Button";
 import { FeedbackMessage } from "../../components/ui/FeedbackMessage";
-import { DocumentStatusPanel } from "../document-status/DocumentStatusPanel";
 import { DocumentFilePicker } from "./DocumentFilePicker";
 
-type UploadApi = Pick<DocumentApi, "upload" | "getStatus">;
+type UploadApi = Pick<DocumentApi, "upload">;
 
 type DocumentUploadPanelProps = {
     api?: UploadApi;
     idGenerator?: () => string;
+    onAccepted?: (document: AcceptedDocument) => void;
 };
 
 const defaultApi = createDocumentApi();
@@ -24,12 +25,14 @@ const defaultApi = createDocumentApi();
 export function DocumentUploadPanel({
     api = defaultApi,
     idGenerator = () => crypto.randomUUID(),
+    onAccepted,
 }: DocumentUploadPanelProps) {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
     const upload = useMutation({
         mutationFn: ({ file, key }: { file: File; key: string }) =>
             api.upload(file, key),
+        onSuccess: onAccepted,
     });
 
     function changeSelection(file: File | null) {
@@ -97,32 +100,26 @@ export function DocumentUploadPanel({
                 ) : null}
 
                 {upload.data !== undefined ? (
-                    <>
-                        <section className="mt-6 border border-app-success-border bg-app-success-surface p-5">
-                            <div className="flex items-center gap-2 text-app-success">
-                                <CheckCircle2 aria-hidden="true" size={20} />
-                                <h2 className="font-semibold">
-                                    {upload.data.replayed
-                                        ? "Previously accepted"
-                                        : "Document accepted"}
-                                </h2>
-                            </div>
-                            <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                                <Identifier
-                                    label="Document ID"
-                                    value={upload.data.document_id}
-                                />
-                                <Identifier
-                                    label="Processing run ID"
-                                    value={upload.data.processing_run_id}
-                                />
-                            </dl>
-                        </section>
-                        <DocumentStatusPanel
-                            api={api}
-                            documentId={upload.data.document_id}
-                        />
-                    </>
+                    <section className="mt-6 border border-app-success-border bg-app-success-surface p-5">
+                        <div className="flex items-center gap-2 text-app-success">
+                            <CheckCircle2 aria-hidden="true" size={20} />
+                            <h2 className="font-semibold">
+                                {upload.data.replayed
+                                    ? "Previously accepted"
+                                    : "Document accepted"}
+                            </h2>
+                        </div>
+                        <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                            <Identifier
+                                label="Document ID"
+                                value={upload.data.document_id}
+                            />
+                            <Identifier
+                                label="Processing run ID"
+                                value={upload.data.processing_run_id}
+                            />
+                        </dl>
+                    </section>
                 ) : null}
             </div>
         </form>

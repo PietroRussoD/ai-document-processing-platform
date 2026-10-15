@@ -1,17 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-    fireEvent,
-    render,
-    screen,
-    waitFor,
-    within,
-} from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { type PropsWithChildren } from "react";
 import { beforeEach, expect, test, vi } from "vitest";
 
 import {
     type DocumentApi,
-    type DocumentStatus,
     type DocumentWorkQueuePage,
 } from "../../api/documentApi";
 import { DocumentWorkQueuesPanel } from "./DocumentWorkQueuesPanel";
@@ -24,110 +17,34 @@ beforeEach(() => {
     window.history.replaceState({}, "", "/");
 });
 
-test("shows an active document and opens its persisted detail", async () => {
-    const item = queueItem({
-        status: "PROCESSING",
-        processing_run_status: "RUNNING",
-    });
+test("requests a document selection without rendering a second detail", async () => {
+    const onSelectDocument = vi.fn();
     const api = createApi({
-        listWorkQueue: vi.fn().mockResolvedValue(queuePage([item])),
-        getStatus: vi.fn().mockResolvedValue(documentStatus()),
+        listWorkQueue: vi.fn().mockResolvedValue(queuePage([queueItem()])),
     });
 
-    renderPanel(api);
-
-    const row = (await screen.findByText("invoice-42.pdf")).closest("li");
-    expect(row).not.toBeNull();
-    expect(screen.getByText("PROCESSING")).toBeVisible();
+    renderPanel(api, null, onSelectDocument);
+    expect(await screen.findByText("invoice-42.pdf")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "View details" }));
 
-    expect(new URL(window.location.href).searchParams.get("documentId")).toBe(
-        documentId,
-    );
-    expect(row).toContainElement(
-        await screen.findByRole("region", { name: "invoice-42.pdf" }),
-    );
-    expect(api.getStatus).toHaveBeenCalledWith(
-        documentId,
-        expect.any(AbortSignal),
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Hide details" }));
-    expect(new URL(window.location.href).searchParams.has("documentId")).toBe(
-        false,
-    );
+    expect(onSelectDocument).toHaveBeenCalledWith(documentId);
     expect(
         screen.queryByRole("region", { name: "invoice-42.pdf" }),
     ).not.toBeInTheDocument();
 });
 
-test("moves the inline detail to the next selected row", async () => {
-    const secondId = "33333333-3333-4333-8333-333333333333";
+test("requests closing the selected document", async () => {
+    const onSelectDocument = vi.fn();
     const api = createApi({
-        listWorkQueue: vi.fn().mockResolvedValue(
-            queuePage([
-                queueItem(),
-                queueItem({
-                    document_id: secondId,
-                    original_filename: "invoice-43.pdf",
-                }),
-            ]),
-        ),
+        listWorkQueue: vi.fn().mockResolvedValue(queuePage([queueItem()])),
     });
 
-    renderPanel(api);
-    const firstRow = (await screen.findByText("invoice-42.pdf")).closest("li")!;
-    const secondRow = screen.getByText("invoice-43.pdf").closest("li")!;
-
+    renderPanel(api, documentId, onSelectDocument);
     fireEvent.click(
-        within(firstRow).getByRole("button", { name: "View details" }),
-    );
-    expect(firstRow).toContainElement(
-        await screen.findByRole("region", { name: "invoice-42.pdf" }),
+        await screen.findByRole("button", { name: "Hide details" }),
     );
 
-    fireEvent.click(
-        within(secondRow).getByRole("button", { name: "View details" }),
-    );
-    await waitFor(() =>
-        expect(secondRow).toContainElement(
-            screen.getByRole("region", { name: "invoice-42.pdf" }),
-        ),
-    );
-    expect(
-        within(firstRow).queryByRole("region", { name: "invoice-42.pdf" }),
-    ).not.toBeInTheDocument();
-    expect(new URL(window.location.href).searchParams.get("documentId")).toBe(
-        secondId,
-    );
-});
-
-test("opens a document detail from a direct URL and follows browser history", async () => {
-    window.history.replaceState({}, "", `/?documentId=${documentId}`);
-    const api = createApi({
-        getStatus: vi.fn().mockResolvedValue(documentStatus()),
-    });
-
-    renderPanel(api);
-
-    const details = await screen.findByRole("region", {
-        name: "invoice-42.pdf",
-    });
-    expect(details).toBeVisible();
-    expect(details.closest("li")).toBeNull();
-    expect(api.getStatus).toHaveBeenCalledWith(
-        documentId,
-        expect.any(AbortSignal),
-    );
-
-    window.history.replaceState({}, "", "/");
-    window.dispatchEvent(new PopStateEvent("popstate"));
-
-    await waitFor(() =>
-        expect(
-            screen.queryByRole("region", { name: "invoice-42.pdf" }),
-        ).not.toBeInTheDocument(),
-    );
+    expect(onSelectDocument).toHaveBeenCalledWith(null);
 });
 
 test("switches to failed work and presents bounded failure evidence", async () => {
@@ -243,7 +160,11 @@ test("allows retry after a queue request fails", async () => {
     expect(await screen.findByText("No active documents found.")).toBeVisible();
 });
 
-function renderPanel(api: WorkQueueApi) {
+function renderPanel(
+    api: WorkQueueApi,
+    selectedDocumentId: string | null = null,
+    onSelectDocument = vi.fn(),
+) {
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false, refetchInterval: false } },
     });
@@ -256,14 +177,20 @@ function renderPanel(api: WorkQueueApi) {
         );
     }
 
-    return render(<DocumentWorkQueuesPanel api={api} />, { wrapper: Wrapper });
+    return render(
+        <DocumentWorkQueuesPanel
+            api={api}
+            selectedDocumentId={selectedDocumentId}
+            onSelectDocument={onSelectDocument}
+        />,
+        { wrapper: Wrapper },
+    );
 }
 
-type WorkQueueApi = Pick<DocumentApi, "getStatus" | "listWorkQueue">;
+type WorkQueueApi = Pick<DocumentApi, "listWorkQueue">;
 
 function createApi(overrides: Partial<WorkQueueApi> = {}): WorkQueueApi {
     return {
-        getStatus: vi.fn().mockResolvedValue(documentStatus()),
         listWorkQueue: vi.fn().mockResolvedValue(queuePage([])),
         ...overrides,
     };
@@ -293,33 +220,4 @@ function queuePage(
     total = items.length,
 ): DocumentWorkQueuePage {
     return { items, total, limit: 25, offset: 0 };
-}
-
-function documentStatus(): DocumentStatus {
-    return {
-        id: documentId,
-        original_filename: "invoice-42.pdf",
-        media_type: "application/pdf",
-        size_bytes: 42_000,
-        page_count: 2,
-        content_sha256: "a".repeat(64),
-        status: "PROCESSING",
-        accepted_at: acceptedAt,
-        status_changed_at: acceptedAt,
-        current_run: {
-            id: runId,
-            previous_run_id: null,
-            status: "RUNNING",
-            queued_at: acceptedAt,
-            started_at: acceptedAt,
-            status_changed_at: acceptedAt,
-            finished_at: null,
-            attempt_count: 1,
-            failure: null,
-            processing_output: null,
-            review_resolution: null,
-            ai_proposal: null,
-            ai_proposal_failure: null,
-        },
-    };
 }
