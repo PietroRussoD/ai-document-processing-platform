@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { expect, test } from "vitest";
 
 import { axe } from "../../test/accessibility";
@@ -71,4 +72,37 @@ test("links the project evidence without requiring a running backend", () => {
         "href",
         expect.stringContaining("docs/security-and-limitations.md"),
     );
+});
+
+test("keeps component selection focus and offers a keyboard shortcut to its details", async () => {
+    const user = userEvent.setup();
+    render(<SystemMapPage />);
+    const dispatcher = within(
+        screen.getByRole("region", { name: "Processing path" }),
+    ).getByRole("button", { name: /Dispatcher/ });
+    await user.click(dispatcher);
+    expect(dispatcher).toHaveFocus();
+    expect(dispatcher).toHaveAttribute("aria-pressed", "true");
+    expect(
+        screen
+            .getAllByRole("status")
+            .some((status) =>
+                status.textContent?.includes(
+                    "Component selected. Dispatcher. Details updated.",
+                ),
+            ),
+    ).toBe(true);
+    await user.tab();
+    const shortcut = screen.getByRole("link", {
+        name: "Go to component details",
+    });
+    expect(shortcut).toHaveFocus();
+    expect(shortcut).toHaveAttribute("href", "#system-node-details-heading");
+    expect(screen.getByRole("heading", { name: "Dispatcher" })).toHaveAttribute(
+        "tabindex",
+        "-1",
+    );
+    expect(
+        screen.getByRole("region", { name: "Dispatcher" }),
+    ).not.toHaveAttribute("aria-live");
 });

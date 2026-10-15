@@ -331,7 +331,12 @@ AI execution does not assert proposal validity or document approval; provider
 failure does not change the deterministic document outcome. Proposal and failure
 details appear in the comparison panel only after persistence.
 
-The separate System Map page is static architecture documentation. Its document
+The separate System Map page is static architecture documentation. Component
+and journey-step selections retain focus and update concise polite status
+announcements. Full detail panels are not live regions. Each selected component
+or step offers an adjacent native anchor to its focusable detail heading.
+Outcome selection resets the journey to its first step while keeping focus on
+the outcome control. Its document
 journey illustrates possible approval, review and failure/reprocessing paths
 using these persisted-state semantics, including the optional advisory invoice
 proposal after deterministic completion. It links to the implementation and

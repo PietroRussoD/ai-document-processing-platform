@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { expect, test } from "vitest";
 
 import { axe } from "../../test/accessibility";
@@ -72,4 +73,37 @@ test("explains unsupported documents as a terminal business outcome", () => {
         screen.getAllByText("Document UNSUPPORTED · run COMPLETED"),
     ).toHaveLength(2);
     expect(screen.getByText(/commit atomically/)).toBeVisible();
+});
+
+test("announces step changes without moving focus and resets feedback when the outcome changes", async () => {
+    const user = userEvent.setup();
+    render(<DocumentJourney />);
+    const validation = screen.getByRole("button", { name: /Apply validation/ });
+    await user.click(validation);
+    expect(validation).toHaveFocus();
+    expect(screen.getByRole("status")).toHaveTextContent(
+        /Step .* selected. Apply validation/,
+    );
+    await user.tab();
+    expect(
+        screen.getByRole("link", { name: "Go to step details" }),
+    ).toHaveFocus();
+    expect(
+        screen.getByRole("link", { name: "Go to step details" }),
+    ).toHaveAttribute("href", "#journey-step-details-heading");
+    expect(
+        screen.getByRole("region", { name: "Apply validation" }),
+    ).not.toHaveAttribute("aria-live");
+    const outcome = screen.getByRole("button", {
+        name: "Failure and reprocessing",
+    });
+    await user.click(outcome);
+    expect(outcome).toHaveFocus();
+    expect(screen.getByRole("status")).toHaveTextContent(
+        /Failure and reprocessing. Step 1 of .* selected. Accept PDF/,
+    );
+    expect(screen.getByRole("heading", { name: "Accept PDF" })).toHaveAttribute(
+        "tabindex",
+        "-1",
+    );
 });

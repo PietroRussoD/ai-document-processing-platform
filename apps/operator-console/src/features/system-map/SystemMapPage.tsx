@@ -64,6 +64,9 @@ export function SystemMapPage() {
             </div>
 
             <DocumentJourney />
+            <p role="status" aria-atomic="true" className="sr-only">
+                Component selected. {selectedNode.title}. Details updated.
+            </p>
 
             <section aria-labelledby="processing-path-heading" className="pt-7">
                 <h2
@@ -105,7 +108,6 @@ export function SystemMapPage() {
             <section
                 id="system-node-details"
                 aria-labelledby="system-node-details-heading"
-                aria-live="polite"
                 className="mt-8 border-y border-app-border bg-app-surface px-4 py-5 sm:px-6"
             >
                 <p className="text-xs font-semibold uppercase text-app-accent">
@@ -113,7 +115,8 @@ export function SystemMapPage() {
                 </p>
                 <h2
                     id="system-node-details-heading"
-                    className="mt-1 text-lg font-semibold"
+                    tabIndex={-1}
+                    className="mt-1 text-lg font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
                 >
                     {selectedNode.title}
                 </h2>
@@ -195,32 +198,42 @@ function SystemNodeButton({
     const Icon = icons[id];
 
     return (
-        <button
-            type="button"
-            aria-controls="system-node-details"
-            aria-pressed={selected}
-            className={`flex min-h-32 w-full min-w-0 flex-col rounded-md border p-4 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus ${selected ? "border-app-accent bg-emerald-50" : "border-app-border bg-app-surface hover:border-app-border-strong"}`}
-            onClick={() => onSelect(id)}
-        >
-            <span className="flex w-full items-center gap-2 text-app-accent">
-                <Icon aria-hidden="true" size={18} />
-                {index === undefined ? null : (
-                    <span className="ml-auto text-xs font-semibold">
-                        {String(index).padStart(2, "0")}
-                    </span>
-                )}
-            </span>
-            <span className="mt-3 text-sm font-semibold text-app-foreground">
-                {node.title}
-            </span>
-            <span className="mt-1 text-xs leading-5 text-app-muted">
-                {node.summary}
-            </span>
-            {node.optional ? (
-                <span className="mt-2 text-xs font-medium text-app-muted">
-                    Optional
+        <div>
+            <button
+                type="button"
+                aria-controls="system-node-details"
+                aria-pressed={selected}
+                className={`flex min-h-32 w-full min-w-0 flex-col rounded-md border p-4 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus ${selected ? "border-app-accent bg-emerald-50" : "border-app-border bg-app-surface hover:border-app-border-strong"}`}
+                onClick={() => onSelect(id)}
+            >
+                <span className="flex w-full items-center gap-2 text-app-accent">
+                    <Icon aria-hidden="true" size={18} />
+                    {index === undefined ? null : (
+                        <span className="ml-auto text-xs font-semibold">
+                            {String(index).padStart(2, "0")}
+                        </span>
+                    )}
                 </span>
+                <span className="mt-3 text-sm font-semibold text-app-foreground">
+                    {node.title}
+                </span>
+                <span className="mt-1 text-xs leading-5 text-app-muted">
+                    {node.summary}
+                </span>
+                {node.optional ? (
+                    <span className="mt-2 text-xs font-medium text-app-muted">
+                        Optional
+                    </span>
+                ) : null}
+            </button>
+            {selected ? (
+                <a
+                    href="#system-node-details-heading"
+                    className="inline-flex min-h-10 items-center text-sm font-semibold text-app-accent underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                >
+                    Go to component details
+                </a>
             ) : null}
-        </button>
+        </div>
     );
 }
