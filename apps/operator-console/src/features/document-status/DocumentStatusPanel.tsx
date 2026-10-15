@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
+import type { ReactNode } from "react";
 
 import {
     createDocumentApi,
@@ -72,6 +73,15 @@ export function DocumentStatusPanel({
 
     const document = statusQuery.data;
     const guidance = documentGuidance(document);
+    const reviewReasons =
+        document.status === "REVIEW_REQUIRED"
+            ? (document.current_run.processing_output?.invoice_validation
+                  ?.issues ?? [])
+            : [];
+    const showProgress =
+        ["QUEUED", "RUNNING", "WAITING_RETRY"].includes(
+            document.current_run.status,
+        ) || document.current_run.ai_execution?.status === "RUNNING";
     return (
         <section
             aria-labelledby="document-status-heading"
@@ -124,6 +134,16 @@ export function DocumentStatusPanel({
             <FeedbackMessage className="mt-4" tone={guidance.tone}>
                 <p className="font-semibold">{guidance.title}</p>
                 <p className="mt-1">{guidance.description}</p>
+                {reviewReasons.length > 0 ? (
+                    <ul
+                        aria-label="Reasons for review"
+                        className="mt-2 list-disc space-y-1 pl-5"
+                    >
+                        {reviewReasons.map((reason) => (
+                            <li key={reason}>{formatStatus(reason)}</li>
+                        ))}
+                    </ul>
+                ) : null}
                 {document.status === "UNSUPPORTED" ? (
                     <p className="mt-1">
                         Reprocessing is unavailable for unsupported documents.
@@ -139,6 +159,18 @@ export function DocumentStatusPanel({
                     </a>
                 ) : null}
             </FeedbackMessage>
+            <ReviewResolutionPanel
+                documentId={document.id}
+                run={document.current_run}
+            />
+            <DocumentReprocessingPanel
+                documentId={document.id}
+                documentStatus={document.status}
+                run={document.current_run}
+            />
+            <DetailSection title="Processing history" open={showProgress}>
+                <ProcessingTimeline run={document.current_run} />
+            </DetailSection>
             <details className="mt-4 rounded border border-app-border">
                 <summary className="min-h-11 cursor-pointer px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus">
                     Technical details
@@ -178,36 +210,50 @@ export function DocumentStatusPanel({
                     ) : null}
                 </dl>
             </details>
-            <ProcessingOutputPanel
-                corrections={
-                    document.current_run.review_resolution?.corrections ?? []
-                }
-                output={document.current_run.processing_output}
-            />
-            <AiInvoiceComparison
-                extraction={
-                    document.current_run.processing_output
-                        ?.invoice_extraction ?? null
-                }
-                proposal={document.current_run.ai_proposal}
-                failure={document.current_run.ai_proposal_failure}
-                execution={document.current_run.ai_execution}
-                applicable={
-                    document.current_run.processing_output?.classification
-                        ?.document_type === "INVOICE"
-                }
-            />
-            <ReviewResolutionPanel
-                documentId={document.id}
-                run={document.current_run}
-            />
-            <DocumentReprocessingPanel
-                documentId={document.id}
-                documentStatus={document.status}
-                run={document.current_run}
-            />
-            <ProcessingTimeline run={document.current_run} />
+            <DetailSection title="Processing results and AI details">
+                <ProcessingOutputPanel
+                    corrections={
+                        document.current_run.review_resolution?.corrections ??
+                        []
+                    }
+                    output={document.current_run.processing_output}
+                />
+                <AiInvoiceComparison
+                    extraction={
+                        document.current_run.processing_output
+                            ?.invoice_extraction ?? null
+                    }
+                    proposal={document.current_run.ai_proposal}
+                    failure={document.current_run.ai_proposal_failure}
+                    execution={document.current_run.ai_execution}
+                    applicable={
+                        document.current_run.processing_output?.classification
+                            ?.document_type === "INVOICE"
+                    }
+                />
+            </DetailSection>
         </section>
+    );
+}
+
+function DetailSection({
+    children,
+    open = false,
+    title,
+}: {
+    children: ReactNode;
+    open?: boolean;
+    title: string;
+}) {
+    return (
+        <details className="mt-4 rounded border border-app-border" open={open}>
+            <summary className="min-h-11 cursor-pointer px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus">
+                {title}
+            </summary>
+            <div className="border-t border-app-border px-3 pb-4">
+                {children}
+            </div>
+        </details>
     );
 }
 

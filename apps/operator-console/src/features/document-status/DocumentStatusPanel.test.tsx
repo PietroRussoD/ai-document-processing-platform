@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { type PropsWithChildren } from "react";
 import { expect, test, vi } from "vitest";
 
@@ -88,6 +88,9 @@ test("explains that an active document is still being processed", async () => {
     );
 
     expect(await screen.findByText("Processing in progress")).toBeVisible();
+    expect(
+        screen.getByRole("region", { name: "Processing progress" }),
+    ).toBeVisible();
 });
 
 test("refreshes a completed run to reveal a later advisory proposal", async () => {
@@ -133,6 +136,7 @@ test("refreshes a completed run to reveal a later advisory proposal", async () =
     expect(
         screen.queryByText("AI proposal comparison"),
     ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Processing results and AI details"));
     fireEvent.click(
         screen.getByRole("button", { name: "Refresh document status" }),
     );
@@ -141,6 +145,27 @@ test("refreshes a completed run to reveal a later advisory proposal", async () =
 });
 
 test("explains when processing requires an operator review", async () => {
+    const reviewing = status("REVIEW_REQUIRED", "REVIEW_REQUIRED");
+    reviewing.current_run.processing_output = {
+        embedded_text: null,
+        ocr_text: null,
+        selected_text: null,
+        classification: null,
+        invoice_extraction: {
+            method: "DETERMINISTIC_RULES",
+            invoice_number: "INV-SYNTHETIC",
+            issue_date: "2026-09-15",
+            supplier_name: "Synthetic Supplier",
+            currency: null,
+            total_amount: null,
+            extracted_at: "2026-09-15T08:00:00Z",
+        },
+        invoice_validation: {
+            decision: "REVIEW_REQUIRED",
+            issues: ["MISSING_CURRENCY", "MISSING_TOTAL_AMOUNT"],
+            validated_at: "2026-09-15T08:00:00Z",
+        },
+    };
     const getStatus = vi
         .fn<
             (
@@ -148,7 +173,7 @@ test("explains when processing requires an operator review", async () => {
                 signal?: AbortSignal,
             ) => Promise<DocumentStatus>
         >()
-        .mockResolvedValue(status("REVIEW_REQUIRED", "REVIEW_REQUIRED"));
+        .mockResolvedValue(reviewing);
 
     render(
         <DocumentStatusPanel api={{ getStatus }} documentId={DOCUMENT_ID} />,
@@ -161,6 +186,37 @@ test("explains when processing requires an operator review", async () => {
     expect(
         screen.getByRole("link", { name: "Go to review form" }),
     ).toHaveAttribute("href", "#review-resolution-heading");
+    expect(
+        within(
+            screen.getByRole("list", { name: "Reasons for review" }),
+        ).getByText("Missing Currency"),
+    ).toBeVisible();
+    const review = screen.getByRole("region", {
+        name: "Resolve operator review",
+    });
+    const results = screen.getByRole("region", {
+        name: "Processing results",
+        hidden: true,
+    });
+    expect(review).toBeVisible();
+    expect(
+        screen.getByRole("region", {
+            name: "Processing progress",
+            hidden: true,
+        }),
+    ).not.toBeVisible();
+    expect(results).not.toBeVisible();
+    expect(
+        review.compareDocumentPosition(results) &
+            Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Supplier"), {
+        target: { value: "Corrected Supplier" },
+    });
+    fireEvent.click(screen.getByText("Processing results and AI details"));
+    expect(results).toBeVisible();
+    fireEvent.click(screen.getByText("Processing results and AI details"));
+    expect(screen.getByLabelText("Supplier")).toHaveValue("Corrected Supplier");
 });
 
 test("explains why a completed unknown document is unsupported", async () => {
@@ -337,6 +393,8 @@ test("polls across deterministic completion and AI start, then stops at AI compl
         </QueryClientProvider>,
     );
     try {
+        fireEvent.click(screen.getByText("Processing results and AI details"));
+        fireEvent.click(screen.getByText("Processing history"));
         const unrecordedMessages = screen.getAllByText(
             "AI execution state is not recorded.",
         );

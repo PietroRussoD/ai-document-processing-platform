@@ -141,7 +141,7 @@ test("shows a safe review failure message", async () => {
     expect(errorMessage).toHaveFocus();
     expect(screen.getByLabelText("Operator token")).toHaveAttribute(
         "aria-describedby",
-        "review-resolution-error",
+        "review-token-help review-resolution-error",
     );
     expect(screen.getByLabelText(/Review note/)).toHaveValue(
         "Unfinished review.",

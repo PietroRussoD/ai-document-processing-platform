@@ -7,6 +7,7 @@ import { SourcePdfPreview } from "./SourcePdfPreview";
 
 type StoryArgs = {
     errorMessage: string | null;
+    hasExtraction: boolean;
     isSaving: boolean;
     sourceState: "none" | "available" | "loading" | "failed";
 };
@@ -17,10 +18,12 @@ const meta = {
     tags: ["autodocs"],
     args: {
         errorMessage: null,
+        hasExtraction: true,
         isSaving: false,
         sourceState: "none",
     },
     argTypes: {
+        hasExtraction: { control: "boolean" },
         errorMessage: {
             control: "text",
         },
@@ -40,6 +43,8 @@ type Story = StoryObj<typeof meta>;
 
 export const Ready: Story = {};
 
+export const MissingExtraction: Story = { args: { hasExtraction: false } };
+
 export const Saving: Story = {
     args: {
         isSaving: true,
@@ -58,6 +63,7 @@ export const SourcePdfFailure: Story = { args: { sourceState: "failed" } };
 
 function InteractiveReviewResolutionForm({
     errorMessage,
+    hasExtraction,
     isSaving,
     sourceState,
 }: StoryArgs) {
@@ -68,7 +74,7 @@ function InteractiveReviewResolutionForm({
         <ReviewResolutionForm
             errorMessage={errorMessage}
             invoiceExtraction={
-                sourceState === "none"
+                !hasExtraction
                     ? null
                     : {
                           method: "DETERMINISTIC_RULES",

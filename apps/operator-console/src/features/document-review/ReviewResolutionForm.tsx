@@ -139,21 +139,21 @@ export function ReviewResolutionForm({
                         Resolve operator review
                     </h3>
                     <p className="mt-1 text-sm text-amber-900">
-                        Approve or reject the document after checking the
-                        persisted processing results.
+                        Compare the extracted fields with the original PDF, then
+                        approve or reject the document.
                     </p>
                 </div>
             </div>
 
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <div className="mt-5 max-w-md">
                 <label className="block text-sm font-medium text-app-foreground">
                     Operator token
                     <input
                         required
                         aria-describedby={
                             errorMessage !== null
-                                ? reviewResolutionErrorId
-                                : undefined
+                                ? `review-token-help ${reviewResolutionErrorId}`
+                                : "review-token-help"
                         }
                         autoComplete="off"
                         className="mt-1.5 h-10 w-full rounded border border-app-border-strong bg-app-surface px-3 font-mono text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
@@ -166,21 +166,13 @@ export function ReviewResolutionForm({
                         value={operatorToken}
                     />
                 </label>
-                <label className="block text-sm font-medium text-app-foreground">
-                    Review note{" "}
-                    <span className="font-normal text-app-muted">
-                        (optional)
-                    </span>
-                    <textarea
-                        className="mt-1.5 min-h-20 w-full resize-y rounded border border-app-border-strong bg-app-surface px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
-                        disabled={isSaving}
-                        maxLength={2000}
-                        onChange={(event) =>
-                            onReviewNoteChange(event.target.value)
-                        }
-                        value={reviewNote}
-                    />
-                </label>
+                <span
+                    id="review-token-help"
+                    className="mt-1.5 block text-sm font-normal text-app-muted"
+                >
+                    Use the operator token configured for this local demo to
+                    view the PDF and save a decision.
+                </span>
             </div>
 
             <div
@@ -313,6 +305,22 @@ export function ReviewResolutionForm({
                             An invoice extraction is required before approval.
                         </FeedbackMessage>
                     )}
+
+                    <label className="mt-5 block text-sm font-medium text-app-foreground">
+                        Review note{" "}
+                        <span className="font-normal text-app-muted">
+                            (optional)
+                        </span>
+                        <textarea
+                            className="mt-1.5 min-h-20 w-full resize-y rounded border border-app-border-strong bg-app-surface px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                            disabled={isSaving}
+                            maxLength={2000}
+                            onChange={(event) =>
+                                onReviewNoteChange(event.target.value)
+                            }
+                            value={reviewNote}
+                        />
+                    </label>
 
                     <div className="mt-4 flex flex-wrap gap-3">
                         <Button

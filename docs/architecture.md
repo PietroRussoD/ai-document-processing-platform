@@ -271,6 +271,15 @@ When any draft has unsaved changes, the page registers a native browser
 Map. The browser controls whether it displays that warning; drafts are not
 durable across page reloads or browser termination.
 
+Document details place the review workspace and available recovery actions
+before supplementary information. Persisted validation issues appear beside
+the document guidance. The source PDF and editable fields share a row when the
+review container is wide enough; the review note follows the fields.
+Processing history, technical metadata, and results/AI evidence use native
+disclosures. History starts expanded while processing or AI execution is active;
+the review form remains outside these disclosures so opening them preserves
+the working draft.
+
 The operator console derives its processing timeline from the same persisted
 metadata exposed by the status endpoint. It does not query Temporal directly,
 and it does not receive document text or blob paths. A deterministic stage is shown as

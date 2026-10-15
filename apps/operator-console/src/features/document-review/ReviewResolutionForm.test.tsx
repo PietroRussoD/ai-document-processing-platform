@@ -170,7 +170,7 @@ test("has no detectable accessibility violations", async () => {
     expect((await axe(container)).violations).toEqual([]);
 });
 
-test("keeps credentials before source preview and corrections in DOM order", async () => {
+test("keeps credentials, source, fields and review note in task order", async () => {
     const user = userEvent.setup();
     const onDecision = vi.fn();
     render(
@@ -189,13 +189,22 @@ test("keeps credentials before source preview and corrections in DOM order", asy
     await user.tab();
     expect(screen.getByLabelText("Operator token")).toHaveFocus();
     await user.tab();
-    expect(screen.getByLabelText(/Review note/)).toHaveFocus();
-    await user.tab();
     expect(
         screen.getByRole("button", { name: "View source PDF" }),
     ).toHaveFocus();
     await user.tab();
     expect(screen.getByLabelText("Invoice number")).toHaveFocus();
+    for (const label of [
+        "Issue date",
+        "Supplier",
+        "Currency",
+        "Total amount",
+    ]) {
+        await user.tab();
+        expect(screen.getByLabelText(label)).toHaveFocus();
+    }
+    await user.tab();
+    expect(screen.getByLabelText(/Review note/)).toHaveFocus();
     await user.click(screen.getByRole("button", { name: "Approve document" }));
     expect(onDecision).toHaveBeenCalledWith("APPROVE", []);
 });
