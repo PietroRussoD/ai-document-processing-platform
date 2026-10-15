@@ -30,6 +30,29 @@ const proposal = {
     proposed_at: "2026-09-16T12:00:06Z",
 };
 
+test("explains that parsed AI fields still need comparison with the PDF", () => {
+    render(
+        <AiInvoiceComparison
+            extraction={extraction}
+            proposal={{
+                ...proposal,
+                status: "VALID",
+                issue_date: "2026-09-16",
+                issues: [],
+            }}
+            failure={null}
+        />,
+    );
+
+    expect(screen.getByText("Fields parsed")).toBeVisible();
+    expect(
+        screen.getByText(
+            "All five fields were returned in a format the application can read. Compare their values with the PDF; this does not confirm they are correct or approve the invoice.",
+        ),
+    ).toBeVisible();
+    expect(screen.queryByText("Valid")).not.toBeInTheDocument();
+});
+
 test("does not imply an AI result when none is recorded", () => {
     const { container } = render(
         <AiInvoiceComparison

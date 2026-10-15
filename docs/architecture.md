@@ -347,7 +347,9 @@ remains available. These are browser query limits, not cancellation or changes
 to the worker's five-minute retry budget.
 
 The comparison panel displays explicit execution state, provider failures and
-proposed field validity separately. A missing state is shown as not recorded
+proposed field validity separately. A valid proposal means all five fields were
+returned in values the application can parse; it does not establish that they
+match the PDF or approve the invoice. A missing state is shown as not recorded
 for invoices, never as disabled. Legacy proposals/failures remain visible even
 without an execution record. Unknown non-invoice documents do not get an invoice
 AI panel or a start grace period. Feedback uses live status messages without

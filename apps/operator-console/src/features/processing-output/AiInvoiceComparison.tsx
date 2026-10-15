@@ -73,13 +73,27 @@ export function AiInvoiceComparison({
                 ) : null}
                 {proposal !== null ? (
                     <StatusBadge
-                        label={formatLabel(proposal.status)}
+                        label={
+                            proposal.status === "VALID"
+                                ? "Fields parsed"
+                                : formatLabel(proposal.status)
+                        }
                         tone={
-                            proposal.status === "VALID" ? "success" : "warning"
+                            proposal.status === "PARTIAL"
+                                ? "warning"
+                                : "neutral"
                         }
                     />
                 ) : null}
             </div>
+
+            {proposal?.status === "VALID" ? (
+                <p className="mt-2 text-sm text-app-muted">
+                    All five fields were returned in a format the application
+                    can read. Compare their values with the PDF; this does not
+                    confirm they are correct or approve the invoice.
+                </p>
+            ) : null}
 
             {execution?.status === "DISABLED" ? (
                 <FeedbackMessage className="mt-4" tone="info">
