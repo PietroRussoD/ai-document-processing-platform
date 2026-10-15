@@ -249,7 +249,9 @@ test("restores isolated review drafts through document selection and browser his
     ).toBeVisible();
     expect(screen.getByLabelText("Supplier")).toHaveValue("Synthetic Supplier");
     expect(screen.getByLabelText(/Review note/)).toHaveValue("");
-    expect(screen.getByLabelText("Operator token")).toHaveValue("");
+    expect(screen.getByLabelText("Operator token")).toHaveValue(
+        "synthetic-token",
+    );
     expect(
         screen.queryByRole("region", { name: "invoice.pdf" }),
     ).not.toBeInTheDocument();
@@ -265,7 +267,9 @@ test("restores isolated review drafts through document selection and browser his
     expect(screen.getByLabelText(/Review note/)).toHaveValue(
         "Verify the synthetic supplier.",
     );
-    expect(screen.getByLabelText("Operator token")).toHaveValue("");
+    expect(screen.getByLabelText("Operator token")).toHaveValue(
+        "synthetic-token",
+    );
 
     window.history.forward();
     await screen.findByRole("region", { name: "invoice-2.pdf" });

@@ -1,5 +1,4 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
 
 import {
     createDocumentApi,
@@ -7,6 +6,7 @@ import {
     DocumentApiProblem,
     type DocumentStatus,
 } from "../../api/documentApi";
+import { useOperatorToken } from "../operator-access/operatorToken";
 import { ReviewResolutionForm } from "./ReviewResolutionForm";
 import { ResolvedReview } from "./ResolvedReview";
 import { SourcePdfPreview } from "./SourcePdfPreview";
@@ -30,7 +30,7 @@ export function ReviewResolutionPanel({
     run,
 }: ReviewResolutionPanelProps) {
     const queryClient = useQueryClient();
-    const [operatorToken, setOperatorToken] = useState("");
+    const { operatorToken, setOperatorToken, isShared } = useOperatorToken();
     const extraction = run.processing_output?.invoice_extraction ?? null;
     const draftKey = `${documentId}:${run.id}:${extraction?.extracted_at ?? "no-extraction"}`;
     const { draft, updateDraft, clearDraft } = useReviewDraft(
@@ -58,7 +58,7 @@ export function ReviewResolutionPanel({
                 operatorToken,
             ),
         onSuccess: async () => {
-            setOperatorToken("");
+            if (!isShared) setOperatorToken("");
             clearDraft();
             await queryClient.invalidateQueries({
                 queryKey: ["document-status", documentId],
@@ -82,6 +82,7 @@ export function ReviewResolutionPanel({
             : "The review decision could not be saved. Try again.";
     const sourcePreview = api.getSourceDocument ? (
         <SourcePdfPreview
+            key={isShared && !operatorToken ? "without-token" : "with-token"}
             api={{ getSourceDocument: api.getSourceDocument }}
             documentId={documentId}
             operatorToken={operatorToken}
@@ -109,6 +110,7 @@ export function ReviewResolutionPanel({
                 updateDraft((current) => ({ ...current, reviewNote }))
             }
             operatorToken={operatorToken}
+            tokenIsShared={isShared}
             reviewNote={reviewNote}
             sourcePreview={sourcePreview}
         />

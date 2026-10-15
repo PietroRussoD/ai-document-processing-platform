@@ -7,6 +7,8 @@ import {
     type DocumentApi,
 } from "../../api/documentApi";
 import { DocumentStatusPanel } from "../document-status/DocumentStatusPanel";
+import { OperatorTokenProvider } from "../operator-access/OperatorTokenProvider";
+import { OperatorAccessPanel } from "../operator-access/OperatorAccessPanel";
 import { ReviewDraftProvider } from "../document-review/ReviewDraftProvider";
 import { DocumentUploadPanel } from "../document-upload/DocumentUploadPanel";
 import { DocumentWorkQueuesPanel } from "../document-work-queues/DocumentWorkQueuesPanel";
@@ -17,9 +19,11 @@ const defaultApi = createDocumentApi();
 
 export function DocumentsPage({ api = defaultApi }: { api?: DocumentsApi }) {
     return (
-        <ReviewDraftProvider>
-            <DocumentsWorkspace api={api} />
-        </ReviewDraftProvider>
+        <OperatorTokenProvider>
+            <ReviewDraftProvider>
+                <DocumentsWorkspace api={api} />
+            </ReviewDraftProvider>
+        </OperatorTokenProvider>
     );
 }
 
@@ -63,6 +67,7 @@ function DocumentsWorkspace({ api }: { api: DocumentsApi }) {
 
     return (
         <>
+            <OperatorAccessPanel />
             <section aria-labelledby="intake-heading">
                 <div className="mb-4">
                     <h1 id="intake-heading" className="text-xl font-semibold">

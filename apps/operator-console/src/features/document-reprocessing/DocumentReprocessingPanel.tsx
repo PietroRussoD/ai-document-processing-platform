@@ -9,6 +9,7 @@ import {
     type DocumentReprocessing,
     type DocumentStatus,
 } from "../../api/documentApi";
+import { useOperatorToken } from "../operator-access/operatorToken";
 import { Button } from "../../components/ui/Button";
 import { FeedbackMessage } from "../../components/ui/FeedbackMessage";
 
@@ -45,7 +46,7 @@ export function DocumentReprocessingPanel({
     run,
 }: DocumentReprocessingPanelProps) {
     const queryClient = useQueryClient();
-    const [operatorToken, setOperatorToken] = useState("");
+    const { operatorToken, setOperatorToken, isShared } = useOperatorToken();
     const [reason, setReason] = useState("");
     const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
     const [lastRequest, setLastRequest] = useState<DocumentReprocessing | null>(
@@ -66,7 +67,7 @@ export function DocumentReprocessingPanel({
                 requestIdempotencyKey,
             ),
         onSuccess: async (reprocessing) => {
-            setOperatorToken("");
+            if (!isShared) setOperatorToken("");
             setReason("");
             setIdempotencyKey(null);
             setLastRequest(reprocessing);
@@ -139,24 +140,39 @@ export function DocumentReprocessingPanel({
                     submitReprocessing();
                 }}
             >
-                <label className="block text-sm font-medium text-app-foreground">
-                    Operator token
-                    <input
-                        required
-                        aria-describedby={
-                            reprocessingMutation.isError ? errorId : undefined
-                        }
-                        autoComplete="off"
-                        className="mt-1.5 h-10 w-full rounded border border-app-border-strong bg-app-surface px-3 font-mono text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
-                        disabled={reprocessingMutation.isPending}
-                        onChange={(event) =>
-                            setOperatorToken(event.target.value)
-                        }
-                        spellCheck={false}
-                        type="password"
-                        value={operatorToken}
-                    />
-                </label>
+                {isShared ? (
+                    <p className="text-sm text-app-muted">
+                        Reprocessing uses the token in{" "}
+                        <a
+                            href="#operator-token"
+                            className="text-app-accent underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                        >
+                            Operator access
+                        </a>
+                        .
+                    </p>
+                ) : (
+                    <label className="block text-sm font-medium text-app-foreground">
+                        Operator token
+                        <input
+                            required
+                            aria-describedby={
+                                reprocessingMutation.isError
+                                    ? errorId
+                                    : undefined
+                            }
+                            autoComplete="off"
+                            className="mt-1.5 h-10 w-full rounded border border-app-border-strong bg-app-surface px-3 font-mono text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                            disabled={reprocessingMutation.isPending}
+                            onChange={(event) =>
+                                setOperatorToken(event.target.value)
+                            }
+                            spellCheck={false}
+                            type="password"
+                            value={operatorToken}
+                        />
+                    </label>
+                )}
                 <label className="block text-sm font-medium text-app-foreground">
                     Reprocessing reason
                     <textarea

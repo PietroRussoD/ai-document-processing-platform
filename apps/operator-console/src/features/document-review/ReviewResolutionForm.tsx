@@ -32,6 +32,7 @@ type ReviewResolutionFormProps = {
     onOperatorTokenChange: (operatorToken: string) => void;
     onReviewNoteChange: (reviewNote: string) => void;
     operatorToken: string;
+    tokenIsShared?: boolean;
     reviewNote: string;
     sourcePreview?: ReactNode;
 };
@@ -48,6 +49,7 @@ export function ReviewResolutionForm({
     onOperatorTokenChange,
     onReviewNoteChange,
     operatorToken,
+    tokenIsShared = false,
     reviewNote,
     sourcePreview,
 }: ReviewResolutionFormProps) {
@@ -164,36 +166,48 @@ export function ReviewResolutionForm({
                 </div>
             </div>
 
-            <div className="mt-5 max-w-md">
-                <label className="block text-sm font-medium text-app-foreground">
-                    Operator token
-                    <input
-                        required
-                        aria-describedby={
-                            errorMessage !== null
-                                ? `review-token-help ${reviewResolutionErrorId}`
-                                : "review-token-help"
-                        }
-                        autoComplete="off"
-                        className="mt-1.5 h-10 w-full rounded border border-app-border-strong bg-app-surface px-3 font-mono text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
-                        disabled={isSaving}
-                        onChange={(event) =>
-                            onOperatorTokenChange(event.target.value)
-                        }
-                        spellCheck={false}
-                        type="password"
-                        value={operatorToken}
-                    />
-                </label>
-                <span
-                    id="review-token-help"
-                    className="mt-1.5 block text-sm font-normal text-app-muted"
-                >
-                    Use the operator token configured for this local demo to
-                    view the PDF and save a decision.
-                </span>
-            </div>
-
+            {tokenIsShared ? (
+                <p className="mt-5 text-sm text-app-muted">
+                    PDF access and review decisions use the token in{" "}
+                    <a
+                        href="#operator-token"
+                        className="text-app-accent underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                    >
+                        Operator access
+                    </a>
+                    .
+                </p>
+            ) : (
+                <div className="mt-5 max-w-md">
+                    <label className="block text-sm font-medium text-app-foreground">
+                        Operator token
+                        <input
+                            required
+                            aria-describedby={
+                                errorMessage !== null
+                                    ? `review-token-help ${reviewResolutionErrorId}`
+                                    : "review-token-help"
+                            }
+                            autoComplete="off"
+                            className="mt-1.5 h-10 w-full rounded border border-app-border-strong bg-app-surface px-3 font-mono text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                            disabled={isSaving}
+                            onChange={(event) =>
+                                onOperatorTokenChange(event.target.value)
+                            }
+                            spellCheck={false}
+                            type="password"
+                            value={operatorToken}
+                        />
+                    </label>
+                    <span
+                        id="review-token-help"
+                        className="mt-1.5 block text-sm font-normal text-app-muted"
+                    >
+                        Use the operator token configured for this local demo to
+                        view the PDF and save a decision.
+                    </span>
+                </div>
+            )}
             {sourcePreview ? (
                 <div
                     aria-label="Review workspace view"

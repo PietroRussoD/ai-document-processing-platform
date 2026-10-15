@@ -276,8 +276,15 @@ document automatically.
 The Documents page keeps review drafts in React memory, keyed by document,
 processing run and extraction timestamp. Switching or hiding a document,
 queue navigation and browser history preserve field values, correction sources
-and review notes. Operator tokens remain local to the mounted review panel and
-are not part of the draft. No draft data is written to browser storage.
+and review notes. A separate Documents-page provider holds one operator token
+in React memory for PDF access, review and reprocessing. The Operator access
+panel owns the credential input; action panels link back to it. Document
+selection, browser history and successful actions preserve this token. Clearing
+it closes the PDF preview and aborts an in-flight source request without removing
+review drafts. Leaving or reloading Documents destroys the token. It is excluded
+from drafts, browser storage and URLs. Isolated action panels without this
+provider retain their local credential input and clear it after success.
+No draft data is written to browser storage.
 A successful review clears its draft; a failed request preserves it. Invoice
 fields and proposal adoption are disabled while the decision is being saved.
 When any draft has unsaved changes, the page registers a native browser
