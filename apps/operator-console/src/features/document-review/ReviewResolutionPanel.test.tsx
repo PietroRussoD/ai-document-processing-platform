@@ -186,7 +186,7 @@ test("restores AI and manual correction sources without restoring credentials an
         { wrapper: QueryWrapper },
     );
     fireEvent.click(
-        screen.getByRole("button", { name: "Use AI proposal for Supplier" }),
+        screen.getByRole("button", { name: "Use suggestion for Supplier" }),
     );
     fireEvent.change(screen.getByLabelText("Total amount"), {
         target: { value: "159.99" },
@@ -237,7 +237,9 @@ test("restores AI and manual correction sources without restoring credentials an
     expect(screen.getByLabelText("Supplier")).toBeDisabled();
     expect(screen.getByLabelText("Total amount")).toBeDisabled();
     expect(
-        screen.getByRole("button", { name: "Use AI proposal for Supplier" }),
+        screen.getByRole("button", {
+            name: "Suggestion selected for Supplier",
+        }),
     ).toBeDisabled();
     completeReview({
         processing_run_id: "22222222-2222-4222-8222-222222222222",

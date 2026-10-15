@@ -1,10 +1,4 @@
-import {
-    CheckCircle2,
-    CircleAlert,
-    Copy,
-    LoaderCircle,
-    XCircle,
-} from "lucide-react";
+import { CheckCircle2, CircleAlert, LoaderCircle, XCircle } from "lucide-react";
 import { type ReactNode } from "react";
 import { useState } from "react";
 
@@ -97,6 +91,9 @@ export function ReviewResolutionForm({
             },
         }));
         setFieldErrors((current) => ({ ...current, [field]: undefined }));
+        document
+            .getElementById(invoiceFieldId(invoiceFieldLabel(field)))
+            ?.focus();
     }
 
     function approveDocument() {
@@ -118,6 +115,25 @@ export function ReviewResolutionForm({
         }
 
         onDecision("APPROVE", corrections);
+    }
+
+    function restoreExtractedValue(field: keyof InvoiceValues) {
+        updateDraft((current) => {
+            const sources = { ...current.correctionSources };
+            delete sources[field];
+            return {
+                ...current,
+                invoiceValues: {
+                    ...current.invoiceValues,
+                    [field]: current.originalValues[field],
+                },
+                correctionSources: sources,
+            };
+        });
+        setFieldErrors((current) => ({ ...current, [field]: undefined }));
+        document
+            .getElementById(invoiceFieldId(invoiceFieldLabel(field)))
+            ?.focus();
     }
 
     return (
@@ -198,6 +214,12 @@ export function ReviewResolutionForm({
                                 Only changed values are recorded with this
                                 approval.
                             </p>
+                            {aiProposal ? (
+                                <p className="mt-1 text-sm text-app-muted">
+                                    AI suggestions may be wrong. Compare each
+                                    value with the PDF before using it.
+                                </p>
+                            ) : null}
                             <div className="mt-4 grid gap-4 sm:grid-cols-2">
                                 <InvoiceField
                                     error={fieldErrors.invoiceNumber}
@@ -214,8 +236,15 @@ export function ReviewResolutionForm({
                                             value,
                                         )
                                     }
-                                    proposalAvailable={
-                                        aiProposal?.invoice_number != null
+                                    originalValue={
+                                        invoiceExtraction.invoice_number
+                                    }
+                                    proposalValue={
+                                        aiProposal?.invoice_number ?? null
+                                    }
+                                    source={correctionSources.invoiceNumber}
+                                    onReset={() =>
+                                        restoreExtractedValue("invoiceNumber")
                                     }
                                     value={invoiceValues.invoiceNumber}
                                 />
@@ -231,8 +260,13 @@ export function ReviewResolutionForm({
                                     onChange={(value) =>
                                         updateInvoiceValue("issueDate", value)
                                     }
-                                    proposalAvailable={
-                                        aiProposal?.issue_date != null
+                                    originalValue={invoiceExtraction.issue_date}
+                                    proposalValue={
+                                        aiProposal?.issue_date ?? null
+                                    }
+                                    source={correctionSources.issueDate}
+                                    onReset={() =>
+                                        restoreExtractedValue("issueDate")
                                     }
                                     type="date"
                                     value={invoiceValues.issueDate}
@@ -252,8 +286,15 @@ export function ReviewResolutionForm({
                                             value,
                                         )
                                     }
-                                    proposalAvailable={
-                                        aiProposal?.supplier_name != null
+                                    originalValue={
+                                        invoiceExtraction.supplier_name
+                                    }
+                                    proposalValue={
+                                        aiProposal?.supplier_name ?? null
+                                    }
+                                    source={correctionSources.supplierName}
+                                    onReset={() =>
+                                        restoreExtractedValue("supplierName")
                                     }
                                     value={invoiceValues.supplierName}
                                 />
@@ -273,8 +314,11 @@ export function ReviewResolutionForm({
                                             value.toUpperCase(),
                                         )
                                     }
-                                    proposalAvailable={
-                                        aiProposal?.currency != null
+                                    originalValue={invoiceExtraction.currency}
+                                    proposalValue={aiProposal?.currency ?? null}
+                                    source={correctionSources.currency}
+                                    onReset={() =>
+                                        restoreExtractedValue("currency")
                                     }
                                     value={invoiceValues.currency}
                                 />
@@ -291,8 +335,15 @@ export function ReviewResolutionForm({
                                     onChange={(value) =>
                                         updateInvoiceValue("totalAmount", value)
                                     }
-                                    proposalAvailable={
-                                        aiProposal?.total_amount != null
+                                    originalValue={
+                                        invoiceExtraction.total_amount
+                                    }
+                                    proposalValue={
+                                        aiProposal?.total_amount ?? null
+                                    }
+                                    source={correctionSources.totalAmount}
+                                    onReset={() =>
+                                        restoreExtractedValue("totalAmount")
                                     }
                                     step="0.0001"
                                     type="number"
@@ -379,8 +430,11 @@ function InvoiceField({
     maxLength,
     min,
     onChange,
+    onReset,
     onSelectProposal,
-    proposalAvailable,
+    originalValue,
+    proposalValue,
+    source,
     step,
     type = "text",
     value,
@@ -390,33 +444,35 @@ function InvoiceField({
     maxLength?: number;
     min?: string;
     onChange: (value: string) => void;
+    onReset: () => void;
     onSelectProposal: () => void;
-    proposalAvailable: boolean;
+    originalValue: string | null;
+    proposalValue: string | null;
+    source?: "MANUAL" | "AI_PROPOSAL";
     step?: string;
     type?: "date" | "number" | "text";
     value: string;
 }) {
+    const isChanged = !sameFieldValue(value, originalValue, type);
+    const hasSuggestion =
+        proposalValue !== null &&
+        !sameFieldValue(proposalValue, originalValue, type);
+    const isSuggestionSelected =
+        source === "AI_PROPOSAL" && sameFieldValue(value, proposalValue, type);
+    const sourceId = `${invoiceFieldId(label)}-source`;
+    const proposalId = `${invoiceFieldId(label)}-proposal`;
     return (
-        <div className="block text-sm font-medium text-app-foreground">
-            <div className="flex items-center justify-between gap-2">
-                <label htmlFor={invoiceFieldId(label)}>{label}</label>
-                {proposalAvailable ? (
-                    <button
-                        aria-label={`Use AI proposal for ${label}`}
-                        className="rounded p-1 text-app-accent hover:bg-app-canvas focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
-                        onClick={onSelectProposal}
-                        title={`Use AI proposal for ${label}`}
-                        type="button"
-                    >
-                        <Copy aria-hidden="true" size={16} />
-                    </button>
-                ) : null}
-            </div>
+        <div className="min-w-0 text-sm font-medium text-app-foreground">
+            <label htmlFor={invoiceFieldId(label)}>{label}</label>
             <input
                 id={invoiceFieldId(label)}
-                aria-describedby={
-                    error ? invoiceFieldErrorId(label) : undefined
-                }
+                aria-describedby={[
+                    sourceId,
+                    hasSuggestion ? proposalId : null,
+                    error ? invoiceFieldErrorId(label) : null,
+                ]
+                    .filter(Boolean)
+                    .join(" ")}
                 aria-invalid={error ? true : undefined}
                 className="mt-1.5 h-10 w-full rounded border border-app-border-strong bg-app-surface px-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
                 maxLength={maxLength}
@@ -426,6 +482,57 @@ function InvoiceField({
                 type={type}
                 value={value}
             />
+            <p
+                id={sourceId}
+                aria-live="polite"
+                className="mt-1.5 text-xs font-normal text-app-muted"
+            >
+                {isChanged
+                    ? source === "AI_PROPOSAL"
+                        ? "From AI suggestion"
+                        : "Manual correction"
+                    : originalValue === null
+                      ? "Not extracted"
+                      : "Extracted value"}
+            </p>
+            {isChanged ? (
+                <div className="mt-1">
+                    <p className="break-words text-xs font-normal text-app-muted">
+                        Extracted value · {originalValue ?? "Not available"}
+                    </p>
+                    <Button
+                        aria-label={`${originalValue === null ? "Clear correction" : "Restore extracted value"} for ${label}`}
+                        className="mt-1"
+                        onClick={onReset}
+                        size="sm"
+                    >
+                        {originalValue === null
+                            ? "Clear correction"
+                            : "Restore extracted value"}
+                    </Button>
+                </div>
+            ) : null}
+            {hasSuggestion ? (
+                <div className="mt-2 rounded border border-app-border bg-app-surface p-2">
+                    <p id={proposalId} className="break-words font-normal">
+                        <span className="block text-xs font-medium text-app-muted">
+                            AI suggestion
+                        </span>
+                        {proposalValue}
+                    </p>
+                    <Button
+                        aria-label={`${isSuggestionSelected ? "Suggestion selected" : "Use suggestion"} for ${label}`}
+                        className="mt-2"
+                        disabled={isSuggestionSelected}
+                        onClick={onSelectProposal}
+                        size="sm"
+                    >
+                        {isSuggestionSelected
+                            ? "Suggestion selected"
+                            : "Use suggestion"}
+                    </Button>
+                </div>
+            ) : null}
             {error ? (
                 <p
                     className="mt-1 text-sm font-normal text-red-800"
@@ -436,6 +543,16 @@ function InvoiceField({
             ) : null}
         </div>
     );
+}
+
+function sameFieldValue(
+    left: string | null,
+    right: string | null,
+    type: "date" | "number" | "text",
+): boolean {
+    return type === "number"
+        ? normalizeAmount(left) === normalizeAmount(right)
+        : (left ?? "").trim() === (right ?? "").trim();
 }
 
 type InvoiceFieldErrors = Partial<Record<keyof InvoiceValues, string>>;

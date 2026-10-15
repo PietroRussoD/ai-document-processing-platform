@@ -8,6 +8,7 @@ import { SourcePdfPreview } from "./SourcePdfPreview";
 type StoryArgs = {
     errorMessage: string | null;
     hasExtraction: boolean;
+    hasAiProposal: boolean;
     isSaving: boolean;
     sourceState: "none" | "available" | "loading" | "failed";
 };
@@ -19,11 +20,13 @@ const meta = {
     args: {
         errorMessage: null,
         hasExtraction: true,
+        hasAiProposal: false,
         isSaving: false,
         sourceState: "none",
     },
     argTypes: {
         hasExtraction: { control: "boolean" },
+        hasAiProposal: { control: "boolean" },
         errorMessage: {
             control: "text",
         },
@@ -58,12 +61,16 @@ export const AuthenticationRejected: Story = {
 };
 
 export const WithSourcePdf: Story = { args: { sourceState: "available" } };
+export const WithAiSuggestions: Story = {
+    args: { hasAiProposal: true, sourceState: "available" },
+};
 export const LoadingSourcePdf: Story = { args: { sourceState: "loading" } };
 export const SourcePdfFailure: Story = { args: { sourceState: "failed" } };
 
 function InteractiveReviewResolutionForm({
     errorMessage,
     hasExtraction,
+    hasAiProposal,
     isSaving,
     sourceState,
 }: StoryArgs) {
@@ -72,6 +79,26 @@ function InteractiveReviewResolutionForm({
 
     return (
         <ReviewResolutionForm
+            aiProposal={
+                hasAiProposal
+                    ? {
+                          schema_version: 1,
+                          provider: "OLLAMA",
+                          model_reference: "synthetic-demo-model",
+                          model_digest: null,
+                          prompt_version: "invoice-v1",
+                          selected_text_sha256: "a".repeat(64),
+                          status: "VALID",
+                          invoice_number: "DEMO-INV-1001",
+                          issue_date: "2026-09-15",
+                          supplier_name: "Northstar Office Supplies",
+                          currency: "EUR",
+                          total_amount: "1275.00",
+                          issues: [],
+                          proposed_at: "2026-09-29T12:00:06Z",
+                      }
+                    : null
+            }
             errorMessage={errorMessage}
             invoiceExtraction={
                 !hasExtraction

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { expect, test, vi } from "vitest";
 
@@ -94,8 +94,17 @@ test("allows selecting a proposal while recording its source", async () => {
     );
 
     await user.click(
-        screen.getByRole("button", { name: "Use AI proposal for Supplier" }),
+        screen.getByRole("button", { name: "Use suggestion for Supplier" }),
     );
+    const supplier = screen.getByLabelText("Supplier");
+    const supplierField = within(supplier.parentElement!);
+    expect(
+        supplierField.getByText("Acme AI Ltd", { exact: true }),
+    ).toBeVisible();
+    expect(supplierField.getByText("From AI suggestion")).toBeVisible();
+    expect(
+        screen.queryByRole("button", { name: "Use suggestion for Currency" }),
+    ).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Approve document" }));
 
     expect(onDecision).toHaveBeenCalledWith("APPROVE", [
@@ -105,7 +114,64 @@ test("allows selecting a proposal while recording its source", async () => {
             source: "AI_PROPOSAL",
         },
     ]);
+    await user.clear(supplier);
+    await user.type(supplier, "Verified Supplier");
+    expect(supplierField.getByText("Manual correction")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Approve document" }));
+    expect(onDecision).toHaveBeenLastCalledWith("APPROVE", [
+        {
+            field: "SUPPLIER_NAME",
+            corrected_value: "Verified Supplier",
+            source: "MANUAL",
+        },
+    ]);
+    await user.click(
+        screen.getByRole("button", {
+            name: "Restore extracted value for Supplier",
+        }),
+    );
+    expect(supplier).toHaveValue("Acme Supplies Ltd");
+    expect(supplier).toHaveFocus();
+    expect(
+        supplierField.getByText("Extracted value", { exact: true }),
+    ).toBeVisible();
+    expect(
+        supplierField.queryByText("Manual correction"),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Approve document" }));
+    expect(onDecision).toHaveBeenLastCalledWith("APPROVE", []);
     expect((await axe(container)).violations).toEqual([]);
+});
+
+test("clears a correction to a missing value and removes its validation error", async () => {
+    const user = userEvent.setup();
+    render(
+        <ReviewResolutionForm
+            errorMessage={null}
+            invoiceExtraction={{ ...invoiceExtraction(), total_amount: null }}
+            isSaving={false}
+            onDecision={vi.fn()}
+            onOperatorTokenChange={() => undefined}
+            onReviewNoteChange={() => undefined}
+            operatorToken="operator-token"
+            reviewNote=""
+        />,
+    );
+    const amount = screen.getByLabelText("Total amount");
+    await user.type(amount, "-5");
+    await user.click(screen.getByRole("button", { name: "Approve document" }));
+    expect(amount).toHaveAttribute("aria-invalid", "true");
+    await user.click(
+        screen.getByRole("button", {
+            name: "Clear correction for Total amount",
+        }),
+    );
+    expect(amount).toHaveValue(null);
+    expect(amount).not.toHaveAttribute("aria-invalid");
+    expect(amount).toHaveFocus();
+    expect(
+        within(amount.parentElement!).getByText("Not extracted"),
+    ).toBeVisible();
 });
 
 test("moves focus to a review error", async () => {

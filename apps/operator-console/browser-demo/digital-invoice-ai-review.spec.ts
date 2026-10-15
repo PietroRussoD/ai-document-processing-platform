@@ -39,11 +39,13 @@ test("digital invoice AI proposal remains advisory until operator approval", asy
     await expect(
         page.getByText("Action required: review this document"),
     ).toBeVisible();
+    await page.getByText("Processing history", { exact: true }).click();
     await expect(
         page.getByText(
             "AI execution completed; proposal validity and document approval are separate.",
         ),
     ).toBeVisible();
+    await page.getByText("Processing history", { exact: true }).click();
     await page.getByLabel("Operator token").fill(operatorToken);
 
     const sourceResponse = page.waitForResponse((response) =>
@@ -61,10 +63,10 @@ test("digital invoice AI proposal remains advisory until operator approval", asy
     });
 
     await page
-        .getByRole("button", { name: "Use AI proposal for Currency" })
+        .getByRole("button", { name: "Use suggestion for Currency" })
         .click();
     await page
-        .getByRole("button", { name: "Use AI proposal for Total amount" })
+        .getByRole("button", { name: "Use suggestion for Total amount" })
         .click();
     await expect(page.getByRole("textbox", { name: "Currency" })).toHaveValue(
         "CAD",
@@ -105,7 +107,9 @@ test("digital invoice AI proposal remains advisory until operator approval", asy
     ).toBeNull();
     expect(after.current_run.ai_proposal?.currency).toBe("CAD");
     expect(after.current_run.ai_proposal?.total_amount).toBe("99.0000");
-    await expect(page.getByText("Processing results are ready.")).toBeVisible();
+    await expect(
+        page.getByText("Document approved", { exact: true }),
+    ).toBeVisible();
     await page.screenshot({
         path: testInfo.outputPath("digital-invoice-approved.png"),
         fullPage: true,

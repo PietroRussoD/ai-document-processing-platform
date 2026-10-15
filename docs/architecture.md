@@ -259,6 +259,15 @@ whether it was entered manually or selected from the proposal. The API verifies
 AI-sourced values against the persisted proposal before accepting them; the
 browser cannot assert that provenance by itself.
 
+Each editable field shows an AI suggestion when it differs from the original
+extraction, with a textual adoption control. The form identifies manual and
+AI-sourced corrections, shows the original value after a change and can restore
+it. Restoring a missing original value clears the correction. Editing an
+adopted suggestion changes its source to manual; restoring removes its source.
+Adoption and restoration return focus to the input. These controls inherit the
+review fieldset's disabled state while saving; proposals never approve a
+document automatically.
+
 The Documents page keeps review drafts in React memory, keyed by document,
 processing run and extraction timestamp. Switching or hiding a document,
 queue navigation and browser history preserve field values, correction sources
