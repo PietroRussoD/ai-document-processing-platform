@@ -68,6 +68,7 @@ export function ReviewResolutionForm({
     const [correctionSources, setCorrectionSources] = useState<
         Partial<Record<keyof InvoiceValues, "MANUAL" | "AI_PROPOSAL">>
     >({});
+    const [fieldErrors, setFieldErrors] = useState<InvoiceFieldErrors>({});
     const canApprove = invoiceExtraction !== null;
     const corrections = invoiceExtraction
         ? collectCorrections(
@@ -80,6 +81,7 @@ export function ReviewResolutionForm({
     function updateInvoiceValue(field: keyof InvoiceValues, value: string) {
         setInvoiceValues((current) => ({ ...current, [field]: value }));
         setCorrectionSources((current) => ({ ...current, [field]: "MANUAL" }));
+        setFieldErrors((current) => ({ ...current, [field]: undefined }));
     }
 
     function selectProposalValue(
@@ -94,6 +96,27 @@ export function ReviewResolutionForm({
             ...current,
             [field]: "AI_PROPOSAL",
         }));
+        setFieldErrors((current) => ({ ...current, [field]: undefined }));
+    }
+
+    function approveDocument() {
+        if (invoiceExtraction === null) {
+            return;
+        }
+
+        const errors = validateInvoiceValues(invoiceExtraction, invoiceValues);
+        setFieldErrors(errors);
+        const firstInvalidField = Object.keys(errors)[0] as
+            | keyof InvoiceValues
+            | undefined;
+        if (firstInvalidField !== undefined) {
+            document
+                .getElementById(invoiceFieldId(invoiceFieldLabel(firstInvalidField)))
+                ?.focus();
+            return;
+        }
+
+        onDecision("APPROVE", corrections);
     }
 
     return (
@@ -181,6 +204,7 @@ export function ReviewResolutionForm({
                             </p>
                             <div className="mt-4 grid gap-4 sm:grid-cols-2">
                                 <InvoiceField
+                                    error={fieldErrors.invoiceNumber}
                                     label="Invoice number"
                                     onSelectProposal={() =>
                                         selectProposalValue(
@@ -200,6 +224,7 @@ export function ReviewResolutionForm({
                                     value={invoiceValues.invoiceNumber}
                                 />
                                 <InvoiceField
+                                    error={fieldErrors.issueDate}
                                     label="Issue date"
                                     onSelectProposal={() =>
                                         selectProposalValue(
@@ -217,6 +242,7 @@ export function ReviewResolutionForm({
                                     value={invoiceValues.issueDate}
                                 />
                                 <InvoiceField
+                                    error={fieldErrors.supplierName}
                                     label="Supplier"
                                     onSelectProposal={() =>
                                         selectProposalValue(
@@ -236,6 +262,7 @@ export function ReviewResolutionForm({
                                     value={invoiceValues.supplierName}
                                 />
                                 <InvoiceField
+                                    error={fieldErrors.currency}
                                     label="Currency"
                                     maxLength={3}
                                     onSelectProposal={() =>
@@ -256,6 +283,7 @@ export function ReviewResolutionForm({
                                     value={invoiceValues.currency}
                                 />
                                 <InvoiceField
+                                    error={fieldErrors.totalAmount}
                                     label="Total amount"
                                     min="0.0001"
                                     onSelectProposal={() =>
@@ -285,7 +313,7 @@ export function ReviewResolutionForm({
                     <div className="mt-4 flex flex-wrap gap-3">
                         <Button
                             disabled={!operatorToken || isSaving || !canApprove}
-                            onClick={() => onDecision("APPROVE", corrections)}
+                            onClick={approveDocument}
                             variant="primary"
                         >
                             {isSaving ? (
@@ -334,6 +362,7 @@ export function ReviewResolutionForm({
 }
 
 function InvoiceField({
+    error,
     label,
     maxLength,
     min,
@@ -344,6 +373,7 @@ function InvoiceField({
     type = "text",
     value,
 }: {
+    error?: string;
     label: string;
     maxLength?: number;
     min?: string;
@@ -372,6 +402,8 @@ function InvoiceField({
             </div>
             <input
                 id={invoiceFieldId(label)}
+                aria-describedby={error ? invoiceFieldErrorId(label) : undefined}
+                aria-invalid={error ? true : undefined}
                 className="mt-1.5 h-10 w-full rounded border border-app-border-strong bg-app-surface px-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
                 maxLength={maxLength}
                 min={min}
@@ -380,7 +412,80 @@ function InvoiceField({
                 type={type}
                 value={value}
             />
+            {error ? (
+                <p
+                    className="mt-1 text-sm font-normal text-red-800"
+                    id={invoiceFieldErrorId(label)}
+                >
+                    {error}
+                </p>
+            ) : null}
         </div>
+    );
+}
+
+type InvoiceFieldErrors = Partial<Record<keyof InvoiceValues, string>>;
+
+function validateInvoiceValues(
+    extraction: InvoiceExtraction,
+    values: InvoiceValues,
+): InvoiceFieldErrors {
+    const errors: InvoiceFieldErrors = {};
+    const invoiceNumber = values.invoiceNumber.trim();
+    if (invoiceNumber !== extraction.invoice_number) {
+        if (!invoiceNumber) {
+            errors.invoiceNumber = "Enter a value or restore the extracted one.";
+        } else if (invoiceNumber.length > 128) {
+            errors.invoiceNumber = "Use no more than 128 characters.";
+        }
+    }
+
+    if (values.issueDate !== (extraction.issue_date ?? "")) {
+        if (!isValidDate(values.issueDate)) {
+            errors.issueDate = "Enter a valid date.";
+        }
+    }
+
+    const supplierName = values.supplierName.trim();
+    if (supplierName !== extraction.supplier_name) {
+        if (!supplierName) {
+            errors.supplierName = "Enter a value or restore the extracted one.";
+        } else if (supplierName.length > 512) {
+            errors.supplierName = "Use no more than 512 characters.";
+        }
+    }
+
+    if (values.currency !== (extraction.currency ?? "")) {
+        if (!/^[A-Z]{3}$/.test(values.currency)) {
+            errors.currency = "Enter a three-letter ISO 4217 currency code.";
+        }
+    }
+
+    if (
+        normalizeAmount(values.totalAmount) !==
+        normalizeAmount(extraction.total_amount)
+    ) {
+        const amount = values.totalAmount.trim();
+        if (!/^\d{1,16}(?:\.\d{1,4})?$/.test(amount) || Number(amount) <= 0) {
+            errors.totalAmount =
+                "Enter a positive amount with no more than four decimal places.";
+        }
+    }
+
+    return errors;
+}
+
+function isValidDate(value: string): boolean {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (!match) {
+        return false;
+    }
+    const [, year, month, day] = match;
+    const date = new Date(`${value}T00:00:00Z`);
+    return (
+        date.getUTCFullYear() === Number(year) &&
+        date.getUTCMonth() + 1 === Number(month) &&
+        date.getUTCDate() === Number(day)
     );
 }
 
@@ -489,6 +594,21 @@ function sourceFor(
 
 function invoiceFieldId(label: string): string {
     return `invoice-field-${label.toLowerCase().replaceAll(" ", "-")}`;
+}
+
+function invoiceFieldLabel(field: keyof InvoiceValues): string {
+    const labels: Record<keyof InvoiceValues, string> = {
+        invoiceNumber: "Invoice number",
+        issueDate: "Issue date",
+        supplierName: "Supplier",
+        currency: "Currency",
+        totalAmount: "Total amount",
+    };
+    return labels[field];
+}
+
+function invoiceFieldErrorId(label: string): string {
+    return `${invoiceFieldId(label)}-error`;
 }
 
 function normalizeAmount(value: string | null): string | null {
