@@ -336,10 +336,32 @@ function documentGuidance(document: DocumentStatus): {
                 tone: "warning",
             };
         case "APPROVED":
+            if (
+                document.current_run.review_resolution?.decision === "APPROVE"
+            ) {
+                return {
+                    title: "Approved by an operator",
+                    description:
+                        "The operator decision is saved. The reviewer and any corrections are recorded below.",
+                    tone: "success",
+                };
+            }
+            if (
+                document.current_run.review_resolution === null &&
+                document.current_run.processing_output?.invoice_validation
+                    ?.decision === "AUTO_APPROVE"
+            ) {
+                return {
+                    title: "Approved automatically",
+                    description:
+                        "The extracted invoice fields passed the automatic validation rules. No operator review was needed.",
+                    tone: "success",
+                };
+            }
             return {
                 title: "Document approved",
                 description:
-                    "The operator decision is saved. Processing results and the review record are below.",
+                    "The document is approved, but the available records do not identify how it was approved.",
                 tone: "success",
             };
         case "REJECTED":

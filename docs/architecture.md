@@ -289,6 +289,13 @@ disclosures. History starts expanded while processing or AI execution is active;
 the review form remains outside these disclosures so opening them preserves
 the working draft.
 
+Approval guidance uses the current run's persisted evidence. An `APPROVE`
+review resolution identifies operator approval; otherwise, an `AUTO_APPROVE`
+validation decision identifies automatic approval only when no review resolution
+exists. An approved status alone, including an original `REVIEW_REQUIRED`
+validation without a resolution, does not identify the source of approval.
+The console explicitly reports that the origin is unavailable in these cases.
+
 The operator console derives its processing timeline from the same persisted
 metadata exposed by the status endpoint. It does not query Temporal directly,
 and it does not receive document text or blob paths. A deterministic stage is shown as

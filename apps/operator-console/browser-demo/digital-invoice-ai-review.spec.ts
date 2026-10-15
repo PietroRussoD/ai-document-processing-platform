@@ -108,7 +108,7 @@ test("digital invoice AI proposal remains advisory until operator approval", asy
     expect(after.current_run.ai_proposal?.currency).toBe("CAD");
     expect(after.current_run.ai_proposal?.total_amount).toBe("99.0000");
     await expect(
-        page.getByText("Document approved", { exact: true }),
+        page.getByText("Approved by an operator", { exact: true }),
     ).toBeVisible();
     await page.screenshot({
         path: testInfo.outputPath("digital-invoice-approved.png"),

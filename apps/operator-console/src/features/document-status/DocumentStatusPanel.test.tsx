@@ -48,6 +48,76 @@ test.each([
     },
 );
 
+test.each([
+    ["automatic", "Approved automatically"],
+    ["operator", "Approved by an operator"],
+    ["unknown", "Document approved"],
+    ["review-required-only", "Document approved"],
+] as const)(
+    "identifies approval from persisted %s evidence",
+    async (origin, title) => {
+        const document = status("APPROVED", "COMPLETED");
+        if (
+            origin === "automatic" ||
+            origin === "operator" ||
+            origin === "review-required-only"
+        ) {
+            document.current_run.processing_output = {
+                embedded_text: null,
+                ocr_text: null,
+                selected_text: null,
+                classification: null,
+                invoice_extraction: null,
+                invoice_validation: {
+                    decision:
+                        origin === "automatic"
+                            ? "AUTO_APPROVE"
+                            : "REVIEW_REQUIRED",
+                    issues: origin === "automatic" ? [] : ["MISSING_CURRENCY"],
+                    validated_at: "2026-09-15T08:00:00Z",
+                },
+            };
+        }
+        if (origin === "operator") {
+            document.current_run.review_resolution = {
+                decision: "APPROVE",
+                reviewer_id: "operator-42",
+                review_note: null,
+                resolved_at: "2026-09-15T09:00:00Z",
+                corrections: [],
+            };
+        }
+        render(
+            <DocumentStatusPanel
+                api={{ getStatus: vi.fn().mockResolvedValue(document) }}
+                documentId={DOCUMENT_ID}
+            />,
+            { wrapper: QueryWrapper },
+        );
+        expect(await screen.findByText(title)).toBeVisible();
+        if (origin === "automatic") {
+            expect(
+                screen.getByText(/No operator review was needed/),
+            ).toBeVisible();
+            expect(
+                screen.queryByText("Review resolved"),
+            ).not.toBeInTheDocument();
+        } else if (origin === "operator") {
+            expect(screen.getByText("operator-42")).toBeVisible();
+            expect(
+                screen.queryByText("Approved automatically"),
+            ).not.toBeInTheDocument();
+        } else {
+            expect(
+                screen.getByText(/available records do not identify how/),
+            ).toBeVisible();
+            expect(
+                screen.queryByText("Approved by an operator"),
+            ).not.toBeInTheDocument();
+        }
+    },
+);
+
 test("allows a failed status request to be retried", async () => {
     const getStatus = vi
         .fn<
