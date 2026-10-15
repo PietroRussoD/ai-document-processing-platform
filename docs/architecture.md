@@ -296,6 +296,15 @@ exists. An approved status alone, including an original `REVIEW_REQUIRED`
 validation without a resolution, does not identify the source of approval.
 The console explicitly reports that the origin is unavailable in these cases.
 
+Processing-result empty states use the deterministic run status, independently
+of optional AI execution. Queued, running and retrying runs may show pending
+results. Completed, failed, cancelled and review-required runs show missing
+results as unrecorded. Null output and output with no recorded stages share one
+empty message. Persisted partial results remain visible, and known non-invoice
+types retain not-applicable labels for invoice stages. Missing OCR metadata is
+labeled unrecorded because its absence alone does not establish whether OCR
+was skipped or attempted.
+
 The operator console derives its processing timeline from the same persisted
 metadata exposed by the status endpoint. It does not query Temporal directly,
 and it does not receive document text or blob paths. A deterministic stage is shown as

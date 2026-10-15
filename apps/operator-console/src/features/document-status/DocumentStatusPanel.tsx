@@ -217,6 +217,7 @@ export function DocumentStatusPanel({
                         []
                     }
                     output={document.current_run.processing_output}
+                    runStatus={document.current_run.status}
                 />
                 <AiInvoiceComparison
                     extraction={

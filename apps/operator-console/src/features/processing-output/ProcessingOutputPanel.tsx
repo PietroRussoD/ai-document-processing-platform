@@ -22,13 +22,22 @@ type InvoiceExtraction = NonNullable<ProcessingOutput["invoice_extraction"]>;
 type ProcessingOutputPanelProps = {
     corrections?: ReviewCorrections;
     output: ProcessingOutput | null;
+    runStatus: DocumentStatus["current_run"]["status"];
 };
 
 export function ProcessingOutputPanel({
     corrections = [],
     output,
+    runStatus,
 }: ProcessingOutputPanelProps) {
-    if (output === null) {
+    const isProcessing = ["QUEUED", "RUNNING", "WAITING_RETRY"].includes(
+        runStatus,
+    );
+    const missingResult = isProcessing ? "Pending" : "No result recorded";
+    if (
+        output === null ||
+        Object.values(output).every((result) => result === null)
+    ) {
         return (
             <section
                 className="mt-6 border-t border-app-border pt-5"
@@ -41,7 +50,9 @@ export function ProcessingOutputPanel({
                     Processing results
                 </h3>
                 <p className="mt-2 text-sm text-app-muted">
-                    Waiting for the first processing result.
+                    {isProcessing
+                        ? "Waiting for the first processing result."
+                        : "No processing results are recorded for this run."}
                 </p>
             </section>
         );
@@ -69,7 +80,7 @@ export function ProcessingOutputPanel({
                         label="Embedded text"
                         value={
                             output.embedded_text === null
-                                ? "Not available"
+                                ? missingResult
                                 : `${formatLabel(output.embedded_text.method)} · ${formatLabel(output.embedded_text.quality)}`
                         }
                     />
@@ -77,7 +88,7 @@ export function ProcessingOutputPanel({
                         label="OCR fallback"
                         value={
                             output.ocr_text === null
-                                ? "Not used"
+                                ? "No OCR result recorded"
                                 : `${formatLabel(output.ocr_text.method)} · ${output.ocr_text.character_count} characters`
                         }
                     />
@@ -87,7 +98,9 @@ export function ProcessingOutputPanel({
                         label="Selected source"
                         value={
                             output.selected_text === null
-                                ? "Not selected"
+                                ? isProcessing
+                                    ? "Not selected yet"
+                                    : "No selection recorded"
                                 : formatLabel(output.selected_text.source)
                         }
                     />
@@ -95,14 +108,17 @@ export function ProcessingOutputPanel({
                         label="Decision"
                         value={
                             output.selected_text === null
-                                ? "Pending"
+                                ? missingResult
                                 : formatLabel(output.selected_text.reason)
                         }
                     />
                 </ResultGroup>
                 <ResultGroup icon={Tags} title="Document classification">
                     {output.classification === null ? (
-                        <ResultValue label="Classification" value="Pending" />
+                        <ResultValue
+                            label="Classification"
+                            value={missingResult}
+                        />
                     ) : (
                         <>
                             <div>
@@ -140,7 +156,7 @@ export function ProcessingOutputPanel({
                     {output.invoice_extraction === null ? (
                         <ResultValue
                             label="Extraction"
-                            value={invoiceExtractionStatus(output)}
+                            value={invoiceStageStatus(output, missingResult)}
                         />
                     ) : (
                         <>
@@ -206,7 +222,7 @@ export function ProcessingOutputPanel({
                     {output.invoice_validation === null ? (
                         <ResultValue
                             label="Decision"
-                            value={invoiceValidationStatus(output)}
+                            value={invoiceStageStatus(output, missingResult)}
                         />
                     ) : (
                         <>
@@ -242,22 +258,14 @@ export function ProcessingOutputPanel({
     );
 }
 
-function invoiceExtractionStatus(output: ProcessingOutput): string {
-    if (output.classification === null) {
-        return "Pending";
-    }
-    return output.classification.document_type === "INVOICE"
-        ? "Pending"
-        : "Not applicable";
-}
-
-function invoiceValidationStatus(output: ProcessingOutput): string {
-    if (output.classification === null) {
-        return "Pending";
-    }
-    return output.classification.document_type === "INVOICE"
-        ? "Pending"
-        : "Not applicable";
+function invoiceStageStatus(
+    output: ProcessingOutput,
+    missingResult: string,
+): string {
+    return output.classification !== null &&
+        output.classification.document_type !== "INVOICE"
+        ? "Not applicable"
+        : missingResult;
 }
 
 function formatValidationIssues(issues: string[]): string {

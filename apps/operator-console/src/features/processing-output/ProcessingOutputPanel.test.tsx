@@ -1,10 +1,10 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { expect, test } from "vitest";
 
 import { ProcessingOutputPanel } from "./ProcessingOutputPanel";
 
 test("shows a waiting state before processing creates output", () => {
-    render(<ProcessingOutputPanel output={null} />);
+    render(<ProcessingOutputPanel output={null} runStatus="QUEUED" />);
 
     expect(screen.getByText("Processing results")).toBeVisible();
     expect(
@@ -12,9 +12,81 @@ test("shows a waiting state before processing creates output", () => {
     ).toBeVisible();
 });
 
+test.each(["COMPLETED", "FAILED", "CANCELLED", "REVIEW_REQUIRED"] as const)(
+    "does not promise more results for a %s run with no output",
+    (runStatus) => {
+        const { rerender } = render(
+            <ProcessingOutputPanel output={null} runStatus={runStatus} />,
+        );
+        expect(
+            screen.getByText(
+                "No processing results are recorded for this run.",
+            ),
+        ).toBeVisible();
+        expect(screen.queryByText(/Waiting/)).not.toBeInTheDocument();
+        rerender(
+            <ProcessingOutputPanel
+                output={{
+                    embedded_text: null,
+                    ocr_text: null,
+                    selected_text: null,
+                    classification: null,
+                    invoice_extraction: null,
+                    invoice_validation: null,
+                }}
+                runStatus={runStatus}
+            />,
+        );
+        expect(
+            screen.getByText(
+                "No processing results are recorded for this run.",
+            ),
+        ).toBeVisible();
+        expect(screen.queryByText("Pending")).not.toBeInTheDocument();
+    },
+);
+
+test("stops showing pending stages when a partial run fails", () => {
+    const output = {
+        embedded_text: {
+            method: "PYMUPDF" as const,
+            quality: "OCR_RECOMMENDED" as const,
+            page_count: 1,
+            character_count: 0,
+            non_whitespace_character_count: 0,
+            extracted_at: "2026-09-16T12:00:00Z",
+        },
+        ocr_text: null,
+        selected_text: null,
+        classification: null,
+        invoice_extraction: null,
+        invoice_validation: null,
+    };
+    const { rerender } = render(
+        <ProcessingOutputPanel output={output} runStatus="WAITING_RETRY" />,
+    );
+    expect(screen.getAllByText("Pending").length).toBeGreaterThan(0);
+    expect(screen.getByText("No OCR result recorded")).toBeVisible();
+    rerender(<ProcessingOutputPanel output={output} runStatus="FAILED" />);
+    expect(screen.getByText("PyMuPDF · OCR recommended")).toBeVisible();
+    expect(screen.queryByText("Pending")).not.toBeInTheDocument();
+    expect(screen.getByText("No selection recorded")).toBeVisible();
+    for (const title of [
+        "Document classification",
+        "Invoice extraction",
+        "Original extraction validation",
+    ]) {
+        const group = screen.getByRole("heading", { name: title })
+            .parentElement!.parentElement!;
+        expect(within(group).getByText("No result recorded")).toBeVisible();
+    }
+    expect(screen.queryByText("Not used")).not.toBeInTheDocument();
+});
+
 test("shows safe processing metadata without extracted text", () => {
     render(
         <ProcessingOutputPanel
+            runStatus="COMPLETED"
             output={{
                 embedded_text: {
                     method: "PYMUPDF",
@@ -75,6 +147,7 @@ test("shows safe processing metadata without extracted text", () => {
 test("shows invoice review reasons without exposing source text", () => {
     render(
         <ProcessingOutputPanel
+            runStatus="COMPLETED"
             output={{
                 embedded_text: null,
                 ocr_text: null,
@@ -113,6 +186,7 @@ test("shows invoice review reasons without exposing source text", () => {
 test("marks invoice-only output as not applicable for other document types", () => {
     render(
         <ProcessingOutputPanel
+            runStatus="COMPLETED"
             output={{
                 embedded_text: null,
                 ocr_text: null,
@@ -134,6 +208,7 @@ test("marks invoice-only output as not applicable for other document types", () 
 test("shows review-corrected invoice values without replacing extracted values", () => {
     render(
         <ProcessingOutputPanel
+            runStatus="COMPLETED"
             corrections={[
                 {
                     field: "SUPPLIER_NAME",
