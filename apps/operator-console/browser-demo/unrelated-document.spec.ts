@@ -45,13 +45,20 @@ test("unrelated report finishes as unsupported without invoice review", async ({
 
     const browserErrors: string[] = [];
     page.on("pageerror", (error) => browserErrors.push(error.message));
+    const loadedStatus = page.waitForResponse(
+        (response) => response.url() === statusUrl.toString(),
+    );
     await page.goto(documentUrl);
+    expect((await loadedStatus).status()).toBe(200);
     await expect(
         page.getByText(
             "The document type could not be recognized. No structured extraction was performed.",
         ),
     ).toBeVisible();
     await expect(page.getByText("equipment-report.pdf")).toBeVisible();
+    await page
+        .getByText("Processing results and AI details", { exact: true })
+        .click();
     await expect(page.getByText("No Match")).toBeVisible();
     await expect(
         page.getByRole("button", { name: "Approve document" }),
@@ -59,9 +66,9 @@ test("unrelated report finishes as unsupported without invoice review", async ({
     await expect(
         page.getByRole("button", { name: "Reject document" }),
     ).toHaveCount(0);
-    await expect(
-        page.getByText("Request controlled reprocessing"),
-    ).toBeVisible();
+    await expect(page.getByText("Request controlled reprocessing")).toHaveCount(
+        0,
+    );
     await page.screenshot({
         path: testInfo.outputPath("unrelated-report-details.png"),
         fullPage: true,

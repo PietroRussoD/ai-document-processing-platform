@@ -20,7 +20,11 @@ test("synthetic document remains inspectable across console views", async ({
     await expect(
         page.getByText("Action required: review this document"),
     ).toBeVisible();
-    await expect(page.getByText("Missing Invoice Number")).toBeVisible();
+    await expect(
+        page
+            .getByRole("list", { name: "Reasons for review" })
+            .getByText("Missing Invoice Number", { exact: true }),
+    ).toBeVisible();
     await page.screenshot({
         path: testInfo.outputPath("document.png"),
         fullPage: true,
@@ -32,6 +36,10 @@ test("synthetic document remains inspectable across console views", async ({
     await expect(
         page
             .getByRole("region", { name: "Document work queues" })
+            .getByText(new URL(documentUrl).searchParams.get("documentId")!, {
+                exact: true,
+            })
+            .locator("..")
             .getByText("compose-smoke.pdf"),
     ).toBeVisible();
     await page.getByRole("link", { name: "System Map" }).click();
