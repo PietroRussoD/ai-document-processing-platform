@@ -326,6 +326,28 @@ test("loads the source PDF only on request and revokes its object URL on close",
     expect(
         screen.getByRole("link", { name: "Open PDF in new tab" }),
     ).toHaveAttribute("rel", "noopener noreferrer");
+    const preview = screen.getByTitle("Source PDF preview");
+    await user.click(screen.getByRole("button", { name: "Invoice fields" }));
+    await user.type(
+        screen.getByLabelText(/Review note/),
+        "Check the source amount.",
+    );
+    await user.click(screen.getByRole("button", { name: "Source PDF" }));
+    expect(screen.getByRole("button", { name: "Source PDF" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+    );
+    expect(screen.getByTitle("Source PDF preview")).toBe(preview);
+    expect(getSourceDocument).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Invoice fields" }));
+    expect(screen.getByLabelText(/Review note/)).toHaveValue(
+        "Check the source amount.",
+    );
+    expect(screen.getByLabelText("Operator token")).toHaveValue(
+        "operator-token",
+    );
+    await user.click(screen.getByRole("button", { name: "Source PDF" }));
     await user.click(screen.getByRole("button", { name: "Close source PDF" }));
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:source-document");
     expect(screen.queryByTitle("Source PDF preview")).not.toBeInTheDocument();

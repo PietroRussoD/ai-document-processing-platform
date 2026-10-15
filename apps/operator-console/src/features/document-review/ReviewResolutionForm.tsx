@@ -54,6 +54,9 @@ export function ReviewResolutionForm({
     const { draft, updateDraft } = useReviewDraft(draftKey, invoiceExtraction);
     const { invoiceValues, correctionSources } = draft;
     const [fieldErrors, setFieldErrors] = useState<InvoiceFieldErrors>({});
+    const [workspaceView, setWorkspaceView] = useState<"fields" | "source">(
+        "fields",
+    );
     const canApprove = invoiceExtraction !== null;
     const corrections = invoiceExtraction
         ? collectCorrections(
@@ -191,6 +194,34 @@ export function ReviewResolutionForm({
                 </span>
             </div>
 
+            {sourcePreview ? (
+                <div
+                    aria-label="Review workspace view"
+                    className="mt-5 flex flex-wrap gap-2 @min-[48rem]:hidden"
+                    role="group"
+                >
+                    <Button
+                        aria-controls="review-invoice-fields"
+                        aria-pressed={workspaceView === "fields"}
+                        onClick={() => setWorkspaceView("fields")}
+                        variant={
+                            workspaceView === "fields" ? "primary" : "secondary"
+                        }
+                    >
+                        Invoice fields
+                    </Button>
+                    <Button
+                        aria-controls="review-source-panel"
+                        aria-pressed={workspaceView === "source"}
+                        onClick={() => setWorkspaceView("source")}
+                        variant={
+                            workspaceView === "source" ? "primary" : "secondary"
+                        }
+                    >
+                        Source PDF
+                    </Button>
+                </div>
+            ) : null}
             <div
                 className={
                     sourcePreview
@@ -199,9 +230,17 @@ export function ReviewResolutionForm({
                 }
             >
                 {sourcePreview ? (
-                    <div className="min-w-0">{sourcePreview}</div>
+                    <div
+                        id="review-source-panel"
+                        className={`min-w-0 ${workspaceView === "source" ? "block" : "hidden"} @min-[48rem]:block`}
+                    >
+                        {sourcePreview}
+                    </div>
                 ) : null}
-                <div className="min-w-0">
+                <div
+                    id="review-invoice-fields"
+                    className={`min-w-0 ${!sourcePreview || workspaceView === "fields" ? "block" : "hidden"} @min-[48rem]:block`}
+                >
                     {invoiceExtraction !== null ? (
                         <fieldset
                             className="min-w-0 border-t border-amber-200 pt-5"

@@ -256,6 +256,12 @@ test("keeps credentials, source, fields and review note in task order", async ()
     expect(screen.getByLabelText("Operator token")).toHaveFocus();
     await user.tab();
     expect(
+        screen.getByRole("button", { name: "Invoice fields" }),
+    ).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole("button", { name: "Source PDF" })).toHaveFocus();
+    await user.tab();
+    expect(
         screen.getByRole("button", { name: "View source PDF" }),
     ).toHaveFocus();
     await user.tab();

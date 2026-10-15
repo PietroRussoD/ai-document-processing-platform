@@ -351,11 +351,15 @@ proposed field validity separately. A missing state is shown as not recorded
 for invoices, never as disabled. Legacy proposals/failures remain visible even
 without an execution record. Unknown non-invoice documents do not get an invoice
 AI panel or a start grace period. Feedback uses live status messages without
-moving focus. Credentials and the review note precede the source/field workspace
-in DOM order. At a panel content width of at least 48rem, a container query puts
-source PDF and correction controls side by side; narrower panels stack them,
-even on a large screen. The same controls, correction provenance and approval
-requests are used in both layouts. Storybook covers source availability, loading
+moving focus. Credentials precede the source/field workspace in DOM order;
+the review note and decision controls follow the invoice fields. At a panel
+content width of at least 48rem, a container query puts source PDF and correction
+controls side by side. Narrower panels offer "Invoice fields" and "Source PDF"
+view buttons, with fields selected initially. The inactive panel stays mounted
+but is hidden from display, keyboard navigation and assistive technologies.
+Switching views preserves drafts, credentials and an already loaded PDF object
+URL without another source request. The same controls, correction provenance and
+approval requests are used in both layouts. Storybook covers source availability, loading
 and safe failure using the existing synthetic invoice, not a real API token.
 
 ### Advisory Execution Contract
