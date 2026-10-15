@@ -63,6 +63,9 @@ export function ReviewResolutionPanel({
             await queryClient.invalidateQueries({
                 queryKey: ["document-status", documentId],
             });
+            await queryClient.invalidateQueries({
+                queryKey: ["document-work-queue"],
+            });
         },
     });
 

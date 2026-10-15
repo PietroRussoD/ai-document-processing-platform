@@ -13,8 +13,50 @@ import {
 import { axe } from "../../test/accessibility";
 import { ReviewResolutionPanel } from "./ReviewResolutionPanel";
 import { ReviewDraftProvider } from "./ReviewDraftProvider";
+import { DocumentWorkQueuesPanel } from "../document-work-queues/DocumentWorkQueuesPanel";
 
 const DOCUMENT_ID = "11111111-1111-4111-8111-111111111111";
+
+test("refreshes cached work queues after a successful review", async () => {
+    const client = new QueryClient({
+        defaultOptions: {
+            queries: { retry: false },
+            mutations: { retry: false },
+        },
+    });
+    const listWorkQueue = vi
+        .fn<DocumentApi["listWorkQueue"]>()
+        .mockResolvedValue({ items: [], total: 0, offset: 0, limit: 25 });
+    const resolveReview = vi
+        .fn<DocumentApi["resolveReview"]>()
+        .mockResolvedValue({
+            processing_run_id: "22222222-2222-4222-8222-222222222222",
+            decision: "REJECT",
+            reviewer_id: "operator-42",
+            resolved_at: "2026-09-17T18:00:00Z",
+            replayed: false,
+        });
+    render(
+        <QueryClientProvider client={client}>
+            <DocumentWorkQueuesPanel
+                api={{ listWorkQueue }}
+                selectedDocumentId={DOCUMENT_ID}
+                onSelectDocument={() => undefined}
+            />
+            <ReviewResolutionPanel
+                api={{ resolveReview }}
+                documentId={DOCUMENT_ID}
+                run={reviewRequiredRun()}
+            />
+        </QueryClientProvider>,
+    );
+    await waitFor(() => expect(listWorkQueue).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByLabelText("Operator token"), {
+        target: { value: "operator-token" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Reject document" }));
+    await waitFor(() => expect(listWorkQueue).toHaveBeenCalledTimes(2));
+});
 
 test("submits an approval with the token and optional note", async () => {
     let completeReview!: (resolution: ReviewResolution) => void;

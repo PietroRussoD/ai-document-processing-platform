@@ -73,6 +73,9 @@ export function DocumentReprocessingPanel({
             await queryClient.invalidateQueries({
                 queryKey: ["document-status", documentId],
             });
+            await queryClient.invalidateQueries({
+                queryKey: ["document-work-queue"],
+            });
         },
     });
 

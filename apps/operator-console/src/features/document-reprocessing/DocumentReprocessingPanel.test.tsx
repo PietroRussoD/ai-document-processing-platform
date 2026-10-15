@@ -10,8 +10,58 @@ import {
 } from "../../api/documentApi";
 import { axe } from "../../test/accessibility";
 import { DocumentReprocessingPanel } from "./DocumentReprocessingPanel";
+import { DocumentWorkQueuesPanel } from "../document-work-queues/DocumentWorkQueuesPanel";
 
 const DOCUMENT_ID = "11111111-1111-4111-8111-111111111111";
+
+test("refreshes cached work queues after successful reprocessing", async () => {
+    const client = new QueryClient({
+        defaultOptions: {
+            queries: { retry: false },
+            mutations: { retry: false },
+        },
+    });
+    const listWorkQueue = vi
+        .fn<DocumentApi["listWorkQueue"]>()
+        .mockResolvedValue({ items: [], total: 0, offset: 0, limit: 25 });
+    const requestReprocessing = vi
+        .fn<DocumentApi["requestReprocessing"]>()
+        .mockResolvedValue({
+            operation_id: "33333333-3333-4333-8333-333333333333",
+            document_id: DOCUMENT_ID,
+            source_run_id: "22222222-2222-4222-8222-222222222222",
+            replacement_run_id: "44444444-4444-4444-8444-444444444444",
+            requested_at: "2026-09-20T12:00:00Z",
+            replayed: false,
+        });
+    render(
+        <QueryClientProvider client={client}>
+            <DocumentWorkQueuesPanel
+                api={{ listWorkQueue }}
+                selectedDocumentId={DOCUMENT_ID}
+                onSelectDocument={() => undefined}
+            />
+            <DocumentReprocessingPanel
+                api={{ requestReprocessing }}
+                documentId={DOCUMENT_ID}
+                documentStatus="FAILED"
+                idempotencyKeyGenerator={() => "reprocess-42"}
+                run={{ ...terminalRun(), status: "FAILED" }}
+            />
+        </QueryClientProvider>,
+    );
+    await waitFor(() => expect(listWorkQueue).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByLabelText("Operator token"), {
+        target: { value: "operator-token" },
+    });
+    fireEvent.change(screen.getByLabelText("Reprocessing reason"), {
+        target: { value: "Retry after the issue was resolved." },
+    });
+    fireEvent.click(
+        screen.getByRole("button", { name: "Request reprocessing" }),
+    );
+    await waitFor(() => expect(listWorkQueue).toHaveBeenCalledTimes(2));
+});
 
 test("submits a terminal run for controlled reprocessing", async () => {
     const requestReprocessing = vi
