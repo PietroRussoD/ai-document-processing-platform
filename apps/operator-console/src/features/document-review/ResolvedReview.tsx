@@ -16,7 +16,7 @@ export function ResolvedReview({ resolution }: ResolvedReviewProps) {
 
     return (
         <section
-            className="mt-6 border border-app-success-border bg-app-success-surface p-5"
+            className={`mt-6 border p-5 ${approved ? "border-app-success-border bg-app-success-surface" : "border-red-200 bg-red-50"}`}
             aria-labelledby="review-outcome-heading"
         >
             <div className="flex items-center gap-2">
@@ -57,7 +57,9 @@ export function ResolvedReview({ resolution }: ResolvedReviewProps) {
                 />
             </dl>
             {resolution.corrections.length > 0 ? (
-                <div className="mt-5 border-t border-app-success-border pt-4">
+                <div
+                    className={`mt-5 border-t pt-4 ${approved ? "border-app-success-border" : "border-red-200"}`}
+                >
                     <h4 className="text-sm font-semibold">
                         Recorded corrections
                     </h4>

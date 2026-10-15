@@ -55,20 +55,26 @@ test("renders a rejected outcome without a review note", () => {
 
     expect(screen.getByText("Rejected")).toBeVisible();
     expect(screen.getByText("No note provided")).toBeVisible();
+    const outcome = screen.getByRole("region", { name: "Review resolved" });
+    expect(outcome).toHaveClass("border-red-200", "bg-red-50");
+    expect(outcome).not.toHaveClass("bg-app-success-surface");
 });
 
-test("has no detectable accessibility violations", async () => {
-    const { container } = render(
-        <ResolvedReview
-            resolution={{
-                decision: "APPROVE",
-                reviewer_id: "operator-42",
-                review_note: "Supplier evidence verified.",
-                resolved_at: "2026-09-17T18:00:00Z",
-                corrections: [],
-            }}
-        />,
-    );
+test.each(["APPROVE", "REJECT"] as const)(
+    "has no detectable accessibility violations for %s outcomes",
+    async (decision) => {
+        const { container } = render(
+            <ResolvedReview
+                resolution={{
+                    decision,
+                    reviewer_id: "operator-42",
+                    review_note: "Supplier evidence verified.",
+                    resolved_at: "2026-09-17T18:00:00Z",
+                    corrections: [],
+                }}
+            />,
+        );
 
-    expect((await axe(container)).violations).toEqual([]);
-});
+        expect((await axe(container)).violations).toEqual([]);
+    },
+);
