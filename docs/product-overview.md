@@ -4,9 +4,9 @@
 
 AI Document Processing Platform accepts business documents as PDFs, extracts
 their text, classifies them and turns invoices into structured, validated data.
-Complete invoices are approved by deterministic rules; incomplete ones go to a
-human reviewer. An optional local model can propose missing fields, but it never
-decides.
+Invoices that pass the deterministic checks are approved automatically; those
+with missing or invalid values go to a human reviewer. An optional local model
+can propose invoice fields, but it never decides.
 
 It is a local-first demonstration on synthetic documents. A clean default run
 needs no cloud credentials and no paid AI provider. It is not a service for
@@ -39,8 +39,11 @@ values and never approves a document.
 An operator can adopt a proposed value as a correction. The correction records
 whether it was entered manually or taken from the proposal, and the API checks
 an AI-sourced value against the persisted proposal; the browser cannot assert
-that provenance. Prompts, source text and raw model responses are neither
-stored nor logged.
+that provenance. Extracted PDF and OCR text is stored internally in PostgreSQL
+so later stages and retries can reuse it. Model calls do not store an additional
+copy of that text, the assembled prompts or raw model responses. Document text,
+prompts and raw responses are excluded from application logs and the status
+and queue APIs.
 
 The first recorded benchmark matched four of eight synthetic invoices exactly
 and inferred a value from a sentence that was not an invoice. That is evidence
@@ -70,8 +73,8 @@ flowchart TB
     Select --> Classify["Classify the document"]
     Classify -->|"invoice"| Extract["Extract and validate invoice fields"]
     Classify -->|"other or unknown"| Unsupported["UNSUPPORTED"]
-    Extract -->|"complete"| Approved["APPROVED"]
-    Extract -->|"incomplete"| Review["REVIEW_REQUIRED"]
+    Extract -->|"checks pass"| Approved["APPROVED"]
+    Extract -->|"checks fail"| Review["REVIEW_REQUIRED"]
     Approved -.->|"optional"| Proposal["Advisory model proposal"]
     Review -.->|"optional"| Proposal
     Review --> Decision["Operator approves, with optional corrections, or rejects"]
@@ -80,8 +83,9 @@ flowchart TB
 The upload does not start the workflow. It commits a workflow-start request in
 the same transaction as the document, and a separate dispatcher hands it to
 Temporal with a stable workflow ID. A failure between the two systems therefore
-leaves neither a document without a workflow nor a workflow without a
-document. See [Durable Workflow Handoff](architecture.md#durable-workflow-handoff).
+leaves a durable request that the dispatcher can retry, rather than losing the
+handoff after accepting the document. Processing waits while Temporal or a
+worker is unavailable. See [Durable Workflow Handoff](architecture.md#durable-workflow-handoff).
 
 ## Document Outcomes
 
@@ -89,8 +93,8 @@ document. See [Durable Workflow Handoff](architecture.md#durable-workflow-handof
 stateDiagram-v2
     [*] --> UPLOADED
     UPLOADED --> PROCESSING: worker starts the run
-    PROCESSING --> APPROVED: complete invoice
-    PROCESSING --> REVIEW_REQUIRED: incomplete invoice
+    PROCESSING --> APPROVED: invoice checks pass
+    PROCESSING --> REVIEW_REQUIRED: missing or invalid values
     PROCESSING --> UNSUPPORTED: not an invoice
     PROCESSING --> FAILED: retries exhausted
     REVIEW_REQUIRED --> APPROVED: operator approves
@@ -102,10 +106,10 @@ stateDiagram-v2
 
 | Status | Meaning |
 | --- | --- |
-| `APPROVED` | Deterministic rules accepted a complete invoice, or an operator approved it. |
+| `APPROVED` | The invoice passed the deterministic checks, or an operator approved it after review. |
 | `REVIEW_REQUIRED` | The invoice is incomplete or invalid and needs an operator. |
 | `UNSUPPORTED` | Not an invoice, or not recognized. Recognized types and unknown input keep distinct reasons ([ADR 0010](decisions/0010-record-unsupported-document-outcomes.md)). |
-| `FAILED` | An activity exhausted its retries. Only a bounded stage and failure code are recorded ([ADR 0008](decisions/0008-record-safe-terminal-workflow-failure-evidence.md)). |
+| `FAILED` | A processing stage failed after retries or with a non-retryable error. Only a bounded stage and failure code are recorded ([ADR 0008](decisions/0008-record-safe-terminal-workflow-failure-evidence.md)). |
 | `REJECTED` | An operator rejected a review-required invoice. |
 
 Each document also has processing runs, which describe one technical execution.

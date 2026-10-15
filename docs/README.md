@@ -41,6 +41,13 @@ Read in this order to follow one document through the system.
 - [Recorded results](evaluation/results/): benchmark runs with model, hardware
   and configuration.
 
+## Running and developing it
+
+- [Local demo and operations](local-demo.md): Compose and host setup, optional
+  Ollama, source preview, status updates, metrics, retention and failure demos.
+- [Development and verification](development.md): quality gates, API generation,
+  Storybook, browser checks, dependency inventories and security verification.
+
 ## Decisions, releases and verification
 
 - [Architecture decisions](decisions/): the significant choices and their

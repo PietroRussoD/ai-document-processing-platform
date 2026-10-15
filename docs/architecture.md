@@ -81,7 +81,7 @@ sequenceDiagram
     participant D as Deterministic activities
     participant A as Advisory activity
     participant DB as PostgreSQL
-    W->>D: Extract, validate and complete invoice
+    W->>D: Extract fields, validate and persist invoice outcome
     opt New workflow history
         W->>A: Propose invoice fields
         alt Ollama disabled
@@ -440,7 +440,7 @@ sequenceDiagram
     UI->>API: POST /api/v1/documents + idempotency key
     API->>DB: Commit document, run and idempotency result
     API-->>UI: 202 + document and run IDs
-    loop Every 2 seconds while run is non-terminal
+    loop Every 2 seconds while deterministic processing is active or AI polling is eligible
         UI->>API: GET /api/v1/documents/{id}
         API->>DB: Read document + most recent run
         API-->>UI: Persisted status projection
@@ -448,9 +448,11 @@ sequenceDiagram
 ```
 
 TanStack Query pauses ordinary interval refetching when the page is in the
-background. The feature stops polling when automated processing reaches
-`COMPLETED`, `FAILED`, `CANCELLED` or `REVIEW_REQUIRED`; retry states remain
-observable.
+background. Active deterministic processing continues polling. After the run
+reaches `COMPLETED`, `FAILED`, `CANCELLED` or `REVIEW_REQUIRED`, periodic updates
+continue only within the recorded AI execution window or the invoice AI-start
+grace period described in the [advisory execution contract](#advisory-execution-contract).
+Manual refresh remains available after those windows expire.
 
 ## Terminal Workflow Failures
 
@@ -492,7 +494,7 @@ stateDiagram-v2
     [*] --> UPLOADED
     UPLOADED --> PROCESSING: run started
     PROCESSING --> APPROVED: automatic validation
-    PROCESSING --> REVIEW_REQUIRED: incomplete invoice
+    PROCESSING --> REVIEW_REQUIRED: missing or invalid invoice values
     PROCESSING --> UNSUPPORTED: not an invoice
     PROCESSING --> FAILED: retries exhausted
     REVIEW_REQUIRED --> APPROVED: reviewer approves

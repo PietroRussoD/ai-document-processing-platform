@@ -2,8 +2,9 @@
 
 ## Status
 
-Accepted. Amended 2026-09-27 for immutable workflow proposals and 2026-09-28 for
-API/console visibility and explicit operator adoption.
+Accepted. Amended 2026-09-27 for immutable workflow proposals, 2026-09-28 for
+API/console visibility and explicit operator adoption, and 2026-10-14 to clarify
+text persistence and the recorded advisory execution state.
 
 ## Context
 
@@ -22,9 +23,11 @@ to replace deterministic extraction or to approve a document automatically.
   deterministic extraction or review decision.
 - Model output is advisory and always requires human review. No confidence
   score or model status can automatically approve an invoice.
-- Only a local Ollama provider is in scope. The selected text is bounded and
-  transient; prompts, source text and raw model responses are not persisted or
-  logged.
+- Only a local Ollama provider is in scope. PDF and OCR extraction results,
+  including their text, are persisted for reuse by processing stages. The model
+  call uses bounded selected text without persisting an additional copy, its
+  assembled prompt or the raw model response. Document text, prompts and raw
+  responses are not logged.
 - The invoice workflow invokes the advisory activity only after deterministic
   completion and only in histories with the `advisory-invoice-proposal-v1`
   patch. The worker skips the model when disabled (the default). Provider
@@ -52,7 +55,11 @@ to replace deterministic extraction or to approve a document automatically.
   `INVALID` proposal, not a provider outage. A separate immutable persistence
   contract now stores terminal provider failures without failing the document.
   The proposal and failure repositories serialize writes per run and reject
-  opposite outcomes. A missing outcome does not yet distinguish a disabled
-  provider from work still in progress; operators can refresh the status.
+  opposite outcomes. A separate execution record distinguishes `DISABLED`,
+  `RUNNING`, `COMPLETED` and `FAILED`. A missing record remains unknown for
+  historical runs or activities that have not recorded entry; it must not be
+  interpreted as disabled. The console uses bounded polling and supports manual
+  refresh, as described in the
+  [execution contract](../architecture.md#advisory-execution-contract).
 - A public demo must disclose the local model, benchmark limitations and human
   review requirement.
