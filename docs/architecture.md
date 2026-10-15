@@ -301,6 +301,15 @@ disclosures. History starts expanded while processing or AI execution is active;
 the review form remains outside these disclosures so opening them preserves
 the working draft.
 
+The Documents page provides a page heading and native disclosures for upload
+and work queues. Opening a document, including after upload or browser-history
+navigation, closes both disclosures and focuses the workspace heading. Operators
+can reopen either disclosure without unmounting its controls or the current
+document. Selecting another document closes them again. Returning to work queues
+clears the selected-document URL parameter, reopens the disclosures and focuses
+the queue summary; existing filters and pagination stay mounted. Review drafts
+remain in their page-level store when the detail is closed.
+
 Approval guidance uses the current run's persisted evidence. An `APPROVE`
 review resolution identifies operator approval; otherwise, an `AUTO_APPROVE`
 validation decision identifies automatic approval only when no review resolution

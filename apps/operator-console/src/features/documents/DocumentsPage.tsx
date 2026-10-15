@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
     type AcceptedDocument,
@@ -7,6 +7,7 @@ import {
     type DocumentApi,
 } from "../../api/documentApi";
 import { DocumentStatusPanel } from "../document-status/DocumentStatusPanel";
+import { Button } from "../../components/ui/Button";
 import { OperatorTokenProvider } from "../operator-access/OperatorTokenProvider";
 import { OperatorAccessPanel } from "../operator-access/OperatorAccessPanel";
 import { ReviewDraftProvider } from "../document-review/ReviewDraftProvider";
@@ -32,6 +33,25 @@ function DocumentsWorkspace({ api }: { api: DocumentsApi }) {
     const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(
         selectedDocumentFromUrl,
     );
+
+    const uploadDisclosure = useRef<HTMLDetailsElement>(null);
+    const queueDisclosure = useRef<HTMLDetailsElement>(null);
+    const workspaceHeading = useRef<HTMLHeadingElement>(null);
+    const queueSummary = useRef<HTMLElement>(null);
+    const previousSelection = useRef(selectedDocumentId);
+
+    useEffect(() => {
+        if (uploadDisclosure.current)
+            uploadDisclosure.current.open = selectedDocumentId === null;
+        if (queueDisclosure.current)
+            queueDisclosure.current.open = selectedDocumentId === null;
+        if (selectedDocumentId !== null) {
+            workspaceHeading.current?.focus();
+        } else if (previousSelection.current !== null) {
+            queueSummary.current?.focus();
+        }
+        previousSelection.current = selectedDocumentId;
+    }, [selectedDocumentId]);
 
     useEffect(() => {
         function syncSelection() {
@@ -67,22 +87,65 @@ function DocumentsWorkspace({ api }: { api: DocumentsApi }) {
 
     return (
         <>
+            <header className="mb-6">
+                <h1 className="text-2xl font-semibold">Documents</h1>
+                <p className="mt-2 text-sm text-app-muted">
+                    Upload a PDF or choose a document from a work queue to
+                    follow its processing and review it.
+                </p>
+            </header>
             <OperatorAccessPanel />
-            <section aria-labelledby="intake-heading">
-                <div className="mb-4">
-                    <h1 id="intake-heading" className="text-xl font-semibold">
+            <details
+                ref={uploadDisclosure}
+                open={selectedDocumentId === null}
+                className="border-y border-app-border py-4"
+            >
+                <summary className="cursor-pointer text-base font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus">
+                    <h2 id="intake-heading" className="inline">
                         Upload a document
-                    </h1>
+                    </h2>
+                </summary>
+                <div className="mt-4">
+                    <DocumentUploadPanel
+                        api={api}
+                        onAccepted={acceptDocument}
+                    />
                 </div>
-                <DocumentUploadPanel api={api} onAccepted={acceptDocument} />
-            </section>
-            <DocumentWorkQueuesPanel
-                api={api}
-                detailsId="selected-document-details"
-                selectedDocumentId={selectedDocumentId}
-                onSelectDocument={selectDocument}
-            />
+            </details>
+            <details
+                ref={queueDisclosure}
+                open={selectedDocumentId === null}
+                className="mt-4 border-y border-app-border py-4"
+            >
+                <summary
+                    ref={queueSummary}
+                    className="cursor-pointer text-base font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                >
+                    Browse work queues
+                </summary>
+                <DocumentWorkQueuesPanel
+                    api={api}
+                    className="mt-5"
+                    detailsId="selected-document-details"
+                    selectedDocumentId={selectedDocumentId}
+                    onSelectDocument={selectDocument}
+                />
+            </details>
             <div id="selected-document-details" className="mt-4">
+                {selectedDocumentId !== null ? (
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                        <h2
+                            ref={workspaceHeading}
+                            tabIndex={-1}
+                            className="text-xl font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                        >
+                            Document workspace
+                        </h2>
+                        <Button onClick={() => selectDocument(null)} size="sm">
+                            Back to work queues
+                        </Button>
+                    </div>
+                ) : null}
                 {selectedDocumentId !== null ? (
                     <p className="text-sm text-app-muted">
                         Unsaved review drafts are kept while you switch

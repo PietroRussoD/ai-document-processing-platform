@@ -67,6 +67,7 @@ test("unrelated report finishes as unsupported without invoice review", async ({
         fullPage: true,
     });
 
+    await page.getByRole("button", { name: "Back to work queues" }).click();
     await page
         .getByRole("button", { name: "Unsupported", exact: true })
         .click();
@@ -77,9 +78,11 @@ test("unrelated report finishes as unsupported without invoice review", async ({
         0,
     );
     await row.getByRole("button", { name: "View details" }).click();
-    await expect(row.getByText("Persisted status")).toBeVisible();
+    await expect(
+        page.getByRole("region", { name: "equipment-report.pdf" }),
+    ).toBeVisible();
     await page.screenshot({
-        path: testInfo.outputPath("unrelated-report-inline-details.png"),
+        path: testInfo.outputPath("unrelated-report-workspace.png"),
         fullPage: true,
     });
     expect(browserErrors).toEqual([]);

@@ -56,7 +56,14 @@ test.each(["REVIEW_REQUIRED", "APPROVED"] as const)(
             new URL(window.location.href).searchParams.get("documentId"),
         ).toBe(documentId);
 
+        expect(
+            screen.getByRole("heading", { name: "Document workspace" }),
+        ).toHaveFocus();
+        expect(
+            screen.getByText("Browse work queues").closest("details"),
+        ).not.toHaveAttribute("open");
         if (state === "REVIEW_REQUIRED") {
+            openWorkQueues();
             fireEvent.click(
                 screen.getByRole("button", { name: "Needs review" }),
             );
@@ -157,6 +164,7 @@ test("keeps a review draft through queue pagination, filtering and refresh", asy
     fireEvent.change(screen.getByLabelText("Supplier"), {
         target: { value: "Corrected Synthetic Supplier" },
     });
+    openWorkQueues();
     await screen.findByText("Page 1 of 2");
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(await screen.findByText("Page 2 of 2")).toBeVisible();
@@ -164,8 +172,10 @@ test("keeps a review draft through queue pagination, filtering and refresh", asy
         "Corrected Synthetic Supplier",
     );
 
+    openWorkQueues();
     fireEvent.click(screen.getByRole("button", { name: "Needs review" }));
     await screen.findByRole("button", { name: "Hide details" });
+    openWorkQueues();
     fireEvent.click(screen.getByRole("button", { name: "Needs review" }));
     expect(screen.getByLabelText("Supplier")).toHaveValue(
         "Corrected Synthetic Supplier",
@@ -189,7 +199,13 @@ test("restores opening and closing details with browser back and forward", async
         await screen.findByRole("button", { name: "View details" }),
     );
     await screen.findByRole("region", { name: "invoice.pdf" });
-    fireEvent.click(screen.getByRole("button", { name: "Hide details" }));
+    fireEvent.click(
+        screen.getByRole("button", { name: "Back to work queues" }),
+    );
+    expect(screen.getByText("Browse work queues")).toHaveFocus();
+    expect(
+        screen.getByText("Browse work queues").closest("details"),
+    ).toHaveAttribute("open");
     expect(
         screen.queryByRole("region", { name: "invoice.pdf" }),
     ).not.toBeInTheDocument();
@@ -224,6 +240,7 @@ test("restores isolated review drafts through document selection and browser his
         id === second.id ? second : first,
     );
     renderPage(api);
+    openWorkQueues();
     fireEvent.click(screen.getByRole("button", { name: "Needs review" }));
     const firstRow = (await screen.findByText("invoice.pdf")).closest("li")!;
     fireEvent.click(
@@ -240,6 +257,7 @@ test("restores isolated review drafts through document selection and browser his
         target: { value: "synthetic-token" },
     });
 
+    openWorkQueues();
     const secondRow = screen.getByText("invoice-2.pdf").closest("li")!;
     fireEvent.click(
         within(secondRow).getByRole("button", { name: "View details" }),
@@ -300,6 +318,7 @@ test("warns before leaving only while unsaved drafts exist, including hidden det
         target: { value: "Unfinished verification." },
     });
     expect(pageLeaveIsPrevented()).toBe(true);
+    openWorkQueues();
     fireEvent.click(screen.getByRole("button", { name: "Needs review" }));
     fireEvent.click(
         await screen.findByRole("button", { name: "Hide details" }),
@@ -453,4 +472,9 @@ function documentStatus(
             },
         },
     };
+}
+
+function openWorkQueues() {
+    const summary = screen.getByText("Browse work queues");
+    if (!summary.closest("details")!.open) fireEvent.click(summary);
 }

@@ -24,6 +24,7 @@ type QueueItem = DocumentWorkQueuePage["items"][number];
 type DocumentWorkQueuesPanelProps = {
     api?: WorkQueueApi;
     detailsId?: string;
+    className?: string;
     selectedDocumentId: string | null;
     onSelectDocument: (documentId: string | null) => void;
 };
@@ -42,6 +43,7 @@ const queues: readonly {
 export function DocumentWorkQueuesPanel({
     api = defaultApi,
     detailsId,
+    className = "mt-12 border-t border-app-border pt-8",
     selectedDocumentId,
     onSelectDocument,
 }: DocumentWorkQueuesPanelProps) {
@@ -65,10 +67,7 @@ export function DocumentWorkQueuesPanel({
     }
 
     return (
-        <section
-            aria-labelledby="work-queues-heading"
-            className="mt-12 border-t border-app-border pt-8"
-        >
+        <section aria-labelledby="work-queues-heading" className={className}>
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                     <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-app-accent">
@@ -257,6 +256,7 @@ function QueueRow({
     onSelect,
 }: {
     detailsId?: string;
+    className?: string;
     item: QueueItem;
     isSelected: boolean;
     onSelect: () => void;

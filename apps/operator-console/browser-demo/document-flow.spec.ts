@@ -27,8 +27,13 @@ test("synthetic document remains inspectable across console views", async ({
     });
     expect(await hasHorizontalOverflow(page)).toBe(false);
 
+    await page.getByText("Browse work queues", { exact: true }).click();
     await page.getByRole("button", { name: "Needs review" }).click();
-    await expect(page.getByText("compose-smoke.pdf")).toBeVisible();
+    await expect(
+        page
+            .getByRole("region", { name: "Document work queues" })
+            .getByText("compose-smoke.pdf"),
+    ).toBeVisible();
     await page.getByRole("link", { name: "System Map" }).click();
     await expect(
         page.getByRole("heading", { name: "System Map" }),
