@@ -192,6 +192,14 @@ test("explains why a completed unknown document is unsupported", async () => {
     expect(
         screen.queryByText("Processing results are ready."),
     ).not.toBeInTheDocument();
+    expect(
+        screen.getByText(
+            /Reprocessing is unavailable for unsupported documents/,
+        ),
+    ).toBeVisible();
+    expect(
+        screen.queryByRole("button", { name: "Request reprocessing" }),
+    ).not.toBeInTheDocument();
 });
 
 test("shows the preceding run for a reprocessing lineage", async () => {

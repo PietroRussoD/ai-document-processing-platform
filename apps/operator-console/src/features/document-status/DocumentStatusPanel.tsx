@@ -124,6 +124,12 @@ export function DocumentStatusPanel({
             <FeedbackMessage className="mt-4" tone={guidance.tone}>
                 <p className="font-semibold">{guidance.title}</p>
                 <p className="mt-1">{guidance.description}</p>
+                {document.status === "UNSUPPORTED" ? (
+                    <p className="mt-1">
+                        Reprocessing is unavailable for unsupported documents.
+                        This workflow currently extracts invoice fields only.
+                    </p>
+                ) : null}
                 {document.status === "REVIEW_REQUIRED" ? (
                     <a
                         className="mt-2 inline-flex min-h-10 items-center font-semibold underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
@@ -197,6 +203,7 @@ export function DocumentStatusPanel({
             />
             <DocumentReprocessingPanel
                 documentId={document.id}
+                documentStatus={document.status}
                 run={document.current_run}
             />
             <ProcessingTimeline run={document.current_run} />

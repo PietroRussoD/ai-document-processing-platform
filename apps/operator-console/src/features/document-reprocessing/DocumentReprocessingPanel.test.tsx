@@ -29,6 +29,7 @@ test("submits a terminal run for controlled reprocessing", async () => {
         <DocumentReprocessingPanel
             api={{ requestReprocessing }}
             documentId={DOCUMENT_ID}
+            documentStatus="APPROVED"
             idempotencyKeyGenerator={() => "reprocess-42"}
             run={terminalRun()}
         />,
@@ -84,6 +85,7 @@ test("keeps the idempotency key when a request can be retried", async () => {
         <DocumentReprocessingPanel
             api={{ requestReprocessing }}
             documentId={DOCUMENT_ID}
+            documentStatus="APPROVED"
             idempotencyKeyGenerator={idempotencyKeyGenerator}
             run={terminalRun()}
         />,
@@ -99,7 +101,18 @@ test("keeps the idempotency key when a request can be retried", async () => {
     fireEvent.click(
         screen.getByRole("button", { name: "Request reprocessing" }),
     );
-    await screen.findByRole("alert");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("processing run is not terminal");
+    await waitFor(() => expect(alert).toHaveFocus());
+    expect(screen.getByLabelText("Operator token")).toHaveValue(
+        "operator-token",
+    );
+    expect(screen.getByLabelText("Reprocessing reason")).toHaveValue(
+        "Retry after the upstream OCR outage was resolved.",
+    );
+    expect(
+        screen.queryByText("Reprocessing requested"),
+    ).not.toBeInTheDocument();
     fireEvent.click(
         screen.getByRole("button", { name: "Request reprocessing" }),
     );
@@ -113,26 +126,76 @@ test("keeps the idempotency key when a request can be retried", async () => {
     );
 });
 
-test("does not show reprocessing controls for an active run", () => {
-    render(
-        <DocumentReprocessingPanel
-            documentId={DOCUMENT_ID}
-            run={activeRun()}
-        />,
-        { wrapper: QueryWrapper },
-    );
+test.each(["QUEUED", "RUNNING", "WAITING_RETRY", "REVIEW_REQUIRED"] as const)(
+    "does not show reprocessing controls for a %s run",
+    (runStatus) => {
+        render(
+            <DocumentReprocessingPanel
+                documentId={DOCUMENT_ID}
+                documentStatus="APPROVED"
+                run={{ ...activeRun(), status: runStatus }}
+            />,
+            { wrapper: QueryWrapper },
+        );
 
-    expect(
-        screen.queryByRole("heading", {
-            name: "Request controlled reprocessing",
-        }),
-    ).not.toBeInTheDocument();
-});
+        expect(
+            screen.queryByRole("heading", {
+                name: "Request controlled reprocessing",
+            }),
+        ).not.toBeInTheDocument();
+    },
+);
+
+test.each(["UNSUPPORTED", "REVIEW_REQUIRED"] as const)(
+    "does not offer reprocessing for a %s document even with a terminal run",
+    (documentStatus) => {
+        render(
+            <DocumentReprocessingPanel
+                documentId={DOCUMENT_ID}
+                documentStatus={documentStatus}
+                run={terminalRun()}
+            />,
+            { wrapper: QueryWrapper },
+        );
+
+        expect(
+            screen.queryByRole("button", { name: "Request reprocessing" }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByLabelText("Operator token"),
+        ).not.toBeInTheDocument();
+    },
+);
+
+test.each([
+    "APPROVED",
+    "REJECTED",
+    "FAILED",
+    "UPLOADED",
+    "PROCESSING",
+] as const)(
+    "offers reprocessing for a %s document with a terminal run",
+    (documentStatus) => {
+        render(
+            <DocumentReprocessingPanel
+                documentId={DOCUMENT_ID}
+                documentStatus={documentStatus}
+                run={{ ...terminalRun(), status: "FAILED" }}
+            />,
+            { wrapper: QueryWrapper },
+        );
+
+        expect(
+            screen.getByRole("button", { name: "Request reprocessing" }),
+        ).toBeVisible();
+    },
+);
 
 test("has no detectable accessibility violations for a terminal run", async () => {
     const { container } = render(
         <DocumentReprocessingPanel
             documentId={DOCUMENT_ID}
+            documentStatus="APPROVED"
             run={terminalRun()}
         />,
         { wrapper: QueryWrapper },

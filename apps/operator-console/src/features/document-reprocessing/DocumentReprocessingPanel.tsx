@@ -18,6 +18,7 @@ type ProcessingRun = DocumentStatus["current_run"];
 type DocumentReprocessingPanelProps = {
     api?: ReprocessingApi;
     documentId: string;
+    documentStatus: DocumentStatus["status"];
     idempotencyKeyGenerator?: () => string;
     run: ProcessingRun;
 };
@@ -27,11 +28,19 @@ const terminalRunStatuses = new Set<ProcessingRun["status"]>([
     "COMPLETED",
     "FAILED",
 ]);
+const reprocessableDocumentStatuses = new Set<DocumentStatus["status"]>([
+    "APPROVED",
+    "REJECTED",
+    "FAILED",
+    "UPLOADED",
+    "PROCESSING",
+]);
 const defaultApi = createDocumentApi();
 
 export function DocumentReprocessingPanel({
     api = defaultApi,
     documentId,
+    documentStatus,
     idempotencyKeyGenerator = () => crypto.randomUUID(),
     run,
 }: DocumentReprocessingPanelProps) {
@@ -71,7 +80,10 @@ export function DocumentReprocessingPanel({
         return <ReprocessingRequestOutcome reprocessing={lastRequest} />;
     }
 
-    if (!terminalRunStatuses.has(run.status)) {
+    if (
+        !terminalRunStatuses.has(run.status) ||
+        !reprocessableDocumentStatuses.has(documentStatus)
+    ) {
         return null;
     }
 
