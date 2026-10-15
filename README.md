@@ -87,8 +87,11 @@ Stop the stack with `docker compose down`; named volumes retain the demo data.
   and a static interactive architecture map.
 
 The [capability table](docs/product-overview.md#capability-status) records the
-implemented and planned boundaries. The current package version is `1.0.0`;
-see the [release notes](docs/releases/v1.0.0.md) and
+implemented and planned boundaries. Development targets `v1.1.0`; Python and
+the API report `1.1.0.dev0`, and the console reports `1.1.0-dev.0`. The
+[draft release notes](docs/releases/v1.1.0.md) track the upcoming console work.
+The latest tagged release is `v1.0.0`; see its
+[release notes](docs/releases/v1.0.0.md) and
 [verification record](docs/runbooks/v1.0-verification.md).
 
 ## Limits
