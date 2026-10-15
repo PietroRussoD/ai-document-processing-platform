@@ -281,6 +281,81 @@ test("keeps credentials, source, fields and review note in task order", async ()
     expect(onDecision).toHaveBeenCalledWith("APPROVE", []);
 });
 
+test.each([
+    ["invoice_number", "Invoice number", "INV-RECOVERED-001"],
+    ["issue_date", "Issue date", "2026-10-15"],
+    ["supplier_name", "Supplier", "Synthetic Supplier"],
+    ["currency", "Currency", "CAD"],
+    ["total_amount", "Total amount", "99.00"],
+] as const)(
+    "blocks approval and focuses an originally missing %s until corrected",
+    async (field, label, value) => {
+        const onDecision = vi.fn();
+        const user = userEvent.setup();
+        render(
+            <ReviewResolutionForm
+                errorMessage={null}
+                invoiceExtraction={{ ...invoiceExtraction(), [field]: null }}
+                isSaving={false}
+                onDecision={onDecision}
+                onOperatorTokenChange={() => undefined}
+                onReviewNoteChange={() => undefined}
+                operatorToken="operator-token"
+                reviewNote=""
+            />,
+        );
+
+        const input = screen.getByLabelText(label);
+        await user.click(
+            screen.getByRole("button", { name: "Approve document" }),
+        );
+        expect(onDecision).not.toHaveBeenCalled();
+        expect(input).toHaveFocus();
+        expect(input).toHaveAttribute("aria-invalid", "true");
+        expect(input).toHaveAccessibleDescription();
+
+        await user.type(input, value);
+        expect(input).not.toHaveAttribute("aria-invalid");
+        await user.click(
+            screen.getByRole("button", { name: "Approve document" }),
+        );
+        expect(onDecision).toHaveBeenCalledWith("APPROVE", [
+            expect.objectContaining({ source: "MANUAL" }),
+        ]);
+    },
+);
+
+test("focuses the first missing field and permits rejection after blocked approval", async () => {
+    const onDecision = vi.fn();
+    const user = userEvent.setup();
+    render(
+        <ReviewResolutionForm
+            errorMessage={null}
+            invoiceExtraction={{
+                ...invoiceExtraction(),
+                currency: null,
+                total_amount: null,
+            }}
+            isSaving={false}
+            onDecision={onDecision}
+            onOperatorTokenChange={() => undefined}
+            onReviewNoteChange={() => undefined}
+            operatorToken="operator-token"
+            reviewNote="Missing values cannot be verified from the source."
+        />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Approve document" }));
+    expect(onDecision).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Currency")).toHaveFocus();
+    expect(screen.getByLabelText("Total amount")).toHaveAttribute(
+        "aria-invalid",
+        "true",
+    );
+    await user.click(screen.getByRole("button", { name: "Reject document" }));
+    expect(onDecision).toHaveBeenCalledWith("REJECT", []);
+});
+
 function invoiceExtraction() {
     return {
         method: "DETERMINISTIC_RULES" as const,

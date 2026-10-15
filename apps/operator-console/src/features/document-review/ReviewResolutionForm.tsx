@@ -106,7 +106,7 @@ export function ReviewResolutionForm({
             return;
         }
 
-        const errors = validateInvoiceValues(invoiceExtraction, invoiceValues);
+        const errors = validateInvoiceValues(invoiceValues);
         setFieldErrors(errors);
         const firstInvalidField = Object.keys(errors)[0] as
             keyof InvoiceValues | undefined;
@@ -610,51 +610,34 @@ function sameFieldValue(
 
 type InvoiceFieldErrors = Partial<Record<keyof InvoiceValues, string>>;
 
-function validateInvoiceValues(
-    extraction: InvoiceExtraction,
-    values: InvoiceValues,
-): InvoiceFieldErrors {
+function validateInvoiceValues(values: InvoiceValues): InvoiceFieldErrors {
     const errors: InvoiceFieldErrors = {};
     const invoiceNumber = values.invoiceNumber.trim();
-    if (invoiceNumber !== extraction.invoice_number) {
-        if (!invoiceNumber) {
-            errors.invoiceNumber =
-                "Enter a value or restore the extracted one.";
-        } else if (invoiceNumber.length > 128) {
-            errors.invoiceNumber = "Use no more than 128 characters.";
-        }
+    if (!invoiceNumber) {
+        errors.invoiceNumber = "Enter an invoice number.";
+    } else if (invoiceNumber.length > 128) {
+        errors.invoiceNumber = "Use no more than 128 characters.";
     }
 
-    if (values.issueDate !== (extraction.issue_date ?? "")) {
-        if (!isValidDate(values.issueDate)) {
-            errors.issueDate = "Enter a valid date.";
-        }
+    if (!isValidDate(values.issueDate)) {
+        errors.issueDate = "Enter a valid date.";
     }
 
     const supplierName = values.supplierName.trim();
-    if (supplierName !== extraction.supplier_name) {
-        if (!supplierName) {
-            errors.supplierName = "Enter a value or restore the extracted one.";
-        } else if (supplierName.length > 512) {
-            errors.supplierName = "Use no more than 512 characters.";
-        }
+    if (!supplierName) {
+        errors.supplierName = "Enter a supplier.";
+    } else if (supplierName.length > 512) {
+        errors.supplierName = "Use no more than 512 characters.";
     }
 
-    if (values.currency !== (extraction.currency ?? "")) {
-        if (!/^[A-Z]{3}$/.test(values.currency)) {
-            errors.currency = "Enter a three-letter ISO 4217 currency code.";
-        }
+    if (!/^[A-Z]{3}$/.test(values.currency)) {
+        errors.currency = "Enter a three-letter ISO 4217 currency code.";
     }
 
-    if (
-        normalizeAmount(values.totalAmount) !==
-        normalizeAmount(extraction.total_amount)
-    ) {
-        const amount = values.totalAmount.trim();
-        if (!/^\d{1,16}(?:\.\d{1,4})?$/.test(amount) || Number(amount) <= 0) {
-            errors.totalAmount =
-                "Enter a positive amount with no more than four decimal places.";
-        }
+    const amount = values.totalAmount.trim();
+    if (!/^\d{1,16}(?:\.\d{1,4})?$/.test(amount) || Number(amount) <= 0) {
+        errors.totalAmount =
+            "Enter a positive amount with no more than four decimal places.";
     }
 
     return errors;
