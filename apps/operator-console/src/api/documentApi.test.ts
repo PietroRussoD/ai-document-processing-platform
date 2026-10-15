@@ -233,14 +233,12 @@ test.each([
 ])(
     "preserves HTTP %s when a source error has no usable problem details",
     async (status, contentType, body) => {
-        const fetcher = vi
-            .fn<typeof fetch>()
-            .mockResolvedValue(
-                new Response(body, {
-                    status,
-                    headers: { "content-type": contentType },
-                }),
-            );
+        const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+            new Response(body, {
+                status,
+                headers: { "content-type": contentType },
+            }),
+        );
         await expect(
             createDocumentApi(fetcher).getSourceDocument(
                 acceptedDocument.document_id,

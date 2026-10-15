@@ -30,6 +30,11 @@ for (const width of [1440, 320]) {
             await page.goto(
                 `/iframe.html?id=document-review-reviewresolutionform--${story}&viewMode=story`,
             );
+            if (width === 320) {
+                await page
+                    .getByRole("button", { name: "Source PDF", exact: true })
+                    .click();
+            }
             const openButton = page.getByRole("button", {
                 name: "View source PDF",
             });
@@ -71,31 +76,52 @@ for (const width of [1440, 320]) {
                     ).toBeDisabled();
                 } else {
                     await expect(page.getByRole("alert")).toHaveText(
-                        "The source PDF could not be loaded.",
+                        "The source PDF could not be loaded. Try again.",
                     );
-                    await expect(openButton).toBeEnabled();
+                    await expect(
+                        page.getByRole("button", { name: "Retry loading PDF" }),
+                    ).toBeEnabled();
                 }
             }
-            const source = await page
+            const source = page
                 .getByRole("heading", { name: "Original source document" })
-                .locator("..")
-                .boundingBox();
-            const corrections = await page
-                .getByRole("group", {
-                    name: "Correct extracted invoice fields",
-                })
-                .boundingBox();
-            expect(source).not.toBeNull();
-            expect(corrections).not.toBeNull();
+                .locator("..");
+            const corrections = page.getByRole("group", {
+                name: "Correct extracted invoice fields",
+            });
             if (width === 1440) {
-                expect(corrections!.x).toBeGreaterThanOrEqual(
-                    source!.x + source!.width,
+                const sourceBox = await source.boundingBox();
+                const correctionBox = await corrections.boundingBox();
+                expect(sourceBox).not.toBeNull();
+                expect(correctionBox).not.toBeNull();
+                expect(correctionBox!.x).toBeGreaterThanOrEqual(
+                    sourceBox!.x + sourceBox!.width,
                 );
             } else {
-                expect(corrections!.y).toBeGreaterThanOrEqual(
-                    source!.y + source!.height,
-                );
+                await expect(corrections).not.toBeVisible();
+                await page
+                    .getByRole("button", {
+                        name: "Invoice fields",
+                        exact: true,
+                    })
+                    .click();
+                await expect(corrections).toBeVisible();
+                await expect(source).not.toBeVisible();
+                await page
+                    .getByRole("button", { name: "Source PDF", exact: true })
+                    .click();
+                await expect(source).toBeVisible();
             }
+            await page.evaluate(async () => {
+                await new Promise(requestAnimationFrame);
+                await Promise.all(
+                    document
+                        .getAnimations()
+                        .map((animation) =>
+                            animation.finished.catch(() => undefined),
+                        ),
+                );
+            });
             const results = await new AxeBuilder({ page })
                 .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
                 .disableRules(["landmark-one-main", "page-has-heading-one"])
@@ -130,7 +156,7 @@ for (const width of [1440, 320]) {
     }
 }
 
-test("Source review stays stacked in a narrow desktop container", async ({
+test("Source review switches views in a narrow desktop container", async ({
     page,
 }) => {
     await page.setViewportSize({ width: 1440, height: 1000 });
@@ -144,14 +170,17 @@ test("Source review stays stacked in a narrow desktop container", async ({
     await heading.locator("xpath=ancestor::section").evaluate((element) => {
         (element as HTMLElement).style.width = "620px";
     });
-    const source = await page
-        .getByRole("heading", { name: "Original source document" })
-        .boundingBox();
-    const corrections = await page
-        .getByRole("group", { name: "Correct extracted invoice fields" })
-        .boundingBox();
-    expect(corrections!.y).toBeGreaterThan(source!.y);
-    expect(corrections!.x).toBe(source!.x);
+    const source = page.getByRole("heading", {
+        name: "Original source document",
+    });
+    const corrections = page.getByRole("group", {
+        name: "Correct extracted invoice fields",
+    });
+    await expect(corrections).toBeVisible();
+    await expect(source).not.toBeVisible();
+    await page.getByRole("button", { name: "Source PDF", exact: true }).click();
+    await expect(source).toBeVisible();
+    await expect(corrections).not.toBeVisible();
 });
 
 for (const width of [1440, 320]) {

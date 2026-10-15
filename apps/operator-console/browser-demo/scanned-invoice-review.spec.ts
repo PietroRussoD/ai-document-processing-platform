@@ -63,9 +63,11 @@ test("scanned invoice stays in review when OCR and AI cannot find an issue date"
     await expect(
         page.getByText("Action required: review this document"),
     ).toBeVisible();
+    await page.getByText("Processing history", { exact: true }).click();
     await expect(
         page.getByText("Invoice requires an operator review."),
     ).toBeVisible();
+    await page.getByText("Processing history", { exact: true }).click();
     await page.getByLabel("Operator token").fill(operatorToken);
 
     const sourceResponse = page.waitForResponse((response) =>
@@ -102,7 +104,9 @@ test("scanned invoice stays in review when OCR and AI cannot find an issue date"
         after.current_run.processing_output?.invoice_extraction?.issue_date,
     ).toBeNull();
     expect(after.current_run.ai_proposal?.issue_date).toBeNull();
-    await expect(page.getByText("Processing results are ready.")).toBeVisible();
+    await expect(
+        page.getByText("Document rejected", { exact: true }),
+    ).toBeVisible();
     await page.screenshot({
         path: testInfo.outputPath("scanned-invoice-rejected.png"),
         fullPage: true,
