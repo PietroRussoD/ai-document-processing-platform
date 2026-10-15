@@ -34,6 +34,13 @@ export class DocumentApiProblem extends Error {
     }
 }
 
+export class DocumentApiHttpError extends Error {
+    constructor(readonly status: number) {
+        super(`Document API request failed with status ${status}`);
+        this.name = "DocumentApiHttpError";
+    }
+}
+
 export type DocumentApi = ReturnType<typeof createDocumentApi>;
 
 export function createDocumentApi(fetcher: typeof fetch = globalThis.fetch) {
@@ -150,15 +157,13 @@ async function readResponse<T>(response: Response): Promise<T> {
             .get("content-type")
             ?.includes("application/problem+json")
     ) {
-        const body: unknown = await response.json();
+        const body: unknown = await response.json().catch(() => null);
         if (isProblemDetails(body)) {
             throw new DocumentApiProblem(body);
         }
     }
 
-    throw new Error(
-        `Document API request failed with status ${response.status}`,
-    );
+    throw new DocumentApiHttpError(response.status);
 }
 
 function isProblemDetails(value: unknown): value is ProblemDetails {

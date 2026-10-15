@@ -7,6 +7,7 @@ import { expect, test, vi } from "vitest";
 import {
     type DocumentApi,
     DocumentApiProblem,
+    DocumentApiHttpError,
     type DocumentStatus,
     type ReviewResolution,
 } from "../../api/documentApi";
@@ -357,12 +358,45 @@ test("loads the source PDF only on request and revokes its object URL on close",
     vi.unstubAllGlobals();
 });
 
-test("shows a safe message when loading the source PDF fails", async () => {
+test.each([
+    [
+        new Error("private storage path"),
+        "The source PDF could not be loaded. Try again.",
+    ],
+    [
+        new TypeError("private network details"),
+        "The source PDF could not be reached. Check your connection and try again.",
+    ],
+    [
+        new DocumentApiProblem({
+            type: "urn:problem:unauthorized",
+            title: "Unauthorized",
+            status: 401,
+            detail: "private storage path",
+        }),
+        "The operator token was not accepted. Check the token above, then retry loading the PDF.",
+    ],
+    [
+        new DocumentApiHttpError(401),
+        "The operator token was not accepted. Check the token above, then retry loading the PDF.",
+    ],
+    [
+        new DocumentApiHttpError(403),
+        "Access to the source PDF was denied. Check your operator permissions before retrying.",
+    ],
+    [
+        new DocumentApiHttpError(404),
+        "The source PDF is unavailable for this document.",
+    ],
+    [
+        new DocumentApiHttpError(503),
+        "The server could not provide the source PDF. Try again later.",
+    ],
+])("shows safe source-PDF recovery feedback for %s", async (error, message) => {
     const getSourceDocument = vi
         .fn<DocumentApi["getSourceDocument"]>()
-        .mockRejectedValue(new Error("private storage path"));
+        .mockRejectedValue(error);
     const user = userEvent.setup();
-
     render(
         <ReviewResolutionPanel
             api={{ resolveReview: vi.fn(), getSourceDocument }}
@@ -373,11 +407,83 @@ test("shows a safe message when loading the source PDF fails", async () => {
     );
     await user.type(screen.getByLabelText("Operator token"), "operator-token");
     await user.click(screen.getByRole("button", { name: "View source PDF" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(message);
+    expect(
+        screen.queryByText(/private storage path|private network details/),
+    ).not.toBeInTheDocument();
+    expect(
+        screen.getByRole("button", { name: "Retry loading PDF" }),
+    ).toHaveAttribute("aria-describedby", "source-pdf-error");
+});
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-        "The source PDF could not be loaded.",
+test("retries with the corrected token while preserving review inputs", async () => {
+    const getSourceDocument = vi
+        .fn<DocumentApi["getSourceDocument"]>()
+        .mockRejectedValueOnce(new DocumentApiHttpError(401))
+        .mockResolvedValueOnce(
+            new Blob(["synthetic pdf"], { type: "application/pdf" }),
+        );
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", {
+        ...URL,
+        createObjectURL: vi.fn(() => "blob:retry-source"),
+        revokeObjectURL,
+    });
+    const user = userEvent.setup();
+    const { unmount } = render(
+        <ReviewResolutionPanel
+            api={{ resolveReview: vi.fn(), getSourceDocument }}
+            documentId={DOCUMENT_ID}
+            run={reviewRequiredRunWithInvoice()}
+        />,
+        { wrapper: QueryWrapper },
     );
-    expect(screen.queryByText("private storage path")).not.toBeInTheDocument();
+    try {
+        await user.clear(screen.getByLabelText("Supplier"));
+        await user.type(
+            screen.getByLabelText("Supplier"),
+            "Synthetic corrected supplier",
+        );
+        await user.type(
+            screen.getByLabelText(/Review note/),
+            "Checked the supplier.",
+        );
+        await user.type(screen.getByLabelText("Operator token"), "wrong-token");
+        await user.click(
+            screen.getByRole("button", { name: "View source PDF" }),
+        );
+        expect(await screen.findByRole("alert")).toHaveTextContent(
+            "token was not accepted",
+        );
+        await user.clear(screen.getByLabelText("Operator token"));
+        await user.type(
+            screen.getByLabelText("Operator token"),
+            "corrected-token",
+        );
+        await user.click(
+            screen.getByRole("button", { name: "Retry loading PDF" }),
+        );
+        expect(await screen.findByTitle("Source PDF preview")).toHaveAttribute(
+            "src",
+            "blob:retry-source",
+        );
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+        expect(getSourceDocument).toHaveBeenLastCalledWith(
+            DOCUMENT_ID,
+            "corrected-token",
+            expect.any(AbortSignal),
+        );
+        expect(screen.getByLabelText("Supplier")).toHaveValue(
+            "Synthetic corrected supplier",
+        );
+        expect(screen.getByLabelText(/Review note/)).toHaveValue(
+            "Checked the supplier.",
+        );
+    } finally {
+        unmount();
+        vi.unstubAllGlobals();
+    }
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:retry-source");
 });
 
 test("aborts a source-PDF request when the review panel unmounts", async () => {

@@ -1,6 +1,10 @@
 import { expect, test, vi } from "vitest";
 
-import { createDocumentApi, DocumentApiProblem } from "./documentApi";
+import {
+    createDocumentApi,
+    DocumentApiProblem,
+    DocumentApiHttpError,
+} from "./documentApi";
 
 const acceptedDocument = {
     document_id: "11111111-1111-4111-8111-111111111111",
@@ -222,6 +226,29 @@ test("does not trust malformed error payloads", async () => {
         createDocumentApi(fetcher).getStatus(acceptedDocument.document_id),
     ).rejects.toThrow("Document API request failed with status 500");
 });
+
+test.each([
+    [401, "text/html", "<html>Unauthorized</html>"],
+    [503, "application/problem+json", "not valid JSON"],
+])(
+    "preserves HTTP %s when a source error has no usable problem details",
+    async (status, contentType, body) => {
+        const fetcher = vi
+            .fn<typeof fetch>()
+            .mockResolvedValue(
+                new Response(body, {
+                    status,
+                    headers: { "content-type": contentType },
+                }),
+            );
+        await expect(
+            createDocumentApi(fetcher).getSourceDocument(
+                acceptedDocument.document_id,
+                "synthetic-token",
+            ),
+        ).rejects.toEqual(new DocumentApiHttpError(status));
+    },
+);
 
 function jsonResponse(
     body: unknown,

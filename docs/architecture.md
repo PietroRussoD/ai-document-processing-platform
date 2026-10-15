@@ -227,6 +227,11 @@ inline filename. The shared local token can retrieve any stored document.
 The preview includes a new-tab link to that same temporary URL; the link is
 removed on close. Its document remains subject to the browser's native PDF
 viewer rather than a custom PDF.js implementation.
+Source-loading feedback distinguishes rejected credentials, denied access,
+unavailable documents, server errors and fetch connectivity failures. It uses
+fixed messages without exposing response details or storage paths. A retry
+uses the current operator token and preserves the review draft. HTTP status
+codes remain available even when an error response has no usable problem JSON.
 
 ```mermaid
 sequenceDiagram

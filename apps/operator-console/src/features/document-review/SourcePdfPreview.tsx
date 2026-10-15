@@ -1,7 +1,11 @@
 import { ExternalLink, FileText, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { type DocumentApi } from "../../api/documentApi";
+import {
+    type DocumentApi,
+    DocumentApiHttpError,
+    DocumentApiProblem,
+} from "../../api/documentApi";
 import { Button } from "../../components/ui/Button";
 import { FeedbackMessage } from "../../components/ui/FeedbackMessage";
 
@@ -51,9 +55,9 @@ export function SourcePdfPreview({
                 objectUrl.current = nextUrl;
                 setSourceUrl(nextUrl);
             }
-        } catch {
+        } catch (error) {
             if (!controller.signal.aborted) {
-                setErrorMessage("The source PDF could not be loaded.");
+                setErrorMessage(sourceFailureMessage(error));
             }
         } finally {
             if (!controller.signal.aborted) {
@@ -85,12 +89,19 @@ export function SourcePdfPreview({
                     <Button
                         aria-controls="source-pdf-preview"
                         aria-expanded={false}
+                        aria-describedby={
+                            errorMessage ? "source-pdf-error" : undefined
+                        }
                         disabled={!operatorToken || isLoading}
                         onClick={() => void openPreview()}
                         variant="secondary"
                     >
                         <FileText aria-hidden="true" size={17} />
-                        {isLoading ? "Loading source PDF" : "View source PDF"}
+                        {isLoading
+                            ? "Loading source PDF"
+                            : errorMessage
+                              ? "Retry loading PDF"
+                              : "View source PDF"}
                     </Button>
                 ) : (
                     <Button
@@ -121,7 +132,12 @@ export function SourcePdfPreview({
                 </FeedbackMessage>
             ) : null}
             {errorMessage !== null ? (
-                <FeedbackMessage className="mt-3" role="alert" tone="danger">
+                <FeedbackMessage
+                    id="source-pdf-error"
+                    className="mt-3"
+                    role="alert"
+                    tone="danger"
+                >
                     {errorMessage}
                 </FeedbackMessage>
             ) : null}
@@ -136,4 +152,29 @@ export function SourcePdfPreview({
             </div>
         </div>
     );
+}
+
+function sourceFailureMessage(error: unknown): string {
+    const status =
+        error instanceof DocumentApiProblem
+            ? error.problem.status
+            : error instanceof DocumentApiHttpError
+              ? error.status
+              : null;
+    if (status === 401) {
+        return "The operator token was not accepted. Check the token above, then retry loading the PDF.";
+    }
+    if (status === 403) {
+        return "Access to the source PDF was denied. Check your operator permissions before retrying.";
+    }
+    if (status === 404) {
+        return "The source PDF is unavailable for this document.";
+    }
+    if (status !== null && status >= 500) {
+        return "The server could not provide the source PDF. Try again later.";
+    }
+    if (error instanceof TypeError) {
+        return "The source PDF could not be reached. Check your connection and try again.";
+    }
+    return "The source PDF could not be loaded. Try again.";
 }
