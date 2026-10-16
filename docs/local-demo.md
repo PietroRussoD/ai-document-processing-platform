@@ -355,6 +355,17 @@ The runtime uses UID/GID `10001`, includes English Tesseract data and has a
 writable `/app/data` directory. The default command starts the API; the image
 also contains the worker module and Alembic migrations.
 
+Compose drops all Linux capabilities and enables no-new-privileges for API,
+console, dispatcher, migrations and worker. Each has explicit CPU, RAM, swap
+and PID budgets. The worker defaults to 2 CPUs, 1 GiB RAM with no additional
+swap, and 256 PIDs including threads. See the
+[budget table and runtime verification](runbooks/v1.1-container-restrictions.md).
+These are starting values for the local synthetic demo; concurrent or larger
+workloads require measurement. To change a memory budget in a Compose override,
+update both `mem_limit` and `memswap_limit` if swap should remain disabled.
+Compose restrictions do not apply to a host-run worker or standalone
+`docker run` command.
+
 To run the containerized API with PostgreSQL, migrations and persistent local
 document storage:
 

@@ -1,7 +1,16 @@
 name: ai-document-processing-platform
 
+x-application-security: &application-security
+  cap_drop: ["ALL"]
+  security_opt: ["no-new-privileges:true"]
+
 services:
   api:
+    <<: *application-security
+    cpus: 1.0
+    mem_limit: 512m
+    memswap_limit: 512m
+    pids_limit: 128
     profiles: ["app", "processing"]
     image: document-platform-api:dev
     depends_on:
@@ -23,6 +32,11 @@ services:
       - document-platform-data:/app/data
 
   console:
+    <<: *application-security
+    cpus: 0.5
+    mem_limit: 128m
+    memswap_limit: 128m
+    pids_limit: 64
     profiles: ["processing"]
     build: ./apps/operator-console
     image: document-platform-console:dev
@@ -39,6 +53,11 @@ services:
       start_period: 10s
 
   dispatcher:
+    <<: *application-security
+    cpus: 0.5
+    mem_limit: 256m
+    memswap_limit: 256m
+    pids_limit: 64
     profiles: ["processing"]
     image: document-platform-api:dev
     command: ["python", "-m", "document_platform.dispatcher"]
@@ -100,6 +119,11 @@ services:
       - document-platform-prometheus:/prometheus
 
   migrate:
+    <<: *application-security
+    cpus: 1.0
+    mem_limit: 512m
+    memswap_limit: 512m
+    pids_limit: 64
     profiles: ["app", "processing"]
     build: .
     image: document-platform-api:dev
@@ -176,6 +200,11 @@ services:
       - "127.0.0.1:${TEMPORAL_UI_PORT:-8233}:8080"
 
   worker:
+    <<: *application-security
+    cpus: 2.0
+    mem_limit: 1g
+    memswap_limit: 1g
+    pids_limit: 256
     profiles: ["processing"]
     image: document-platform-api:dev
     command: ["python", "-m", "document_platform.worker"]

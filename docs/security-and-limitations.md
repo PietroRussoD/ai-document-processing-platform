@@ -30,6 +30,10 @@ machine and the private Compose network, not a public HTTP service.
   (20,000,000 pixels by default) and rasterizes the next page only after the
   current page's OCR completes. This avoids keeping all page PNGs in memory;
   it does not bound every native allocation or isolate the PDF parser.
+- Compose application containers have explicit CPU, memory, swap and PID
+  limits, drop all Linux capabilities and enable no-new-privileges. These are
+  aggregate container budgets, not per-document parser isolation. See
+  [runtime restrictions and verification](runbooks/v1.1-container-restrictions.md).
 - Application request logs use matched route templates and allowlisted fields.
   Routine NGINX access logging is disabled for `/api` so document IDs in URLs
   are not copied to proxy access logs. Error diagnostics may still contain
@@ -52,7 +56,7 @@ machine and the private Compose network, not a public HTTP service.
 | Risk | Current boundary |
 | --- | --- |
 | Unauthorized local access | Most HTTP endpoints and Temporal UI have no authentication; Grafana and PostgreSQL use documented development credentials. No TLS, per-user authorization or tenant isolation exists. |
-| Hostile PDFs | Size, page and parser checks limit routine inputs, but there is no malware scan, dedicated parser sandbox or container CPU/memory budget. Do not upload untrusted files. |
+| Hostile PDFs | Size/page/raster checks and application-container resource budgets limit routine inputs, but there is no malware scan or dedicated parser sandbox. Resource exhaustion may terminate a process rather than produce a document-level error. Do not upload untrusted files. |
 | Vulnerable image packages | Fresh ARM64 scan of the v1.0 candidate on 2026-10-03: API 1 CRITICAL and 76 HIGH findings (34 distinct CVEs total); all 77 are Debian OS-package findings across 26 packages, with no fixed version listed by Trivy. Python and Rust dependency results have no HIGH/CRITICAL findings. The API contains `libxml2` `2.12.7+dfsg+really2.9.14-2.1+deb13u3`; for `CVE-2026-6653`, Trivy selects NVD CVSS v3.1 9.8 Critical, while Canonical reports CVSS v4.0 7.0 High, Ubuntu priority Medium, and Debian marks Trixie `no-dsa`/Minor. Those ratings do not make the installed package fixed. The current OCR path rasterizes PDFs with PyMuPDF and sends PNG bytes to Tesseract; runtime inspection confirms `libxml2` is loaded through `libarchive`, but the path review does not prove the CVE is unreachable. The console, rebuilt after Dependabot PR #9 on `nginxinc/nginx-unprivileged:1.31.6-alpine` (Alpine `3.24.2`), has no HIGH/CRITICAL findings. Neither scanner results nor path analysis clear the API image for untrusted documents or public exposure. See the [Debian tracker](https://security-tracker.debian.org/tracker/CVE-2026-6653), [Ubuntu advisory](https://ubuntu.com/security/CVE-2026-6653), [disclosure](https://www.openwall.com/lists/oss-security/2026/06/22/3) and [v1.0 verification record](runbooks/v1.0-verification.md). |
 | Data at rest | Local named volumes are not application-encrypted and have no managed backup or recovery policy. Database retention does not remove blob bytes. |
 | Advisory model availability | An unavailable Ollama connection records a failed AI execution without changing deterministic extraction or the human-review outcome. Later documents can succeed after connectivity returns; a failed proposal is not automatically replayed, and an in-flight Ollama process restart was not verified. |
@@ -72,8 +76,9 @@ historical scan counts above: 33 distinct CVEs across 76 package findings
 as vulnerable. The review documents missing exploit prerequisites in several
 application paths, residual native-parser uncertainty and proposed PDF/OCR
 resource limits and container restrictions. The per-page OCR pixel limit and
-incremental rasterization were implemented on 2026-10-16; container restrictions
-and hard process resource limits remain proposals. The historical decision
+incremental rasterization and application-container resource/privilege limits
+were implemented on 2026-10-16. Disposable per-document parser isolation remains
+outside the implemented controls. The historical decision
 below is not v1.1 risk acceptance, and the OCR change does not fix package CVEs.
 
 ## v1.0 Release Risk Decision
