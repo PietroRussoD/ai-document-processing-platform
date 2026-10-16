@@ -81,6 +81,11 @@ were implemented on 2026-10-16. Disposable per-document parser isolation remains
 outside the implemented controls. The historical decision
 below is not v1.1 risk acceptance, and the OCR change does not fix package CVEs.
 
+The [final backend verification on 2026-10-16](runbooks/v1.1-final-backend-verification.md)
+rescanned the rebuilt ARM64 API image with a newly downloaded database and
+confirmed the same 33 CVEs across 76 HIGH/CRITICAL package associations, with
+no fixed versions reported by Trivy. The backend suite passed all 615 tests.
+
 ## v1.0 Release Risk Decision
 
 The residual `CVE-2026-6653` finding in the API image is accepted for the
