@@ -112,6 +112,7 @@ async def run_worker(settings: Settings) -> None:
                     max_pages=settings.max_document_pages,
                     max_characters=settings.max_extracted_text_characters,
                     raster_dpi=settings.tesseract_raster_dpi,
+                    max_page_pixels=settings.tesseract_max_page_pixels,
                     page_timeout_seconds=settings.tesseract_page_timeout_seconds,
                 ),
                 clock=lambda: datetime.now(UTC),

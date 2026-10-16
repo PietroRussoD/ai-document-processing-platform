@@ -24,6 +24,7 @@ class TesseractPdfOcrExtractor:
         max_pages: int,
         max_characters: int,
         raster_dpi: int,
+        max_page_pixels: int,
         page_timeout_seconds: float,
     ) -> None:
         if not command.strip():
@@ -36,6 +37,8 @@ class TesseractPdfOcrExtractor:
             raise ValueError("max_characters must be positive")
         if raster_dpi < 72:
             raise ValueError("raster_dpi must be at least 72")
+        if max_page_pixels <= 0:
+            raise ValueError("max_page_pixels must be positive")
         if page_timeout_seconds <= 0:
             raise ValueError("page_timeout_seconds must be positive")
         self._command = command
@@ -43,28 +46,14 @@ class TesseractPdfOcrExtractor:
         self._max_pages = max_pages
         self._max_characters = max_characters
         self._raster_dpi = raster_dpi
+        self._max_page_pixels = max_page_pixels
         self._page_timeout_seconds = page_timeout_seconds
 
     async def extract(self, content: bytes) -> ExtractedOcrText:
-        pages = await anyio.to_thread.run_sync(self._rasterize, content)
-        extracted_pages: list[str] = []
-        character_count = 0
-        for page in pages:
-            text = await self._extract_page(page)
-            character_count += len(text)
-            if character_count > self._max_characters:
-                raise OcrTextLimitExceeded(self._max_characters)
-            extracted_pages.append(text)
+        # Keep the document on one worker thread while OCR runs on the event loop.
+        return await anyio.to_thread.run_sync(self._extract_document, content)
 
-        extracted = "\f".join(extracted_pages)
-        return ExtractedOcrText(
-            text=extracted,
-            page_count=len(pages),
-            character_count=len(extracted),
-            non_whitespace_character_count=sum(not character.isspace() for character in extracted),
-        )
-
-    def _rasterize(self, content: bytes) -> tuple[bytes, ...]:
+    def _extract_document(self, content: bytes) -> ExtractedOcrText:
         document = pymupdf.open(stream=content, filetype="pdf")
         with document:
             if document.is_encrypted:
@@ -72,14 +61,37 @@ class TesseractPdfOcrExtractor:
             page_count = cast(int, document.page_count)  # pyright: ignore[reportUnknownMemberType]
             if not 1 <= page_count <= self._max_pages:
                 raise OcrExtractionFailed("PDF page count is outside the supported limit")
-            images: list[bytes] = []
+            extracted_pages: list[str] = []
+            character_count = 0
             for page in document:
-                pixmap = page.get_pixmap(  # pyright: ignore[reportUnknownMemberType]
-                    dpi=self._raster_dpi,
-                    alpha=False,
-                )
-                images.append(cast(bytes, pixmap.tobytes("png")))
-            return tuple(images)
+                text = anyio.from_thread.run(self._extract_page, self._rasterize_page(page))
+                character_count += len(text) + bool(extracted_pages)
+                if character_count > self._max_characters:
+                    raise OcrTextLimitExceeded(self._max_characters)
+                extracted_pages.append(text)
+
+            extracted = "\f".join(extracted_pages)
+            return ExtractedOcrText(
+                text=extracted,
+                page_count=page_count,
+                character_count=len(extracted),
+                non_whitespace_character_count=sum(not char.isspace() for char in extracted),
+            )
+
+    def _rasterize_page(self, page: pymupdf.Page) -> bytes:
+        scale = self._raster_dpi / 72
+        bounds = (page.rect * pymupdf.Matrix(scale, scale)).irect
+        if bounds.width <= 0 or bounds.height <= 0:
+            raise OcrExtractionFailed("PDF page has invalid raster dimensions")
+        if bounds.width * bounds.height > self._max_page_pixels:
+            raise OcrExtractionFailed(
+                f"PDF page exceeds the {self._max_page_pixels}-pixel OCR raster limit"
+            )
+        pixmap = page.get_pixmap(  # pyright: ignore[reportUnknownMemberType]
+            dpi=self._raster_dpi,
+            alpha=False,
+        )
+        return cast(bytes, pixmap.tobytes("png"))
 
     async def _extract_page(self, image: bytes) -> str:
         try:

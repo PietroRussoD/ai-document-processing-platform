@@ -94,8 +94,14 @@ Compose stack does not start or download a model server.
 - Node.js 24 and pnpm 11.23.0 for the development console;
 - Tesseract with English language data for a host-run OCR worker. Verify the
   installation with `tesseract --list-langs`; the default language is `eng`.
-  Command, language, raster DPI and per-page timeout are configurable in `.env`.
+  Command, language, raster DPI, per-page pixel limit and per-page timeout are
+  configurable in `.env` for a host-run worker.
   The Compose image already contains Tesseract and English data.
+  `DOCUMENT_PLATFORM_TESSERACT_MAX_PAGE_PIXELS` defaults to 20,000,000 and is
+  also forwarded to the Compose worker. The limit is checked at the configured
+  DPI before allocating each page image. Pages above it fail OCR processing;
+  raise it only when the worker has sufficient resources. Ordinary A4 pages
+  at the default 200 DPI use approximately 3.9 million pixels.
 
 ## Host API
 

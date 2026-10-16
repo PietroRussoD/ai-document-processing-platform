@@ -352,10 +352,14 @@ proposal after deterministic completion. It links to the implementation and
 does not read a run, report live component health or reconstruct Temporal history.
 
 The local OCR adapter rasterizes pages with PyMuPDF and invokes the configured
-Tesseract executable one page at a time. It applies the accepted page limit,
-the same bounded text limit, a configurable DPI and a per-page timeout. Serial
-execution is intentional: the worker should bound CPU and memory consumption
-before configurable parallelism is introduced with operational evidence.
+Tesseract executable one page at a time. Before allocating each pixmap, it checks
+the page's raster dimensions at the configured DPI against
+`DOCUMENT_PLATFORM_TESSERACT_MAX_PAGE_PIXELS` (default 20,000,000). The page's PNG
+is processed before the next page is rasterized; the document stays on one
+worker thread while subprocess I/O runs on the event loop. It also applies the
+accepted page limit, the bounded total text limit including page separators,
+and a per-page Tesseract timeout. That timeout does not bound rasterization,
+and the pixel check is not a hard memory budget or native-parser sandbox.
 
 Status queries use a dedicated read-model port. Its PostgreSQL adapter joins the
 document with its most recently queued processing run and returns only the fields

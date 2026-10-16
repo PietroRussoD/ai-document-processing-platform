@@ -26,6 +26,10 @@ machine and the private Compose network, not a public HTTP service.
 - API and console images run without root. Uploads have byte and page limits;
   PDF structure is checked before registration. Blob paths are derived from
   content hashes rather than client filenames.
+- OCR checks a configurable pixel limit before allocating each page image
+  (20,000,000 pixels by default) and rasterizes the next page only after the
+  current page's OCR completes. This avoids keeping all page PNGs in memory;
+  it does not bound every native allocation or isolate the PDF parser.
 - Application request logs use matched route templates and allowlisted fields.
   Routine NGINX access logging is disabled for `/api` so document IDs in URLs
   are not copied to proxy access logs. Error diagnostics may still contain
@@ -67,8 +71,10 @@ historical scan counts above: 33 distinct CVEs across 76 package findings
 (75 HIGH, 1 CRITICAL). All 33 Debian source-package entries still list Trixie
 as vulnerable. The review documents missing exploit prerequisites in several
 application paths, residual native-parser uncertainty and proposed PDF/OCR
-resource limits and container restrictions. These proposals are not implemented
-mitigations, and the historical decision below is not v1.1 risk acceptance.
+resource limits and container restrictions. The per-page OCR pixel limit and
+incremental rasterization were implemented on 2026-10-16; container restrictions
+and hard process resource limits remain proposals. The historical decision
+below is not v1.1 risk acceptance, and the OCR change does not fix package CVEs.
 
 ## v1.0 Release Risk Decision
 

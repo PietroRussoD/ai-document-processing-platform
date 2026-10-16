@@ -25,6 +25,7 @@ def test_uses_safe_local_defaults(
     assert settings.storage_root == Path("data")
     assert settings.max_document_bytes == 20 * 1024 * 1024
     assert settings.max_document_pages == 50
+    assert settings.tesseract_max_page_pixels == 20_000_000
     assert settings.max_extracted_text_characters == 1_000_000
     assert settings.database_url.scheme == "postgresql+asyncpg"
     assert settings.database_pool_size == 5
@@ -86,6 +87,17 @@ def test_rejects_a_non_positive_document_size_limit() -> None:
 def test_rejects_a_non_positive_document_page_limit() -> None:
     with pytest.raises(ValidationError):
         Settings(max_document_pages=0)
+
+
+def test_rejects_a_non_positive_ocr_pixel_limit() -> None:
+    with pytest.raises(ValidationError):
+        Settings(tesseract_max_page_pixels=0)
+
+
+def test_reads_the_ocr_pixel_limit_from_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DOCUMENT_PLATFORM_TESSERACT_MAX_PAGE_PIXELS", "10000000")
+
+    assert Settings().tesseract_max_page_pixels == 10_000_000
 
 
 def test_rejects_a_non_positive_extracted_text_limit() -> None:

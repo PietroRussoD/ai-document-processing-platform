@@ -17,7 +17,7 @@ class OcrEngineUnavailable(RuntimeError):
 
 
 class OcrExtractionFailed(RuntimeError):
-    """Raised when the OCR engine rejects or times out a page."""
+    """Raised when rasterization rejects a page or the OCR engine fails."""
 
 
 class OcrTextLimitExceeded(ValueError):

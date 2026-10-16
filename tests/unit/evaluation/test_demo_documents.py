@@ -84,6 +84,7 @@ async def test_scanned_invoice_is_classified_and_extracted_through_ocr() -> None
         max_pages=1,
         max_characters=10_000,
         raster_dpi=200,
+        max_page_pixels=20_000_000,
         page_timeout_seconds=10,
     ).extract(content)
     classification = _classification(result.text)
