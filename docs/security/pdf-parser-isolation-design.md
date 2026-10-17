@@ -138,10 +138,16 @@ the runtime. The infrastructure spike confirmed that Kind with Calico can be sta
 used for these checks on this machine. Do not change the project version as part of
 this documentation update.
 
+The proposed application integration, including asynchronous page-count
+validation, Job data transfer, controller permissions and acceptance criteria,
+is documented in [PDF Parser Isolation Integration Proposal](pdf-parser-integration-proposal.md).
+
 ## Required changes if the work is resumed
 
-Before implementation, choose and validate the job runtime on the target
-development environment. Then design one end-to-end vertical slice that:
+Before implementation, validate the proposed runtime, scoped controller
+credential and data-transfer channel on the target development environment.
+The end-to-end integration proposal defines the vertical slice and its
+acceptance criteria. The implementation must:
 
 - removes native PDF inspection from the API request path, or routes it
   through the same isolated job boundary;
