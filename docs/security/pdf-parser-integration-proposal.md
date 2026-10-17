@@ -186,9 +186,9 @@ probe; no application code or project version was changed.
 | Process exit status | Pass | Exit code `7` arrived in the exec status channel. |
 | Job logs | Pass | A marker returned through exec stdout was absent from the Job container logs. |
 | Scoped RBAC | Partial | With a short-lived service-account token, the probe could read/list Pods and create Jobs but could not read Secrets. Exec failed when the role allowed only `get` on `pods/exec`; it worked after granting both `get` and `create` on that subresource. Confirm the required verbs against the exact Kubernetes and client versions used by the application. |
-| Network policy | Partial | DNS egress to the cluster DNS service timed out under default-deny. Connectivity to a second workload and the Internet was not tested. |
+| Network policy | Pass for pod-to-pod ingress and egress | The earlier Calico probe recorded a client reaching a parser-labeled HTTP Pod before policy, then timing out after ingress was denied. A parser-labeled client reached a Pod in another namespace by IP before an egress-only deny policy, then timed out after the policy was applied. The default-deny DNS probe in this spike also timed out. Internet egress was not tested. See the [isolation design spike](pdf-parser-isolation-design.md). |
 | Disconnect and cancellation | Failure as cancellation | Closing the client WebSocket did not stop the remote child process; it continued and created a marker. A disconnected exec session is therefore not a cancellation mechanism. The controller must delete the Job or invoke an explicit fixed job-control command; `activeDeadlineSeconds` remains the fallback for abandoned Jobs. |
-| Completion and TTL | Pass for success | The completion marker let the Job finish, and a completed Job and Pod were removed by a short TTL. Failure cleanup and deadline expiry were not separately exercised. |
+| Job completion and TTL | Pass for success and active deadline | The completion marker let a Job finish, and a short TTL removed the completed Job and Pod. The earlier isolation spike also observed a Job fail with `DeadlineExceeded`, followed by TTL removal of the Job and Pod. This verifies Kubernetes cleanup, not worker-driven cancellation or application error handling; see the [isolation design spike](pdf-parser-isolation-design.md). |
 | PID limit | Pass | On a separate Kind 1.37 cluster, both nodes were Ready with `podPidsLimit: 128`. Reading the cgroup hierarchy from the worker showed `pids.max=128` on the Pod parent and `pids.max=9397` on the container cgroup, confirming that the effective Pod limit is 128 without a process-spawn stress test. |
 | Compose-network reachability | Pass for network and credential smoke test | A disposable container using `document-platform-api:dev` on `ai-document-processing-platform_default`, with `host.docker.internal` mapped to the host gateway, reached the temporary Kind API with TLS verification enabled. The scoped token received `200` for listing Pods, `403` for listing Secrets, and SelfSubjectAccessReview allowed `get/create pods/exec` plus `create jobs` while denying `get secrets`. This did not exercise the `document_platform.worker` configuration or Kubernetes client integration. |
 | Worker Kubernetes configuration | Not implemented | `worker.py` still constructs local PyMuPDF and Tesseract extractors. `Settings`, `compose.yaml` and `pyproject.toml` define no Kubernetes endpoint, CA, controller token or Kubernetes client dependency. This is expected before the proposed integration; the network smoke test did not run the worker process. |
@@ -196,10 +196,10 @@ probe; no application code or project version was changed.
 The transport is promising enough to continue without designing an artifact
 broker yet, but this spike does not clear the full integration gate. Before
 implementation, define and validate the worker's endpoint, CA and scoped-token
-configuration; verify network isolation against another Pod, failure/timeout
-cleanup, and resource usage at the actual configured upload and extraction
-limits. Preserve the explicit stdin half-close and bounded streaming behavior
-in the implementation.
+configuration; verify Internet egress denial, worker-driven cleanup after
+parser errors or cancellation, and resource usage at the actual configured
+upload and extraction limits. Preserve the explicit stdin half-close and
+bounded streaming behavior in the implementation.
 
 ## Acceptance criteria for a later implementation
 
