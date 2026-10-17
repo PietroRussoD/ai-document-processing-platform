@@ -109,7 +109,4 @@ def test_exposes_source_as_a_binary_pdf_contract() -> None:
         "format": "binary",
     }
     assert set(operation["responses"]) >= {"200", "401", "404", "503"}
-    assert any(
-        parameter["name"].casefold() == "authorization" and parameter["in"] == "header"
-        for parameter in operation["parameters"]
-    )
+    assert {"OperatorBearer": []} in operation["security"]

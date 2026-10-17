@@ -71,6 +71,7 @@ test("switches to failed work and presents bounded failure evidence", async () =
     expect(screen.getByText("ACTIVITY_RETRY_EXHAUSTED")).toBeVisible();
     expect(listWorkQueue).toHaveBeenCalledWith(
         "FAILED",
+        "",
         0,
         expect.any(AbortSignal),
     );
@@ -94,6 +95,7 @@ test("lists unsupported documents in a separate queue", async () => {
     expect(await screen.findByText("unrelated.pdf")).toBeVisible();
     expect(listWorkQueue).toHaveBeenLastCalledWith(
         "UNSUPPORTED",
+        "",
         0,
         expect.any(AbortSignal),
     );

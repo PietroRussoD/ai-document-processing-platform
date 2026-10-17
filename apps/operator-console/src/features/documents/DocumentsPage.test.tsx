@@ -240,6 +240,7 @@ test("restores isolated review drafts through document selection and browser his
         id === second.id ? second : first,
     );
     renderPage(api);
+    await screen.findByText("Operator token accepted.");
     openWorkQueues();
     fireEvent.click(screen.getByRole("button", { name: "Needs review" }));
     const firstRow = (await screen.findByText("invoice.pdf")).closest("li")!;
@@ -263,9 +264,7 @@ test("restores isolated review drafts through document selection and browser his
     ).toBeVisible();
     expect(screen.getByLabelText("Supplier")).toHaveValue("Synthetic Supplier");
     expect(screen.getByLabelText(/Review note/)).toHaveValue("");
-    expect(screen.getByRole("status")).toHaveTextContent(
-        "Operator token accepted.",
-    );
+    expect(screen.getByText("Operator token accepted.")).toBeVisible();
     expect(
         screen.queryByRole("region", { name: "invoice.pdf" }),
     ).not.toBeInTheDocument();
@@ -281,9 +280,7 @@ test("restores isolated review drafts through document selection and browser his
     expect(screen.getByLabelText(/Review note/)).toHaveValue(
         "Verify the synthetic supplier.",
     );
-    expect(screen.getByRole("status")).toHaveTextContent(
-        "Operator token accepted.",
-    );
+    expect(screen.getByText("Operator token accepted.")).toBeVisible();
 
     window.history.forward();
     await screen.findByRole("region", { name: "invoice-2.pdf" });

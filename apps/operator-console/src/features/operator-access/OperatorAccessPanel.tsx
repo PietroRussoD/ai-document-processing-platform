@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { Button } from "../../components/ui/Button";
 import { useOperatorToken } from "./operatorToken";
@@ -19,7 +19,15 @@ export function OperatorAccessPanel({
     const { operatorToken, setOperatorToken, isConnected, setIsConnected } =
         useOperatorToken();
     const inputRef = useRef<HTMLInputElement>(null);
+    const wasConnected = useRef(isConnected);
     const [draftToken, setDraftToken] = useState(operatorToken);
+
+    useEffect(() => {
+        if (wasConnected.current && !isConnected) {
+            inputRef.current?.focus();
+        }
+        wasConnected.current = isConnected;
+    }, [isConnected]);
 
     function submit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -37,7 +45,6 @@ export function OperatorAccessPanel({
         setOperatorToken("");
         setIsConnected(false);
         setDraftToken("");
-        inputRef.current?.focus();
     }
 
     return (

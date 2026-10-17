@@ -19,6 +19,7 @@ const acceptedDocument: AcceptedDocument = {
 type UploadFunction = (
     document: File,
     idempotencyKey: string,
+    operatorToken: string,
 ) => Promise<AcceptedDocument>;
 
 test("uploads the selected PDF and renders its durable identifiers", async () => {
@@ -29,7 +30,7 @@ test("uploads the selected PDF and renders its durable identifiers", async () =>
     fireEvent.click(screen.getByRole("button", { name: "Upload document" }));
 
     expect(await screen.findByText("Document accepted")).toBeVisible();
-    expect(upload).toHaveBeenCalledWith(document, "stable-upload-key");
+    expect(upload).toHaveBeenCalledWith(document, "stable-upload-key", "");
     expect(screen.getByText(acceptedDocument.document_id)).toBeVisible();
     expect(screen.getByText(acceptedDocument.processing_run_id)).toBeVisible();
     expect(
@@ -56,8 +57,18 @@ test("keeps the idempotency key stable when retrying a rejected request", async 
 
     fireEvent.click(screen.getByRole("button", { name: "Upload document" }));
     expect(await screen.findByText("Previously accepted")).toBeVisible();
-    expect(upload).toHaveBeenNthCalledWith(1, document, "stable-upload-key");
-    expect(upload).toHaveBeenNthCalledWith(2, document, "stable-upload-key");
+    expect(upload).toHaveBeenNthCalledWith(
+        1,
+        document,
+        "stable-upload-key",
+        "",
+    );
+    expect(upload).toHaveBeenNthCalledWith(
+        2,
+        document,
+        "stable-upload-key",
+        "",
+    );
 });
 
 test("shows a safe message for unexpected failures", async () => {
