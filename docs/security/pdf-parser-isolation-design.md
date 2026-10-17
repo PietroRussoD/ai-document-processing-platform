@@ -100,26 +100,37 @@ This candidate is a job-containment exercise, not a claim of stronger
 kernel-level sandboxing: the default container runtime still shares the Linux
 kernel. For a stronger parser boundary, gVisor `runsc` would need to be
 configured on the Linux node and selected through a Kubernetes RuntimeClass.
-The local Docker Engine currently reports only its default `runc` runtime, and
-the current `kubectl` context points to a remote production-named cluster. Do
-not use that context for this work. A prototype must use its own named `kind`
-cluster and an isolated kubeconfig. No cluster was created or changed during
-this assessment.
+The local Docker Engine reports only its default `runc` runtime, and the usual
+`kubectl` context points to a remote production-named cluster. Do not use that
+context for this work. The infrastructure spike used a separately named Kind
+cluster and an isolated kubeconfig.
 
-The `kind` executable is installed and reports v0.33.0, and a local Kind
-cluster named `hub` already exists. Do not reuse or alter it for this project.
-The proposed prototype therefore still needs an isolated cluster setup and a
-network-policy enforcement check before implementation can claim those
-controls work. Docker Desktop supports local Kubernetes for development and
-testing, but this assessment does not treat that as evidence that a custom
-`runsc` RuntimeClass is available. See [Docker Desktop Kubernetes](https://docs.docker.com/desktop/use-desktop/kubernetes/)
+The spike used Kind v0.33.0 with Kubernetes v1.37.0 and Calico v3.33.0. A
+client pod could reach a parser-labeled HTTP pod before policy was applied;
+after a Kubernetes NetworkPolicy denied ingress to that pod, the same request
+timed out. This verifies ingress enforcement. Egress denial still needs a
+separate check during implementation.
+
+A restricted Job probe ran as UID 10001 without a service-account token, with
+a read-only root filesystem, no privilege escalation, all Linux capabilities
+dropped, the default seccomp profile and CPU/memory limits. It terminated
+after its active deadline with reason `DeadlineExceeded`. Kubernetes removed
+the terminated Pod and Job through `ttlSecondsAfterFinished`. This validates
+the basic Job deadline and cleanup behavior; it does not parse a PDF or test
+application integration.
+
+The cluster and temporary files were removed after the spike. The existing
+local cluster named `hub` was left untouched, and no remote Kubernetes
+context was used. Docker Desktop supports local Kubernetes for development
+and testing, but this does not establish that a custom `runsc` RuntimeClass is
+available. See [Docker Desktop Kubernetes](https://docs.docker.com/desktop/use-desktop/kubernetes/)
 and [Kubernetes RuntimeClass](https://kubernetes.io/docs/concepts/containers/runtime-class/).
 
-This option is not part of v1.2.0. It should become a separate v1.3.0
-development track only after v1.2.0 is closed and a small infrastructure
-spike confirms that a separately named Kind cluster with Calico is reproducible
-on the target machine. Do not change the project version as part of this
-documentation-only decision.
+This option is not part of v1.2.0. It may become a separate v1.3.0 development
+track after v1.2.0 is closed if a concrete portfolio goal justifies operating
+the runtime. The infrastructure spike confirmed that Kind with Calico can be started and
+used for these checks on this machine. Do not change the project version as part of
+this documentation update.
 
 ## Required changes if the work is resumed
 
