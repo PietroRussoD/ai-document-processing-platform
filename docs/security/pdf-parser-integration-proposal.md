@@ -120,10 +120,12 @@ limits](https://kubernetes.io/docs/concepts/policy/pid-limiting/).
 
 Use a dedicated, namespace-scoped controller identity for the worker. Its
 permissions should be limited to creating, reading, watching and deleting Jobs
-in that namespace; reading and watching Pods; and creating the `pods/exec`
-subresource. Do not give the worker the default Kind administrator kubeconfig
-or access to a remote production-named context. The parser container itself
-must never receive this identity.
+in that namespace; reading and watching Pods; and the verbs required on the
+`pods/exec` subresource. The spike found that the tested client/server pair
+needed both `get` and `create` on `pods/exec`; verify this against the versions
+used by the application. Do not give the worker the default Kind administrator
+kubeconfig or access to a remote production-named context. The parser container
+itself must never receive this identity.
 
 ## Result contract
 
@@ -167,6 +169,35 @@ remote context. If binary streaming, output bounds, scoped credentials or
 cleanup cannot be demonstrated, stop and compare a narrowly scoped artifact
 broker design. Do not weaken the network policy or mount the Docker socket to
 make the integration appear to work.
+
+### Initial spike results — 2026-10-17
+
+The disposable Kind 1.37 cluster used Calico 3.33, a dedicated kubeconfig, a
+`restricted` namespace and a default-deny ingress/egress policy. The probe Job
+was accepted with a non-root UID, read-only root filesystem, dropped
+capabilities, `RuntimeDefault` seccomp, bounded `emptyDir`, and automatic
+service-account token mounting disabled. The cluster was deleted after the
+probe; no application code or project version was changed.
+
+| Check | Result | Evidence and limit |
+| --- | --- | --- |
+| Binary stdin | Pass | The Python client 37.0.1 streamed a deterministic 1 MiB payload. After explicitly closing the stdin channel, the parser's SHA-256 matched the sender. A fixed-size reader had previously stopped at its first 64 KiB read, so the parser must consume until EOF rather than assume a read fills the requested buffer. |
+| Bounded stdout | Pass, at probe scale | The host collector stopped and closed the stream after 128 KiB while the probe command produced 4 MiB. This demonstrates a consumer-side cap, not the final extraction limit or peak memory use. |
+| Process exit status | Pass | Exit code `7` arrived in the exec status channel. |
+| Job logs | Pass | A marker returned through exec stdout was absent from the Job container logs. |
+| Scoped RBAC | Partial | With a short-lived service-account token, the probe could read/list Pods and create Jobs but could not read Secrets. Exec failed when the role allowed only `get` on `pods/exec`; it worked after granting both `get` and `create` on that subresource. Confirm the required verbs against the exact Kubernetes and client versions used by the application. |
+| Network policy | Partial | DNS egress to the cluster DNS service timed out under default-deny. Connectivity to a second workload and the Internet was not tested. |
+| Disconnect and cancellation | Failure as cancellation | Closing the client WebSocket did not stop the remote child process; it continued and created a marker. A disconnected exec session is therefore not a cancellation mechanism. The controller must delete the Job or invoke an explicit fixed job-control command; `activeDeadlineSeconds` remains the fallback for abandoned Jobs. |
+| Completion and TTL | Pass for success | The completion marker let the Job finish, and a completed Job and Pod were removed by a short TTL. Failure cleanup and deadline expiry were not separately exercised. |
+| PID limit | Inconclusive | The kubelet config file contained `podPidsLimit: 128`, but the PID stress command hit fork failures and its exec process was interrupted before it reported a reliable count. The container-visible `pids.max` was `9397`, which does not prove the effective Pod ancestor limit. Repeat this check with a bounded probe and collect the Pod cgroup's effective limit before implementation. |
+| Compose-worker reachability | Not tested | The API calls came from the host. The Compose worker's route, TLS trust and scoped credential against the disposable local cluster remain unverified. |
+
+The transport is promising enough to continue without designing an artifact
+broker yet, but this spike does not clear the full integration gate. Before
+implementation, verify the effective PID limit, Compose-worker connectivity,
+network isolation against another Pod, failure/timeout cleanup, and resource
+usage at the actual configured upload and extraction limits. Preserve the
+explicit stdin half-close and bounded streaming behavior in the implementation.
 
 ## Acceptance criteria for a later implementation
 
