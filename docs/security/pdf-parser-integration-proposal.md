@@ -181,6 +181,7 @@ probe; no application code or project version was changed.
 
 | Check | Result | Evidence and limit |
 | --- | --- | --- |
+| Configured transfer and extraction sizes | Pass at transport level | The Python client 37.0.1 streamed a deterministic 20 MiB file through stdin in 64 KiB chunks; the restricted Pod reported the same byte count and SHA-256. It then returned a JSON envelope containing exactly 1,000,000 ASCII characters (1,000,018 bytes total), collected below a 1,000,100-byte cap, with exit code `0`. This exercises the configured byte and character counts, not the application parser, OCR, Unicode expansion, peak memory or CPU use. Keep a separate encoded-response byte cap because non-ASCII text and JSON escaping can produce a larger payload. |
 | Binary stdin | Pass | The Python client 37.0.1 streamed a deterministic 1 MiB payload. After explicitly closing the stdin channel, the parser's SHA-256 matched the sender. A fixed-size reader had previously stopped at its first 64 KiB read, so the parser must consume until EOF rather than assume a read fills the requested buffer. |
 | Bounded stdout | Pass, at probe scale | The host collector stopped and closed the stream after 128 KiB while the probe command produced 4 MiB. This demonstrates a consumer-side cap, not the final extraction limit or peak memory use. |
 | Process exit status | Pass | Exit code `7` arrived in the exec status channel. |
@@ -194,12 +195,14 @@ probe; no application code or project version was changed.
 | Worker Kubernetes configuration | Not implemented | `worker.py` still constructs local PyMuPDF and Tesseract extractors. `Settings`, `compose.yaml` and `pyproject.toml` define no Kubernetes endpoint, CA, controller token or Kubernetes client dependency. This is expected before the proposed integration; the network smoke test did not run the worker process. |
 
 The transport is promising enough to continue without designing an artifact
-broker yet, but this spike does not clear the full integration gate. Before
-implementation, define and validate the worker's endpoint, CA and scoped-token
-configuration; verify Internet egress denial, worker-driven cleanup after
-parser errors or cancellation, and resource usage at the actual configured
-upload and extraction limits. Preserve the explicit stdin half-close and
-bounded streaming behavior in the implementation.
+broker yet, but this spike does not clear the full integration gate. The stream
+passed at the configured byte and character counts; parser resource usage at
+those limits remains unmeasured. Before implementation, define and validate
+the worker's endpoint, CA and scoped-token configuration; verify Internet
+egress denial, worker-driven cleanup after parser errors or cancellation, and
+CPU, memory and scratch usage with the real parser and synthetic fixtures.
+Preserve the explicit stdin half-close and bounded streaming behavior in the
+implementation.
 
 ## Acceptance criteria for a later implementation
 
