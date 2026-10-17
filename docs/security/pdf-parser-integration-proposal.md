@@ -189,15 +189,15 @@ probe; no application code or project version was changed.
 | Network policy | Partial | DNS egress to the cluster DNS service timed out under default-deny. Connectivity to a second workload and the Internet was not tested. |
 | Disconnect and cancellation | Failure as cancellation | Closing the client WebSocket did not stop the remote child process; it continued and created a marker. A disconnected exec session is therefore not a cancellation mechanism. The controller must delete the Job or invoke an explicit fixed job-control command; `activeDeadlineSeconds` remains the fallback for abandoned Jobs. |
 | Completion and TTL | Pass for success | The completion marker let the Job finish, and a completed Job and Pod were removed by a short TTL. Failure cleanup and deadline expiry were not separately exercised. |
-| PID limit | Inconclusive | The kubelet config file contained `podPidsLimit: 128`, but the PID stress command hit fork failures and its exec process was interrupted before it reported a reliable count. The container-visible `pids.max` was `9397`, which does not prove the effective Pod ancestor limit. Repeat this check with a bounded probe and collect the Pod cgroup's effective limit before implementation. |
+| PID limit | Pass | On a separate Kind 1.37 cluster, both nodes were Ready with `podPidsLimit: 128`. Reading the cgroup hierarchy from the worker showed `pids.max=128` on the Pod parent and `pids.max=9397` on the container cgroup, confirming that the effective Pod limit is 128 without a process-spawn stress test. |
 | Compose-worker reachability | Not tested | The API calls came from the host. The Compose worker's route, TLS trust and scoped credential against the disposable local cluster remain unverified. |
 
 The transport is promising enough to continue without designing an artifact
 broker yet, but this spike does not clear the full integration gate. Before
-implementation, verify the effective PID limit, Compose-worker connectivity,
-network isolation against another Pod, failure/timeout cleanup, and resource
-usage at the actual configured upload and extraction limits. Preserve the
-explicit stdin half-close and bounded streaming behavior in the implementation.
+implementation, verify Compose-worker connectivity, network isolation against
+another Pod, failure/timeout cleanup, and resource usage at the actual
+configured upload and extraction limits. Preserve the explicit stdin
+half-close and bounded streaming behavior in the implementation.
 
 ## Acceptance criteria for a later implementation
 
