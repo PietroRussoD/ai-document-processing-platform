@@ -184,6 +184,9 @@ probe; no application code or project version was changed.
 | Configured transfer and extraction sizes | Pass at transport level | The Python client 37.0.1 streamed a deterministic 20 MiB file through stdin in 64 KiB chunks; the restricted Pod reported the same byte count and SHA-256. It then returned a JSON envelope containing exactly 1,000,000 ASCII characters (1,000,018 bytes total), collected below a 1,000,100-byte cap, with exit code `0`. This exercises the configured byte and character counts, not the application parser, OCR, Unicode expansion, peak memory or CPU use. Keep a separate encoded-response byte cap because non-ASCII text and JSON escaping can produce a larger payload. |
 | Parser resource profile | Measured, single runs | Ran the exact current parser source from `document-platform-api:dev` in disposable containers with network disabled, read-only root, capabilities dropped, no-new-privileges, 1 CPU, 512 MiB memory, 128 PIDs and a 64 MiB `/tmp` tmpfs. The image's three parser module hashes matched the working tree. The one-page digital fixture (1,370 bytes) used 0.044 s wall time and peaked at 41.0 MiB cgroup memory during inspection; embedded-text extraction returned 266 characters in 0.034 s and peaked at 40.6 MiB. Wall and CPU measurements start after Python imports; memory peaks include the interpreter and imported modules. |
 | OCR resource profile | Measured, single runs | The one-page scanned fixture (129,112 bytes) returned 243 characters in 0.792 s, with 0.741 s cgroup CPU and a 140.0 MiB cgroup memory peak (39.1 MiB at start). A synthetic 860-byte page at 200 DPI rasterized to 4,472 × 4,472 pixels (19,998,784, below the 20-million-pixel cap) and completed in 1.015 s, with 1.026 s cgroup CPU and a 252.9 MiB memory peak (39.1 MiB at start). A `/tmp` usage sampler polling every 10 ms observed no scratch use; a shorter transient write could be missed. |
+| 20 MiB parser input | Measured, synthetic | A valid one-page PDF padded with trailing spaces to exactly 20,971,520 bytes passed inspection (0.512 s, 60.5 MiB cgroup memory peak) and embedded-text extraction (0.094 s, 80.9 MiB peak). It yielded 30 characters. Since most of the file is padding, this measures input size and buffering, not a complex 20 MiB PDF with compressed images or streams. |
+| 50-page parser input | Measured, synthetic | A 19,621-byte digital PDF with 50 simple text pages extracted 1,349 characters in 0.025 s and peaked at 41.0 MiB. Running OCR on the same 50 pages at 200 DPI took 11.316 s wall time and 11.297 s cgroup CPU; peak memory was 119.2 MiB (39.1 MiB at start). Both runs stayed below the 512 MiB container limit. |
+| Extracted-text character limit | Defect found | A synthetic 50-page PDF whose page text totals exactly 1,000,000 characters returned 1,000,049 characters. `PyMuPdfTextExtractor` checks the sum of page text before adding the 49 form-feed separators, so the result can exceed `max_extracted_text_characters`. Fix and add a regression check before relying on this limit for parser-job output validation. |
 | Binary stdin | Pass | The Python client 37.0.1 streamed a deterministic 1 MiB payload. After explicitly closing the stdin channel, the parser's SHA-256 matched the sender. A fixed-size reader had previously stopped at its first 64 KiB read, so the parser must consume until EOF rather than assume a read fills the requested buffer. |
 | Bounded stdout | Pass, at probe scale | The host collector stopped and closed the stream after 128 KiB while the probe command produced 4 MiB. This demonstrates a consumer-side cap, not the final extraction limit or peak memory use. |
 | Process exit status | Pass | Exit code `7` arrived in the exec status channel. |
@@ -199,15 +202,15 @@ probe; no application code or project version was changed.
 
 The transport is promising enough to continue without designing an artifact
 broker yet, but this spike does not clear the full integration gate. These
-single-run measurements are baselines, not resource-limit recommendations;
-they cover the existing one-page fixtures and one page near the raster-pixel
-cap, not 20 MiB PDFs, 50-page documents, million-character parser output,
-concurrent work or adversarial PDFs. Before implementation, define and
-validate the worker's endpoint, CA and scoped-token configuration; verify
-Internet egress denial and worker-driven cleanup after parser errors or
-cancellation; and extend resource measurements across representative and
-worst-case synthetic documents. Preserve the explicit stdin half-close and
-bounded streaming behavior in the implementation.
+single-run measurements are baselines, not resource-limit recommendations.
+The 20 MiB file is mostly trailing padding, the 50-page PDF uses simple vector
+text, and concurrency and adversarial inputs were not measured. Fix the
+extracted-text character-limit defect before relying on the result contract.
+Before implementation, define and validate the worker's endpoint, CA and
+scoped-token configuration; verify Internet egress denial and worker-driven
+cleanup after parser errors or cancellation; and extend resource measurements
+across representative and worst-case synthetic documents. Preserve the
+explicit stdin half-close and bounded streaming behavior in the implementation.
 
 ## Acceptance criteria for a later implementation
 
