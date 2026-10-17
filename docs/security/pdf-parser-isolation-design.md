@@ -83,6 +83,44 @@ Docker Compose/Docker Desktop setup does not provide this per-document job
 boundary on its own. Do not assume that a generic Compose sidecar or a Python
 subprocess provides equivalent isolation.
 
+## Runtime candidate for a future prototype
+
+For a portfolio prototype on this Mac, use a separately named `kind` cluster
+with Calico and run one Kubernetes Job per parsing request. Kubernetes Jobs
+provide a one-off Pod lifecycle, a deadline and a retry limit. Calico can
+enforce the default-deny ingress and egress policy required for parser Pods.
+Apply a restricted Pod security context as well: non-root UID, no privilege
+escalation, read-only root filesystem, dropped capabilities, the runtime's
+default seccomp profile, bounded resources and no service-account token. See
+[Kubernetes Jobs](https://kubernetes.io/docs/concepts/workloads/controllers/job/),
+[Kubernetes security contexts](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/)
+and [Calico on kind](https://docs.tigera.io/calico/latest/getting-started/kubernetes/kind).
+
+This candidate is a job-containment exercise, not a claim of stronger
+kernel-level sandboxing: the default container runtime still shares the Linux
+kernel. For a stronger parser boundary, gVisor `runsc` would need to be
+configured on the Linux node and selected through a Kubernetes RuntimeClass.
+The local Docker Engine currently reports only its default `runc` runtime, and
+the current `kubectl` context points to a remote production-named cluster. Do
+not use that context for this work. A prototype must use its own named `kind`
+cluster and an isolated kubeconfig. No cluster was created or changed during
+this assessment.
+
+The `kind` executable is installed and reports v0.33.0, and a local Kind
+cluster named `hub` already exists. Do not reuse or alter it for this project.
+The proposed prototype therefore still needs an isolated cluster setup and a
+network-policy enforcement check before implementation can claim those
+controls work. Docker Desktop supports local Kubernetes for development and
+testing, but this assessment does not treat that as evidence that a custom
+`runsc` RuntimeClass is available. See [Docker Desktop Kubernetes](https://docs.docker.com/desktop/use-desktop/kubernetes/)
+and [Kubernetes RuntimeClass](https://kubernetes.io/docs/concepts/containers/runtime-class/).
+
+This option is not part of v1.2.0. It should become a separate v1.3.0
+development track only after v1.2.0 is closed and a small infrastructure
+spike confirms that a separately named Kind cluster with Calico is reproducible
+on the target machine. Do not change the project version as part of this
+documentation-only decision.
+
 ## Required changes if the work is resumed
 
 Before implementation, choose and validate the job runtime on the target
@@ -112,7 +150,7 @@ the compressed PDF size or page count.
 
 Do not implement this design as part of v1.2.0. Reopen it if the project takes
 untrusted PDFs, runs on a shared host, or has a concrete portfolio objective
-that justifies operating a separate job runtime. If no suitable runtime can be
-run reproducibly without exposing broad host-control credentials to the API or
-worker, stop at the existing local-only boundary and keep parser isolation
-documented as a limitation.
+that justifies operating a separate job runtime. If the isolated Kind/Calico
+spike is not reproducible, or if its controller requires broad host-control
+credentials in the API or worker, stop at the existing local-only boundary and
+keep parser isolation documented as a limitation.
