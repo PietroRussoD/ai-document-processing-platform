@@ -108,8 +108,14 @@ cluster and an isolated kubeconfig.
 The spike used Kind v0.33.0 with Kubernetes v1.37.0 and Calico v3.33.0. A
 client pod could reach a parser-labeled HTTP pod before policy was applied;
 after a Kubernetes NetworkPolicy denied ingress to that pod, the same request
-timed out. This verifies ingress enforcement. Egress denial still needs a
-separate check during implementation.
+timed out.
+
+A parser-labeled client pod could reach an HTTP pod in another namespace by
+its pod IP. After an egress-only policy with no allowed egress rules was
+applied to the client, the same request to that IP timed out. Using the IP
+kept DNS out of this check. These results verify Calico enforcement for
+ingress and pod-to-pod egress in this temporary cluster; they do not verify
+Internet egress or the final parser runtime topology.
 
 A restricted Job probe ran as UID 10001 without a service-account token, with
 a read-only root filesystem, no privilege escalation, all Linux capabilities
