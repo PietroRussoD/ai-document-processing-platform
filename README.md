@@ -87,10 +87,10 @@ Stop the stack with `docker compose down`; named volumes retain the demo data.
   and a static interactive architecture map.
 
 The [capability table](docs/product-overview.md#capability-status) records the
-implemented and planned boundaries. Development targets `v1.1.0`; Python and
-the API report `1.1.0.dev0`, and the console reports `1.1.0-dev.0`. The
-[draft release notes](docs/releases/v1.1.0.md) track the upcoming console work.
-The latest tagged release is `v1.0.0`; see its
+implemented and planned boundaries. The v1.1.0 source and API report `1.1.0`,
+as does the operator console. The [v1.1.0 release notes](docs/releases/v1.1.0.md)
+document the local-demo scope and its remaining limits. The latest tagged
+release is `v1.0.0`; v1.1.0 has not yet been tagged or published. See v1.0's
 [release notes](docs/releases/v1.0.0.md) and
 [verification record](docs/runbooks/v1.0-verification.md).
 
@@ -108,12 +108,12 @@ and reprocessing use one shared local token, without per-user or tenant
 isolation. Extracted text is stored internally in PostgreSQL; status and queue
 APIs exclude it. Database retention does not delete PDF blobs.
 
-The API image scan recorded for the v1.0 candidate found HIGH/CRITICAL
-OS-package vulnerabilities. Its risk acceptance is restricted to the local
-synthetic-data demo; the API image is not a release artifact. Public exposure,
-confidential documents, hostile PDFs and production deployment remain outside
-the supported scope. See [security and limitations](docs/security-and-limitations.md)
-for the controls, recorded findings and remaining work.
+The v1.1 API image scan found HIGH/CRITICAL OS-package vulnerabilities. Their
+risk is accepted only for the local synthetic-data demo; the API image is not a
+release artifact. Public exposure, confidential documents, hostile PDFs and
+production deployment remain outside the supported scope. See
+[security and limitations](docs/security-and-limitations.md) for the controls,
+recorded findings and remaining work.
 
 ## Technologies
 

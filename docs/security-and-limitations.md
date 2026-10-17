@@ -67,9 +67,9 @@ lists the installed Trixie `libxml2` version as vulnerable but marks the issue
 `no-dsa`/Minor for that release. That is Debian's remediation assessment, not
 proof that crafted XML cannot reach the package here.
 
-## v1.1 Development Image Review
+## v1.1 Image Review
 
-For the current v1.1 development image, the
+For the v1.1 API image reviewed on 2026-10-16, the
 [2026-10-15 CVE triage](runbooks/v1.1-image-cve-triage.md) supersedes the
 historical scan counts above: 33 distinct CVEs across 76 package findings
 (75 HIGH, 1 CRITICAL). All 33 Debian source-package entries still list Trixie
