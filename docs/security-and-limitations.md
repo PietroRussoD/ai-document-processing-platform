@@ -10,8 +10,9 @@ machine and the private Compose network, not a public HTTP service.
   health, metrics and OpenAPI endpoints are unauthenticated. Knowing a document
   ID is not an authorization check.
 - Review resolution and reprocessing require one configured local bearer token.
-  Compose supplies a local-only demo token unless overridden; host-run APIs
-  require it to be configured. The token is not a user, role or tenant system.
+  Compose requires the operator to provide a token in `.env`; host-run APIs
+  require it to be configured as well. The token is not a user, role or tenant
+  system.
 - Source-PDF retrieval requires the same bearer token. Any holder of the shared
   token can retrieve every stored document through this route.
 - PostgreSQL owns document metadata and processing evidence. A named volume

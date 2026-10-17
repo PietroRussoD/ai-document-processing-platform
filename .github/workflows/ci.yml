@@ -32,6 +32,8 @@ jobs:
           git --redact=100 --no-banner /repo
 
       - name: Validate Compose configuration and loopback port bindings
+        env:
+          DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN: ci-placeholder-token-for-compose-validation-only
         run: |
           docker compose --profile '*' config --format json |
             python3 scripts/check_compose_loopback.py

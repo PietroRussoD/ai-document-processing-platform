@@ -20,6 +20,9 @@ worker and console in separate terminals.
 For the complete local processing path, start the separate `processing` profile:
 
 ```bash
+cp .env.example .env
+openssl rand -hex 32
+# Put the generated value in .env as DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN.
 docker compose --profile processing up --build -d
 docker compose --profile processing ps
 ```
@@ -33,8 +36,10 @@ volume. The Temporal UI is at `http://localhost:8233`. Set `CONSOLE_PORT`,
 is occupied. Published application, database and Temporal ports bind to
 `127.0.0.1`. This stack uses development credentials and does not provide
 production authentication or deployment configuration. The review form uses
-the loopback-only demo token `local-only-demo-review-token-change-before-exposure`
-unless `DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN` overrides it in `.env`.
+the local token configured as `DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN` in
+`.env`. Compose will not start without this value. Generate a unique token for
+this machine with `openssl rand -hex 32`; do not commit `.env` or reuse the
+token elsewhere.
 
 After starting the `processing` profile, verify the complete path through the
 console's reverse proxy:

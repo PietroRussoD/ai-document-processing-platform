@@ -18,7 +18,8 @@ uv sync --all-groups --locked
   pnpm install --frozen-lockfile
 )
 
-docker compose --profile processing config --quiet
+DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN=local-checkout-validation-placeholder-token \
+  docker compose --profile processing config --quiet
 uv run ruff check .
 uv run ruff format --check .
 uv run pyright

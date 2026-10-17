@@ -44,6 +44,9 @@ The containerized demo needs Docker with the Compose plugin. The images include
 the application and OCR tools. From the repository root:
 
 ```bash
+cp .env.example .env
+openssl rand -hex 32
+# Put the generated value in .env as DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN.
 docker compose --profile processing up --build -d
 docker compose --profile processing ps
 ```
@@ -58,10 +61,10 @@ Wait for the API and console to become healthy, then open
 | `invoice-scanned.pdf` | OCR followed by review because the issue date is missing. |
 | `equipment-report.pdf` | Unsupported document, without an invoice review form. |
 
-For source preview or review actions, enter the local Compose token
-`local-only-demo-review-token-change-before-exposure`, unless overridden in
-`.env`. This shared token is a development fixture. The demo binds published
-ports to `127.0.0.1` and uses development credentials.
+For source preview or review actions, enter the value of
+`DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN` from `.env`. This shared token is a
+development fixture. The demo binds published ports to `127.0.0.1` and uses
+development credentials.
 
 Ollama is disabled by default. To try advisory proposals, run the configured
 model on the host and follow the [local-model setup](docs/local-demo.md#optional-local-model).

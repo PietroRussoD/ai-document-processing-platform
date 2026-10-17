@@ -18,7 +18,7 @@ services:
         condition: service_completed_successfully
     environment:
       DOCUMENT_PLATFORM_DATABASE_URL: postgresql+asyncpg://document_platform:local-development-only@postgres:5432/document_platform
-      DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN: ${DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN:-local-only-demo-review-token-change-before-exposure}
+      DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN: ${DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN:?Set DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN in .env}
       DOCUMENT_PLATFORM_REVIEW_OPERATOR_ID: ${DOCUMENT_PLATFORM_REVIEW_OPERATOR_ID:-local-demo-reviewer}
     ports:
       - "127.0.0.1:${API_PORT:-8000}:8000"
