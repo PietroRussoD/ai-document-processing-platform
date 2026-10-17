@@ -177,7 +177,8 @@ The disposable Kind 1.37 cluster used Calico 3.33, a dedicated kubeconfig, a
 was accepted with a non-root UID, read-only root filesystem, dropped
 capabilities, `RuntimeDefault` seccomp, bounded `emptyDir`, and automatic
 service-account token mounting disabled. The cluster was deleted after the
-probe; no application code or project version was changed.
+infrastructure probe. Follow-up resource measurements and an extracted-text
+limit correction are recorded below.
 
 | Check | Result | Evidence and limit |
 | --- | --- | --- |
@@ -186,7 +187,7 @@ probe; no application code or project version was changed.
 | OCR resource profile | Measured, single runs | The one-page scanned fixture (129,112 bytes) returned 243 characters in 0.792 s, with 0.741 s cgroup CPU and a 140.0 MiB cgroup memory peak (39.1 MiB at start). A synthetic 860-byte page at 200 DPI rasterized to 4,472 × 4,472 pixels (19,998,784, below the 20-million-pixel cap) and completed in 1.015 s, with 1.026 s cgroup CPU and a 252.9 MiB memory peak (39.1 MiB at start). A `/tmp` usage sampler polling every 10 ms observed no scratch use; a shorter transient write could be missed. |
 | 20 MiB parser input | Measured, synthetic | A valid one-page PDF padded with trailing spaces to exactly 20,971,520 bytes passed inspection (0.512 s, 60.5 MiB cgroup memory peak) and embedded-text extraction (0.094 s, 80.9 MiB peak). It yielded 30 characters. Since most of the file is padding, this measures input size and buffering, not a complex 20 MiB PDF with compressed images or streams. |
 | 50-page parser input | Measured, synthetic | A 19,621-byte digital PDF with 50 simple text pages extracted 1,349 characters in 0.025 s and peaked at 41.0 MiB. Running OCR on the same 50 pages at 200 DPI took 11.316 s wall time and 11.297 s cgroup CPU; peak memory was 119.2 MiB (39.1 MiB at start). Both runs stayed below the 512 MiB container limit. |
-| Extracted-text character limit | Defect found | A synthetic 50-page PDF whose page text totals exactly 1,000,000 characters returned 1,000,049 characters. `PyMuPdfTextExtractor` checks the sum of page text before adding the 49 form-feed separators, so the result can exceed `max_extracted_text_characters`. Fix and add a regression check before relying on this limit for parser-job output validation. |
+| Extracted-text character limit | Fixed in development | The initial synthetic 50-page PDF returned 1,000,049 characters against a 1,000,000-character limit because page separators were not counted. `PyMuPdfTextExtractor` now counts each separator before checking the limit. Regression tests cover exact-limit acceptance and rejection when separators exceed the limit, including empty pages. Verification against the updated working source rejected the original 50-page case and accepted a 50-page result of exactly 1,000,000 characters. The container resource measurements above predate this correction. |
 | Binary stdin | Pass | The Python client 37.0.1 streamed a deterministic 1 MiB payload. After explicitly closing the stdin channel, the parser's SHA-256 matched the sender. A fixed-size reader had previously stopped at its first 64 KiB read, so the parser must consume until EOF rather than assume a read fills the requested buffer. |
 | Bounded stdout | Pass, at probe scale | The host collector stopped and closed the stream after 128 KiB while the probe command produced 4 MiB. This demonstrates a consumer-side cap, not the final extraction limit or peak memory use. |
 | Process exit status | Pass | Exit code `7` arrived in the exec status channel. |
@@ -204,8 +205,9 @@ The transport is promising enough to continue without designing an artifact
 broker yet, but this spike does not clear the full integration gate. These
 single-run measurements are baselines, not resource-limit recommendations.
 The 20 MiB file is mostly trailing padding, the 50-page PDF uses simple vector
-text, and concurrency and adversarial inputs were not measured. Fix the
-extracted-text character-limit defect before relying on the result contract.
+text, and concurrency and adversarial inputs were not measured. The
+extracted-text character-limit defect is corrected in the working source and
+verified at the exact 1,000,000-character boundary.
 Before implementation, define and validate the worker's endpoint, CA and
 scoped-token configuration; verify Internet egress denial and worker-driven
 cleanup after parser errors or cancellation; and extend resource measurements

@@ -33,7 +33,7 @@ class PyMuPdfTextExtractor:
             character_count = 0
             for page in document:
                 text = cast(str, page.get_text("text"))  # pyright: ignore[reportUnknownMemberType]
-                character_count += len(text)
+                character_count += len(text) + bool(pages)
                 if character_count > self._max_characters:
                     raise PdfTextLimitExceeded(self._max_characters)
                 pages.append(text)

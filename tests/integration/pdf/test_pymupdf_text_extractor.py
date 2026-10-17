@@ -35,3 +35,30 @@ async def test_rejects_text_over_the_configured_limit() -> None:
 
     with pytest.raises(PdfTextLimitExceeded, match="5-character"):
         await extractor.extract(pdf_with_text("too long"))
+
+
+@pytest.mark.parametrize(
+    ("pages", "limit", "expected_text"),
+    [(("A", "B"), 5, "A\n\fB\n"), (("", "", ""), 2, "\f\f")],
+)
+@pytest.mark.anyio
+async def test_accepts_text_at_the_limit_including_page_separators(
+    pages: tuple[str, ...], limit: int, expected_text: str
+) -> None:
+    extraction = await PyMuPdfTextExtractor(max_pages=len(pages), max_characters=limit).extract(
+        pdf_with_text(*pages)
+    )
+
+    assert extraction.text == expected_text
+    assert extraction.character_count == limit
+
+
+@pytest.mark.parametrize(("pages", "limit"), [(("A", "B"), 4), (("", "", ""), 1)])
+@pytest.mark.anyio
+async def test_rejects_text_when_page_separators_exceed_the_limit(
+    pages: tuple[str, ...], limit: int
+) -> None:
+    extractor = PyMuPdfTextExtractor(max_pages=len(pages), max_characters=limit)
+
+    with pytest.raises(PdfTextLimitExceeded, match=f"{limit}-character"):
+        await extractor.extract(pdf_with_text(*pages))
