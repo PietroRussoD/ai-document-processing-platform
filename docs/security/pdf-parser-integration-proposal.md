@@ -190,14 +190,14 @@ probe; no application code or project version was changed.
 | Disconnect and cancellation | Failure as cancellation | Closing the client WebSocket did not stop the remote child process; it continued and created a marker. A disconnected exec session is therefore not a cancellation mechanism. The controller must delete the Job or invoke an explicit fixed job-control command; `activeDeadlineSeconds` remains the fallback for abandoned Jobs. |
 | Completion and TTL | Pass for success | The completion marker let the Job finish, and a completed Job and Pod were removed by a short TTL. Failure cleanup and deadline expiry were not separately exercised. |
 | PID limit | Pass | On a separate Kind 1.37 cluster, both nodes were Ready with `podPidsLimit: 128`. Reading the cgroup hierarchy from the worker showed `pids.max=128` on the Pod parent and `pids.max=9397` on the container cgroup, confirming that the effective Pod limit is 128 without a process-spawn stress test. |
-| Compose-worker reachability | Not tested | The API calls came from the host. The Compose worker's route, TLS trust and scoped credential against the disposable local cluster remain unverified. |
+| Compose-network reachability | Pass for network and credential smoke test | A disposable container using `document-platform-api:dev` on `ai-document-processing-platform_default`, with `host.docker.internal` mapped to the host gateway, reached the temporary Kind API with TLS verification enabled. The scoped token received `200` for listing Pods, `403` for listing Secrets, and SelfSubjectAccessReview allowed `get/create pods/exec` plus `create jobs` while denying `get secrets`. This did not exercise the `document_platform.worker` configuration or Kubernetes client integration. |
 
 The transport is promising enough to continue without designing an artifact
 broker yet, but this spike does not clear the full integration gate. Before
-implementation, verify Compose-worker connectivity, network isolation against
-another Pod, failure/timeout cleanup, and resource usage at the actual
-configured upload and extraction limits. Preserve the explicit stdin
-half-close and bounded streaming behavior in the implementation.
+implementation, verify the worker's actual endpoint, CA and token configuration,
+network isolation against another Pod, failure/timeout cleanup, and resource
+usage at the actual configured upload and extraction limits. Preserve the
+explicit stdin half-close and bounded streaming behavior in the implementation.
 
 ## Acceptance criteria for a later implementation
 
