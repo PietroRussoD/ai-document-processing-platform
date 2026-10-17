@@ -191,13 +191,15 @@ probe; no application code or project version was changed.
 | Completion and TTL | Pass for success | The completion marker let the Job finish, and a completed Job and Pod were removed by a short TTL. Failure cleanup and deadline expiry were not separately exercised. |
 | PID limit | Pass | On a separate Kind 1.37 cluster, both nodes were Ready with `podPidsLimit: 128`. Reading the cgroup hierarchy from the worker showed `pids.max=128` on the Pod parent and `pids.max=9397` on the container cgroup, confirming that the effective Pod limit is 128 without a process-spawn stress test. |
 | Compose-network reachability | Pass for network and credential smoke test | A disposable container using `document-platform-api:dev` on `ai-document-processing-platform_default`, with `host.docker.internal` mapped to the host gateway, reached the temporary Kind API with TLS verification enabled. The scoped token received `200` for listing Pods, `403` for listing Secrets, and SelfSubjectAccessReview allowed `get/create pods/exec` plus `create jobs` while denying `get secrets`. This did not exercise the `document_platform.worker` configuration or Kubernetes client integration. |
+| Worker Kubernetes configuration | Not implemented | `worker.py` still constructs local PyMuPDF and Tesseract extractors. `Settings`, `compose.yaml` and `pyproject.toml` define no Kubernetes endpoint, CA, controller token or Kubernetes client dependency. This is expected before the proposed integration; the network smoke test did not run the worker process. |
 
 The transport is promising enough to continue without designing an artifact
 broker yet, but this spike does not clear the full integration gate. Before
-implementation, verify the worker's actual endpoint, CA and token configuration,
-network isolation against another Pod, failure/timeout cleanup, and resource
-usage at the actual configured upload and extraction limits. Preserve the
-explicit stdin half-close and bounded streaming behavior in the implementation.
+implementation, define and validate the worker's endpoint, CA and scoped-token
+configuration; verify network isolation against another Pod, failure/timeout
+cleanup, and resource usage at the actual configured upload and extraction
+limits. Preserve the explicit stdin half-close and bounded streaming behavior
+in the implementation.
 
 ## Acceptance criteria for a later implementation
 
