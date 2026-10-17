@@ -50,7 +50,10 @@ async def test_retrieves_pdf_only_after_authenticating_and_hides_storage_details
         ) as client:
             upload = await client.post(
                 "/api/v1/documents",
-                headers={"Idempotency-Key": "document-source-http-test"},
+                headers={
+                    "Authorization": f"Bearer {TOKEN}",
+                    "Idempotency-Key": "document-source-http-test",
+                },
                 files={"document": ("private-name.pdf", content, "application/pdf")},
             )
             document_id = upload.json()["document_id"]
@@ -80,7 +83,7 @@ async def test_retrieves_pdf_only_after_authenticating_and_hides_storage_details
 
     assert upload.status_code == 202
     assert unauthenticated.status_code == 401
-    assert unauthenticated.json()["type"] == "urn:problem:review-authentication-rejected"
+    assert unauthenticated.json()["type"] == "urn:problem:operator-authentication-rejected"
     assert unauthenticated_unknown.status_code == 401
     assert missing.status_code == 404
     assert missing.json()["type"] == "urn:problem:document-not-found"

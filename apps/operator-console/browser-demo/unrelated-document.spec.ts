@@ -1,6 +1,10 @@
 import { expect, test } from "@playwright/test";
 
 import type { DocumentStatus } from "../src/api/documentApi";
+import {
+    openDocumentsWithOperatorToken,
+    operatorHeaders,
+} from "./operatorAccess";
 
 test("unrelated report finishes as unsupported without invoice review", async ({
     page,
@@ -14,7 +18,9 @@ test("unrelated report finishes as unsupported without invoice review", async ({
 
     const documentId = new URL(documentUrl).searchParams.get("documentId")!;
     const statusUrl = new URL(`/api/v1/documents/${documentId}`, documentUrl);
-    const response = await page.request.get(statusUrl.toString());
+    const response = await page.request.get(statusUrl.toString(), {
+        headers: operatorHeaders(),
+    });
     expect(response.ok()).toBe(true);
     const document = (await response.json()) as DocumentStatus;
     expect(document.original_filename).toBe("equipment-report.pdf");
@@ -49,6 +55,7 @@ test("unrelated report finishes as unsupported without invoice review", async ({
         (response) => response.url() === statusUrl.toString(),
     );
     await page.goto(documentUrl);
+    await openDocumentsWithOperatorToken(page);
     expect((await loadedStatus).status()).toBe(200);
     await expect(
         page.getByText(

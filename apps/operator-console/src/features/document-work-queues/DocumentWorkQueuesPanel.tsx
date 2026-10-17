@@ -17,6 +17,7 @@ import {
 import { Button } from "../../components/ui/Button";
 import { FeedbackMessage } from "../../components/ui/FeedbackMessage";
 import { StatusBadge } from "../../components/ui/StatusBadge";
+import { useOperatorToken } from "../operator-access/operatorToken";
 
 type WorkQueueApi = Pick<DocumentApi, "listWorkQueue">;
 type QueueItem = DocumentWorkQueuePage["items"][number];
@@ -47,11 +48,13 @@ export function DocumentWorkQueuesPanel({
     selectedDocumentId,
     onSelectDocument,
 }: DocumentWorkQueuesPanelProps) {
+    const { operatorToken } = useOperatorToken();
     const [queue, setQueue] = useState<DocumentWorkQueue>("ACTIVE");
     const [offset, setOffset] = useState(0);
     const workQueueQuery = useQuery({
         queryKey: ["document-work-queue", queue, offset],
-        queryFn: ({ signal }) => api.listWorkQueue(queue, offset, signal),
+        queryFn: ({ signal }) =>
+            api.listWorkQueue(queue, operatorToken, offset, signal),
         refetchInterval: 15_000,
     });
 

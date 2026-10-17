@@ -47,6 +47,7 @@ export function createDocumentApi(fetcher: typeof fetch = globalThis.fetch) {
     return {
         async listWorkQueue(
             queue: DocumentWorkQueue,
+            operatorToken: string,
             offset = 0,
             signal?: AbortSignal,
         ): Promise<DocumentWorkQueuePage> {
@@ -57,7 +58,10 @@ export function createDocumentApi(fetcher: typeof fetch = globalThis.fetch) {
             });
             const response = await fetcher(
                 `/api/v1/documents?${parameters.toString()}`,
-                { signal },
+                {
+                    headers: { Authorization: `Bearer ${operatorToken}` },
+                    signal,
+                },
             );
             return readResponse<DocumentWorkQueuePage>(response);
         },
@@ -65,12 +69,16 @@ export function createDocumentApi(fetcher: typeof fetch = globalThis.fetch) {
         async upload(
             document: File,
             idempotencyKey: string,
+            operatorToken: string,
         ): Promise<AcceptedDocument> {
             const body = new FormData();
             body.append("document", document);
             const response = await fetcher("/api/v1/documents", {
                 method: "POST",
-                headers: { "Idempotency-Key": idempotencyKey },
+                headers: {
+                    Authorization: `Bearer ${operatorToken}`,
+                    "Idempotency-Key": idempotencyKey,
+                },
                 body,
             });
             return readResponse<AcceptedDocument>(response);
@@ -78,11 +86,15 @@ export function createDocumentApi(fetcher: typeof fetch = globalThis.fetch) {
 
         async getStatus(
             documentId: string,
+            operatorToken: string,
             signal?: AbortSignal,
         ): Promise<DocumentStatus> {
             const response = await fetcher(
                 `/api/v1/documents/${encodeURIComponent(documentId)}`,
-                { signal },
+                {
+                    headers: { Authorization: `Bearer ${operatorToken}` },
+                    signal,
+                },
             );
             return readResponse<DocumentStatus>(response);
         },

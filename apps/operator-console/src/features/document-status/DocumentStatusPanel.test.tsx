@@ -23,6 +23,7 @@ test.each([
             .fn<
                 (
                     documentId: string,
+                    _operatorToken: string,
                     signal?: AbortSignal,
                 ) => Promise<DocumentStatus>
             >()
@@ -43,6 +44,7 @@ test.each([
         expect(screen.getByText("2")).toBeVisible();
         expect(getStatus).toHaveBeenCalledWith(
             DOCUMENT_ID,
+            "",
             expect.any(AbortSignal),
         );
     },
@@ -123,6 +125,7 @@ test("allows a failed status request to be retried", async () => {
         .fn<
             (
                 documentId: string,
+                _operatorToken: string,
                 signal?: AbortSignal,
             ) => Promise<DocumentStatus>
         >()
@@ -147,6 +150,7 @@ test("explains that an active document is still being processed", async () => {
         .fn<
             (
                 documentId: string,
+                _operatorToken: string,
                 signal?: AbortSignal,
             ) => Promise<DocumentStatus>
         >()
@@ -191,6 +195,7 @@ test("refreshes a completed run to reveal a later advisory proposal", async () =
         .fn<
             (
                 documentId: string,
+                _operatorToken: string,
                 signal?: AbortSignal,
             ) => Promise<DocumentStatus>
         >()
@@ -240,6 +245,7 @@ test("explains when processing requires an operator review", async () => {
         .fn<
             (
                 documentId: string,
+                _operatorToken: string,
                 signal?: AbortSignal,
             ) => Promise<DocumentStatus>
         >()
@@ -334,6 +340,7 @@ test("shows the preceding run for a reprocessing lineage", async () => {
         .fn<
             (
                 documentId: string,
+                _operatorToken: string,
                 signal?: AbortSignal,
             ) => Promise<DocumentStatus>
         >()

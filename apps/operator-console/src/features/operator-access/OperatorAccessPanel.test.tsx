@@ -96,6 +96,7 @@ test("shares one in-memory token across review and reprocessing and clears PDF a
         fireEvent.change(screen.getByLabelText("Operator token"), {
             target: { value: "synthetic-token" },
         });
+        fireEvent.click(screen.getByRole("button", { name: "Open documents" }));
         fireEvent.change(screen.getByLabelText(/Review note/), {
             target: { value: "Keep this draft." },
         });
@@ -119,6 +120,7 @@ test("shares one in-memory token across review and reprocessing and clears PDF a
         fireEvent.change(screen.getByLabelText("Operator token"), {
             target: { value: "replacement-token" },
         });
+        fireEvent.click(screen.getByRole("button", { name: "Open documents" }));
         fireEvent.click(
             screen.getByRole("button", { name: "Reject document" }),
         );
@@ -136,15 +138,10 @@ test("shares one in-memory token across review and reprocessing and clears PDF a
             },
             "replacement-token",
         );
-        expect(screen.getByLabelText("Operator token")).toHaveValue(
-            "replacement-token",
-        );
+        expect(screen.getByText("Operator token accepted.")).toBeVisible();
         expect(screen.getByLabelText(/Review note/)).toHaveValue("");
         view.rerender(<Workspace reprocess />);
-        expect(screen.getAllByLabelText("Operator token")).toHaveLength(1);
-        expect(screen.getByLabelText("Operator token")).toHaveValue(
-            "replacement-token",
-        );
+        expect(screen.getByText("Operator token accepted.")).toBeVisible();
         fireEvent.change(screen.getByLabelText("Reprocessing reason"), {
             target: { value: "Retry synthetic invoice." },
         });
@@ -158,9 +155,7 @@ test("shares one in-memory token across review and reprocessing and clears PDF a
             "replacement-token",
             "synthetic-key",
         );
-        expect(screen.getByLabelText("Operator token")).toHaveValue(
-            "replacement-token",
-        );
+        expect(screen.getByText("Operator token accepted.")).toBeVisible();
         expect(storageWrite).not.toHaveBeenCalled();
         view.rerender(<div />);
         view.rerender(<Workspace />);

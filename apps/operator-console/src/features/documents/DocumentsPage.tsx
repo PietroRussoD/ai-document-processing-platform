@@ -5,6 +5,8 @@ import {
     type AcceptedDocument,
     createDocumentApi,
     type DocumentApi,
+    DocumentApiHttpError,
+    DocumentApiProblem,
 } from "../../api/documentApi";
 import { DocumentStatusPanel } from "../document-status/DocumentStatusPanel";
 import { Button } from "../../components/ui/Button";
@@ -13,6 +15,8 @@ import { OperatorAccessPanel } from "../operator-access/OperatorAccessPanel";
 import { ReviewDraftProvider } from "../document-review/ReviewDraftProvider";
 import { DocumentUploadPanel } from "../document-upload/DocumentUploadPanel";
 import { DocumentWorkQueuesPanel } from "../document-work-queues/DocumentWorkQueuesPanel";
+import { FeedbackMessage } from "../../components/ui/FeedbackMessage";
+import { useOperatorToken } from "../operator-access/operatorToken";
 
 type DocumentsApi = Pick<DocumentApi, "upload" | "getStatus" | "listWorkQueue">;
 
@@ -29,6 +33,83 @@ export function DocumentsPage({ api = defaultApi }: { api?: DocumentsApi }) {
 }
 
 function DocumentsWorkspace({ api }: { api: DocumentsApi }) {
+    const queryClient = useQueryClient();
+    const { operatorToken, setOperatorToken, isConnected, setIsConnected } =
+        useOperatorToken();
+    const [isConnecting, setIsConnecting] = useState(false);
+    const [connectionError, setConnectionError] = useState<string | null>(null);
+
+    async function connect(token: string) {
+        setIsConnecting(true);
+        setConnectionError(null);
+        setIsConnected(false);
+        setOperatorToken("");
+        removeDocumentQueries();
+        try {
+            const firstQueuePage = await api.listWorkQueue("ACTIVE", token, 0);
+            setOperatorToken(token);
+            setIsConnected(true);
+            queryClient.setQueryData(
+                ["document-work-queue", "ACTIVE", 0],
+                firstQueuePage,
+            );
+        } catch (error) {
+            setConnectionError(
+                (error instanceof DocumentApiHttpError &&
+                    error.status === 401) ||
+                    (error instanceof DocumentApiProblem &&
+                        error.problem.status === 401)
+                    ? "The operator token was rejected. Check it and try again."
+                    : "The token could not be checked. Check the connection and try again.",
+            );
+        } finally {
+            setIsConnecting(false);
+        }
+    }
+
+    function disconnect() {
+        setIsConnected(false);
+        setOperatorToken("");
+        setConnectionError(null);
+        removeDocumentQueries();
+    }
+
+    function removeDocumentQueries() {
+        queryClient.removeQueries({
+            predicate: ({ queryKey }) =>
+                queryKey[0] === "document-work-queue" ||
+                queryKey[0] === "document-status",
+        });
+    }
+
+    return (
+        <>
+            <header className="mb-6">
+                <h1 className="text-2xl font-semibold">Documents</h1>
+                <p className="mt-2 text-sm text-app-muted">
+                    Upload a PDF or choose a document from a work queue to
+                    follow its processing and review it.
+                </p>
+            </header>
+            <OperatorAccessPanel
+                connectionError={connectionError}
+                isConnecting={isConnecting}
+                onConnect={connect}
+                onDisconnect={disconnect}
+            />
+            {isConnected && operatorToken ? (
+                <DocumentsContent api={api} />
+            ) : (
+                <FeedbackMessage className="mt-4" tone="info">
+                    Document queues and details are available after token
+                    verification.
+                </FeedbackMessage>
+            )}
+        </>
+    );
+}
+
+function DocumentsContent({ api }: { api: DocumentsApi }) {
     const queryClient = useQueryClient();
     const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(
         selectedDocumentFromUrl,
@@ -87,14 +168,6 @@ function DocumentsWorkspace({ api }: { api: DocumentsApi }) {
 
     return (
         <>
-            <header className="mb-6">
-                <h1 className="text-2xl font-semibold">Documents</h1>
-                <p className="mt-2 text-sm text-app-muted">
-                    Upload a PDF or choose a document from a work queue to
-                    follow its processing and review it.
-                </p>
-            </header>
-            <OperatorAccessPanel />
             <details
                 ref={uploadDisclosure}
                 open={selectedDocumentId === null}

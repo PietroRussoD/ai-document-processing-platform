@@ -16,6 +16,7 @@ import { ProcessingTimeline } from "../processing-output/ProcessingTimeline";
 import { ReviewResolutionPanel } from "../document-review/ReviewResolutionPanel";
 import { DocumentReprocessingPanel } from "../document-reprocessing/DocumentReprocessingPanel";
 import { statusPollInterval } from "./statusPolling";
+import { useOperatorToken } from "../operator-access/operatorToken";
 
 type StatusApi = Pick<DocumentApi, "getStatus">;
 type VisibleStatus =
@@ -33,9 +34,11 @@ export function DocumentStatusPanel({
     api = defaultApi,
     documentId,
 }: DocumentStatusPanelProps) {
+    const { operatorToken } = useOperatorToken();
     const statusQuery = useQuery({
         queryKey: ["document-status", documentId],
-        queryFn: ({ signal }) => api.getStatus(documentId, signal),
+        queryFn: ({ signal }) =>
+            api.getStatus(documentId, operatorToken, signal),
         refetchInterval: (query) =>
             statusPollInterval(query.state.data?.current_run),
     });

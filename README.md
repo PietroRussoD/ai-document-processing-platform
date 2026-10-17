@@ -61,7 +61,7 @@ Wait for the API and console to become healthy, then open
 | `invoice-scanned.pdf` | OCR followed by review because the issue date is missing. |
 | `equipment-report.pdf` | Unsupported document, without an invoice review form. |
 
-For source preview or review actions, enter the value of
+To open the Documents workspace, enter the value of
 `DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN` from `.env`. This shared token is a
 development fixture. The demo binds published ports to `127.0.0.1` and uses
 development credentials.
@@ -106,10 +106,11 @@ Purchase orders, credit notes and unrecognized documents are classified but
 finish as `UNSUPPORTED`. The synthetic evaluation corpus does not establish
 accuracy on real invoices.
 
-Most API endpoints have no authentication. Source preview, review resolution
-and reprocessing use one shared local token, without per-user or tenant
-isolation. Extracted text is stored internally in PostgreSQL; status and queue
-APIs exclude it. Database retention does not delete PDF blobs.
+Every document API route requires one shared local bearer token. Health,
+metrics and OpenAPI remain unauthenticated within the loopback boundary. The
+token does not provide per-user or tenant isolation. Extracted text is stored
+internally in PostgreSQL; status and queue APIs exclude it. Database retention
+does not delete PDF blobs.
 
 The v1.1 API image scan found HIGH/CRITICAL OS-package vulnerabilities. Their
 risk is accepted only for the local synthetic-data demo; the API image is not a

@@ -78,8 +78,8 @@ PROBLEM_DEFINITIONS: tuple[tuple[type[Exception], ProblemDefinition], ...] = (
     (
         ReviewAuthenticationRejected,
         ProblemDefinition(
-            "urn:problem:review-authentication-rejected",
-            "Review authentication rejected",
+            "urn:problem:operator-authentication-rejected",
+            "Operator authentication rejected",
             401,
             headers={"WWW-Authenticate": "Bearer"},
         ),
@@ -87,8 +87,8 @@ PROBLEM_DEFINITIONS: tuple[tuple[type[Exception], ProblemDefinition], ...] = (
     (
         ReviewAuthenticationUnavailable,
         ProblemDefinition(
-            "urn:problem:review-authentication-unavailable",
-            "Review authentication unavailable",
+            "urn:problem:operator-authentication-unavailable",
+            "Operator authentication unavailable",
             503,
         ),
     ),

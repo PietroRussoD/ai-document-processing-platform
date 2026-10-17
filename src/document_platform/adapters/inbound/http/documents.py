@@ -9,9 +9,7 @@ from fastapi import APIRouter, File, Header, Query, Request, Response, UploadFil
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from document_platform.adapters.inbound.http.problems import ProblemDetails
-from document_platform.adapters.inbound.http.review_authentication import (
-    authenticate_review_operator,
-)
+from document_platform.adapters.inbound.http.review_authentication import DocumentOperator
 from document_platform.adapters.inbound.http.upload_staging import stage_upload
 from document_platform.application.commands import (
     AcceptDocumentUpload,
@@ -398,9 +396,14 @@ def _problem_response(description: str) -> dict[str, Any]:
     "",
     operation_id="listDocumentWorkQueue",
     summary="List a page from an operator document work queue",
+    responses={
+        401: _problem_response("Unauthorized"),
+        503: _problem_response("Service Unavailable"),
+    },
 )
 async def list_document_work_queue(
     request: Request,
+    _operator: DocumentOperator,
     queue: Annotated[DocumentWorkQueue, Query()],
     limit: int = Query(default=25, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
@@ -414,11 +417,16 @@ async def list_document_work_queue(
     "/{document_id}",
     operation_id="getDocumentStatus",
     summary="Get the current document and processing status",
-    responses={404: _problem_response("Not Found")},
+    responses={
+        401: _problem_response("Unauthorized"),
+        404: _problem_response("Not Found"),
+        503: _problem_response("Service Unavailable"),
+    },
 )
 async def get_document_status(
     document_id: UUID,
     request: Request,
+    _operator: DocumentOperator,
 ) -> DocumentStatusResponse:
     handler = cast(GetDocumentStatusHandler, request.app.state.get_document_status)
     document = await handler(document_id)
@@ -440,10 +448,8 @@ async def get_document_status(
 async def get_document_source(
     document_id: UUID,
     request: Request,
-    authorization: Annotated[str | None, Header()] = None,
+    _operator: DocumentOperator,
 ) -> Response:
-    settings = cast(Settings, request.app.state.settings)
-    authenticate_review_operator(authorization=authorization, settings=settings)
     handler = cast(GetDocumentSourceHandler, request.app.state.get_document_source)
     content = await handler(document_id)
     return Response(
@@ -473,10 +479,8 @@ async def resolve_document_review(
     document_id: UUID,
     resolution: ResolveDocumentReviewRequest,
     request: Request,
-    authorization: Annotated[str | None, Header()] = None,
+    operator: DocumentOperator,
 ) -> ReviewResolutionResponse:
-    settings = cast(Settings, request.app.state.settings)
-    operator = authenticate_review_operator(authorization=authorization, settings=settings)
     get_status = cast(GetDocumentStatusHandler, request.app.state.get_document_status)
     document = await get_status(document_id)
     handler = cast(ResolveDocumentReviewHandler, request.app.state.resolve_document_review)
@@ -517,10 +521,8 @@ async def request_document_reprocessing(
     reprocessing_request: RequestDocumentReprocessingRequest,
     request: Request,
     idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
-    authorization: Annotated[str | None, Header()] = None,
+    operator: DocumentOperator,
 ) -> DocumentReprocessingResponse:
-    settings = cast(Settings, request.app.state.settings)
-    operator = authenticate_review_operator(authorization=authorization, settings=settings)
     handler = cast(
         RequestDocumentReprocessingHandler,
         request.app.state.request_document_reprocessing,
@@ -542,15 +544,18 @@ async def request_document_reprocessing(
     summary="Accept a PDF for asynchronous processing",
     status_code=status.HTTP_202_ACCEPTED,
     responses={
+        401: _problem_response("Unauthorized"),
         400: _problem_response("Bad Request"),
         409: _problem_response("Conflict"),
         413: _problem_response("Content Too Large"),
         415: _problem_response("Unsupported Media Type"),
         422: _problem_response("Unprocessable Content"),
+        503: _problem_response("Service Unavailable"),
     },
 )
 async def accept_document_upload(
     request: Request,
+    _operator: DocumentOperator,
     document: Annotated[UploadFile, File(description="PDF document")],
     idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
 ) -> AcceptedDocumentResponse:

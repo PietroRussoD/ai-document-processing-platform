@@ -22,6 +22,9 @@ from document_platform.adapters.inbound.http.request_correlation import (
     correlate_request,
     current_correlation_id,
 )
+from document_platform.adapters.inbound.http.review_authentication import (
+    authenticate_document_api_request,
+)
 from document_platform.adapters.outbound.filesystem import LocalBlobStore
 from document_platform.adapters.outbound.pdf import PyMuPdfInspector
 from document_platform.adapters.outbound.postgresql import SqlAlchemyUnitOfWork
@@ -116,6 +119,7 @@ def create_app(
     application.state.processing_run_metrics_reader = (
         processing_run_metrics_reader or SqlAlchemyProcessingRunMetricsReader(database.sessions)
     )
+    application.middleware("http")(authenticate_document_api_request)
     application.middleware("http")(observe_request)
     application.middleware("http")(correlate_request)
     install_problem_handlers(application)

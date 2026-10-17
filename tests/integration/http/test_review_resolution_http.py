@@ -109,7 +109,10 @@ async def test_approves_a_review_required_document_with_authenticated_operator(
                     ],
                 },
             )
-            status_response = await client.get(f"/api/v1/documents/{DOCUMENT_ID}")
+            status_response = await client.get(
+                f"/api/v1/documents/{DOCUMENT_ID}",
+                headers={"Authorization": f"Bearer {TOKEN}"},
+            )
     finally:
         await database.dispose()
 
@@ -162,7 +165,7 @@ async def test_rejects_unauthenticated_review_resolution(
 
     assert response.status_code == 401
     assert response.headers["www-authenticate"] == "Bearer"
-    assert response.json()["type"] == "urn:problem:review-authentication-rejected"
+    assert response.json()["type"] == "urn:problem:operator-authentication-rejected"
 
 
 def test_exposes_a_stable_review_resolution_contract() -> None:

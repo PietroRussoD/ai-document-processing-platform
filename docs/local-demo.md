@@ -54,12 +54,15 @@ Use `--base-url http://127.0.0.1:18088` if the console was started with
 document record in the local database. It checks upload, embedded-text
 extraction, invoice classification and the final review-required status. This
 is a manual local smoke test, not part of the default CI pipeline. It prints a
-direct console link for the verified document; the
+direct console link for the verified document and reads the operator token from
+the environment or `.env`; the
 [v0.9 local demo walkthrough](runbooks/v0.9-demo.md) uses that link.
 For three reusable examples (digital invoice, scanned invoice and unrelated
 report), see the [synthetic demo documents](../examples/documents/README.md). The
 optional local-model proposal and human approval path is covered by the
 [v1.0 verification record](runbooks/v1.0-verification.md#local-ai-assisted-review).
+The browser demo also needs `DEMO_REVIEW_TOKEN` set to the same local token;
+the console does not put credentials in document links.
 
 ## Optional Local Model
 
@@ -110,18 +113,18 @@ Compose stack does not start or download a model server.
 
 ## Host API
 
-For source preview, review and reprocessing, configure the shared token before
-starting the API. Set these values in the API terminal or in `.env`, and use the
-same token in the console:
+For all document API requests, configure the shared token before starting the
+API. Set these values in the API terminal or in `.env`; the Documents console
+asks for the same token before opening the workspace:
 
 ```bash
 export DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN='replace-with-at-least-32-characters'
 export DOCUMENT_PLATFORM_REVIEW_OPERATOR_ID='local-reviewer'
 ```
 
-The console sends the token for protected source-preview, review-resolution
-and reprocessing requests and never persists it. This is a development fixture,
-not a per-user identity or authorization system.
+The console checks the token before opening document queues, sends it with all
+document API requests and keeps it in memory only. This is a development
+fixture, not a per-user identity or authorization system.
 
 Start the API in the same terminal:
 
@@ -137,12 +140,12 @@ The API is available at `http://localhost:8000`. Current endpoints:
 - liveness: `GET http://localhost:8000/health/live`;
 - readiness: `GET http://localhost:8000/health/ready`;
 - Prometheus metrics: `GET http://localhost:8000/metrics`;
+- document API routes: all require the configured bearer token;
 - document ingestion: `POST http://localhost:8000/api/v1/documents`;
 - operator queue: `GET http://localhost:8000/api/v1/documents?queue=ACTIVE|REVIEW|FAILED|UNSUPPORTED&limit=25&offset=0`;
 - document status: `GET http://localhost:8000/api/v1/documents/{document_id}`;
 - source PDF: `GET http://localhost:8000/api/v1/documents/{document_id}/source`
-  (review bearer token required; local demo only; the review console fetches it
-  on demand from the review panel);
+  (the console fetches it on demand from the review panel);
 - review resolution: `POST http://localhost:8000/api/v1/documents/{document_id}/review-resolution`;
 - controlled reprocessing: `POST http://localhost:8000/api/v1/documents/{document_id}/reprocessing-requests`;
 - OpenAPI document: `GET http://localhost:8000/openapi.json`;
@@ -250,8 +253,8 @@ provider error appears instead in `current_run.ai_proposal_failure` as a bounded
 code (`TIMEOUT`, `UNAVAILABLE` or `INVALID_RESPONSE`). Both fields are `null`
 when no outcome is recorded, including when Ollama is disabled or work is still
 in progress. The deterministic `processing_output` remains authoritative.
-The status endpoint is unauthenticated in this local demo, so use synthetic
-documents only; neither raw document text nor prompts are returned.
+The status endpoint requires the local operator token. Use synthetic documents
+only; neither raw document text nor prompts are returned.
 After deterministic processing finishes, the console continues polling while
 recorded AI execution is running, for up to six minutes from its recorded start.
 A newly finalized invoice without an AI record has a 30-second start grace

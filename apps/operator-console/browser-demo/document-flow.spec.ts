@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openDocumentsWithOperatorToken } from "./operatorAccess";
 
 test("synthetic document remains inspectable across console views", async ({
     page,
@@ -17,6 +18,7 @@ test("synthetic document remains inspectable across console views", async ({
     });
 
     await page.goto(documentUrl);
+    await openDocumentsWithOperatorToken(page);
     await expect(
         page.getByText("Action required: review this document"),
     ).toBeVisible();

@@ -2,21 +2,20 @@
 
 ## Status
 
-Proposed for v1.2.0. No implementation changes are included in this decision.
+Accepted for v1.2.0.
 
 ## Context
 
 The application remains a local portfolio demo for synthetic documents, with
-published Compose ports bound to `127.0.0.1`. A shared bearer token currently
-protects source-PDF retrieval, review decisions and reprocessing. Compose still
-provides a known demo token by default, while document upload, work-queue reads
-and status reads do not require a token.
+published Compose ports bound to `127.0.0.1`. A shared bearer token already
+protects source-PDF retrieval, review decisions and reprocessing. Compose now
+requires an explicit local token, and the same token protects document upload,
+work-queue reads and status reads.
 
-The operator console already keeps one shared token in memory and uses it for
-the protected operations. Extending that existing pattern would give the
-document API one clear access boundary without introducing a user-management
-system. This would be a local access gate, not an identity system or protection
-for a publicly reachable service.
+The operator console keeps one shared token in memory and sends it with all
+document API requests. This provides one local access gate without introducing
+a user-management system. It is not an identity system or protection for a
+publicly reachable service.
 
 ## Decision
 
@@ -30,7 +29,7 @@ uploads, reads or changes document data:
 - `POST /api/v1/documents/{document_id}/review-resolution`
 - `POST /api/v1/documents/{document_id}/reprocessing-requests`
 
-The implementation should follow these constraints:
+The implementation follows these constraints:
 
 - Remove the known token fallback from Compose. Require a generated local
   secret supplied through the ignored `.env` file; keep only a placeholder and

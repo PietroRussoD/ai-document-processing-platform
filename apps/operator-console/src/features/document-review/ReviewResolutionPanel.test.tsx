@@ -111,8 +111,8 @@ test("submits an approval with the token and optional note", async () => {
 
 test("shows a safe review failure message", async () => {
     const problem = {
-        type: "urn:problem:review-authentication-rejected",
-        title: "Review authentication rejected",
+        type: "urn:problem:operator-authentication-rejected",
+        title: "Operator authentication rejected",
         status: 401,
         detail: "review authentication was rejected",
     };

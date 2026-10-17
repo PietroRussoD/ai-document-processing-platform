@@ -150,7 +150,7 @@ test("keeps a review draft through queue pagination, filtering and refresh", asy
         ),
     );
     let reviewItems = [queueItem(reviewing)];
-    api.listWorkQueue.mockImplementation(async (queue, offset = 0) => {
+    api.listWorkQueue.mockImplementation(async (queue, _token, offset = 0) => {
         const items = queue === "REVIEW" ? reviewItems : activeItems;
         return {
             items: items.slice(offset, offset + 25),
@@ -253,10 +253,6 @@ test("restores isolated review drafts through document selection and browser his
     fireEvent.change(screen.getByLabelText(/Review note/), {
         target: { value: "Verify the synthetic supplier." },
     });
-    fireEvent.change(screen.getByLabelText("Operator token"), {
-        target: { value: "synthetic-token" },
-    });
-
     openWorkQueues();
     const secondRow = screen.getByText("invoice-2.pdf").closest("li")!;
     fireEvent.click(
@@ -267,8 +263,8 @@ test("restores isolated review drafts through document selection and browser his
     ).toBeVisible();
     expect(screen.getByLabelText("Supplier")).toHaveValue("Synthetic Supplier");
     expect(screen.getByLabelText(/Review note/)).toHaveValue("");
-    expect(screen.getByLabelText("Operator token")).toHaveValue(
-        "synthetic-token",
+    expect(screen.getByRole("status")).toHaveTextContent(
+        "Operator token accepted.",
     );
     expect(
         screen.queryByRole("region", { name: "invoice.pdf" }),
@@ -285,8 +281,8 @@ test("restores isolated review drafts through document selection and browser his
     expect(screen.getByLabelText(/Review note/)).toHaveValue(
         "Verify the synthetic supplier.",
     );
-    expect(screen.getByLabelText("Operator token")).toHaveValue(
-        "synthetic-token",
+    expect(screen.getByRole("status")).toHaveTextContent(
+        "Operator token accepted.",
     );
 
     window.history.forward();
@@ -301,9 +297,6 @@ test("warns before leaving only while unsaved drafts exist, including hidden det
     await screen.findByRole("region", { name: "invoice.pdf" });
     expect(pageLeaveIsPrevented()).toBe(false);
 
-    fireEvent.change(screen.getByLabelText("Operator token"), {
-        target: { value: "synthetic-token" },
-    });
     expect(pageLeaveIsPrevented()).toBe(false);
     fireEvent.change(screen.getByLabelText("Supplier"), {
         target: { value: "Corrected Supplier" },
@@ -374,11 +367,16 @@ function renderPage(api: DocumentsApi) {
             mutations: { retry: false },
         },
     });
-    return render(
+    const view = render(
         <QueryClientProvider client={client}>
             <DocumentsPage api={api} />
         </QueryClientProvider>,
     );
+    fireEvent.change(screen.getByLabelText("Operator token"), {
+        target: { value: "synthetic-operator-token" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Open documents" }));
+    return view;
 }
 
 function createApi(status = documentStatus()) {

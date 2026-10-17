@@ -1,6 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import type { DocumentStatus } from "../src/api/documentApi";
+import {
+    openDocumentsWithOperatorToken,
+    operatorHeaders,
+} from "./operatorAccess";
 
 test("provider outage leaves review available and recovery restores proposals", async ({
     page,
@@ -27,6 +31,7 @@ test("provider outage leaves review available and recovery restores proposals", 
     const browserErrors: string[] = [];
     page.on("pageerror", (error) => browserErrors.push(error.message));
     await page.goto(failedUrl);
+    await openDocumentsWithOperatorToken(page);
     await expect(
         page.getByText("Action required: review this document"),
     ).toBeVisible();
@@ -51,6 +56,7 @@ test("provider outage leaves review available and recovery restores proposals", 
     expect(recovered.current_run.review_resolution).toBeNull();
 
     await page.goto(recoveredUrl);
+    await openDocumentsWithOperatorToken(page);
     await expect(
         page.getByText("Action required: review this document"),
     ).toBeVisible();
@@ -77,6 +83,7 @@ async function readDocument(
     if (!documentId) throw new Error("Each demo URL must include documentId");
     const response = await page.request.get(
         new URL(`/api/v1/documents/${documentId}`, url).toString(),
+        { headers: operatorHeaders() },
     );
     expect(response.ok()).toBe(true);
     return (await response.json()) as DocumentStatus;

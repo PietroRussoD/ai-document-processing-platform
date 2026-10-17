@@ -218,9 +218,11 @@ capability is implemented. The migration backfills old completed non-invoice
 runs whose document was left in `PROCESSING`. All activity outputs are
 immutable and keyed by processing run, which makes retries safe. The status API
 and console expose safe structured values and reason codes, never source text
-or storage paths. A separate bearer-protected local endpoint returns the source
-PDF for review. The review panel fetches it on demand with the operator token
-held in memory and displays it through a temporary browser object URL. Closing
+or storage paths. All document API routes require the shared local bearer token;
+a separate endpoint returns the source PDF for review. The Documents console
+checks the token before showing queues or details and keeps it in memory. The
+review panel fetches the PDF on demand with the in-memory operator token and
+displays it through a temporary browser object URL. Closing
 the preview or unmounting the component revokes that URL; unmounting also aborts
 an in-flight request. PDF responses use `no-store`, `nosniff` and a generic
 inline filename. The shared local token can retrieve any stored document.
@@ -277,13 +279,14 @@ The Documents page keeps review drafts in React memory, keyed by document,
 processing run and extraction timestamp. Switching or hiding a document,
 queue navigation and browser history preserve field values, correction sources
 and review notes. A separate Documents-page provider holds one operator token
-in React memory for PDF access, review and reprocessing. The Operator access
-panel owns the credential input; action panels link back to it. Document
-selection, browser history and successful actions preserve this token. Clearing
-it closes the PDF preview and aborts an in-flight source request without removing
-review drafts. Leaving or reloading Documents destroys the token. It is excluded
-from drafts, browser storage and URLs. Isolated action panels without this
-provider retain their local credential input and clear it after success.
+in React memory for every document API request. The Operator access panel
+verifies the credential before opening the workspace, and action panels share
+it. Document selection, browser history and successful actions preserve this
+token. Clearing it closes the workspace, removes cached document data, closes
+the PDF preview and aborts an in-flight source request without removing review
+drafts. Leaving or reloading Documents destroys the token. It is excluded from
+drafts, browser storage and URLs. Isolated action panels without this provider
+retain their local credential input and clear it after success.
 No draft data is written to browser storage.
 A successful review clears its draft; a failed request preserves it. Invoice
 fields and proposal adoption are disabled while the decision is being saved.
@@ -844,7 +847,8 @@ tests/e2e/           API and browser journeys
 | Boundary | Current implementation | Planned extension |
 | --- | --- | --- |
 | Object storage | Local filesystem | S3-compatible adapter |
-| Original document access | Separate review-token-protected PDF endpoint and on-demand console preview with in-memory token and revoked object URL | Production identity, authorization and document isolation |
+| Document API access | One shared local bearer token for every document route, verified by the console and kept in memory | Per-user identity, authorization and document isolation |
+| Original document access | On-demand PDF endpoint and console preview with in-memory token and revoked object URL | Production identity and document isolation |
 | Invoice extraction | Deterministic extraction and validation, opt-in advisory proposals, API/console comparison, explicit proposal adoption and immutable correction provenance | Broader corpus and model-quality evaluation |
 | Text extraction | Embedded/OCR extraction and persisted canonical source selection | OCR quality calibration and language policy |
 | Document classification | Deterministic canonical-text keyword policy | Evaluated local model policy |

@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 import pymupdf
 import pytest
 from httpx import ASGITransport, AsyncClient, Response
-from pydantic import PostgresDsn
+from pydantic import PostgresDsn, SecretStr
 from sqlalchemy import text
 
 from document_platform.adapters.outbound.postgresql.database import Database
@@ -31,6 +31,10 @@ class AcceptedDocumentBody(TypedDict):
     replayed: bool
 
 
+TOKEN = "document-upload-http-token-with-more-than-thirty-two-characters"
+AUTH_HEADERS = {"Authorization": f"Bearer {TOKEN}"}
+
+
 @pytest.mark.anyio
 @pytest.mark.parametrize("state", list(AiInvoiceProposalExecutionStatus))
 async def test_status_endpoint_exposes_persisted_ai_execution(
@@ -43,12 +47,15 @@ async def test_status_endpoint_exposes_persisted_ai_execution(
             environment="test",
             database_url=PostgresDsn(migrated_postgres_url),
             storage_root=tmp_path / "data",
+            review_operator_token=SecretStr(TOKEN),
         )
     )
     database = cast(Database, application.state.database)
     try:
         async with AsyncClient(
-            transport=ASGITransport(app=application), base_url="http://test"
+            transport=ASGITransport(app=application),
+            base_url="http://test",
+            headers=AUTH_HEADERS,
         ) as client:
             accepted = await client.post(
                 "/api/v1/documents",
@@ -130,6 +137,7 @@ async def test_accepts_and_replays_a_pdf_upload(
             environment="test",
             database_url=PostgresDsn(migrated_postgres_url),
             storage_root=tmp_path / "data",
+            review_operator_token=SecretStr(TOKEN),
         )
     )
     database = cast(Database, application.state.database)
@@ -137,7 +145,9 @@ async def test_accepts_and_replays_a_pdf_upload(
     content = _pdf_bytes()
 
     try:
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
+        async with AsyncClient(
+            transport=transport, base_url="http://test", headers=AUTH_HEADERS
+        ) as client:
             first_response = await _post_document(client, content=content)
             replay_response = await _post_document(client, content=content)
             first = cast(AcceptedDocumentBody, first_response.json())
@@ -237,6 +247,7 @@ async def test_rejects_an_unsupported_or_oversized_upload(
             database_url=PostgresDsn(migrated_postgres_url),
             storage_root=tmp_path / "data",
             max_document_bytes=5,
+            review_operator_token=SecretStr(TOKEN),
         )
     )
     database = cast(Database, application.state.database)
@@ -245,6 +256,7 @@ async def test_rejects_an_unsupported_or_oversized_upload(
         async with AsyncClient(
             transport=ASGITransport(app=application),
             base_url="http://test",
+            headers=AUTH_HEADERS,
         ) as client:
             response = await _post_document(client, content=content, media_type=media_type)
     finally:
@@ -268,6 +280,7 @@ async def test_maps_missing_request_fields_to_problem_details(
             environment="test",
             database_url=PostgresDsn(migrated_postgres_url),
             storage_root=tmp_path / "data",
+            review_operator_token=SecretStr(TOKEN),
         )
     )
     database = cast(Database, application.state.database)
@@ -276,6 +289,7 @@ async def test_maps_missing_request_fields_to_problem_details(
         async with AsyncClient(
             transport=ASGITransport(app=application),
             base_url="http://test",
+            headers=AUTH_HEADERS,
         ) as client:
             response = await _post_document(
                 client,
@@ -305,6 +319,7 @@ async def test_returns_problem_details_for_an_unknown_document(
             environment="test",
             database_url=PostgresDsn(migrated_postgres_url),
             storage_root=tmp_path / "data",
+            review_operator_token=SecretStr(TOKEN),
         )
     )
     database = cast(Database, application.state.database)
@@ -313,6 +328,7 @@ async def test_returns_problem_details_for_an_unknown_document(
         async with AsyncClient(
             transport=ASGITransport(app=application),
             base_url="http://test",
+            headers=AUTH_HEADERS,
         ) as client:
             response = await client.get("/api/v1/documents/77777777-7777-4777-8777-777777777777")
     finally:

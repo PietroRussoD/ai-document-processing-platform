@@ -87,7 +87,10 @@ async def test_requests_and_replays_controlled_document_reprocessing(
                 headers=request_headers,
                 json={"reason": "Retry after the upstream OCR outage was resolved."},
             )
-            status_response = await client.get(f"/api/v1/documents/{DOCUMENT_ID}")
+            status_response = await client.get(
+                f"/api/v1/documents/{DOCUMENT_ID}",
+                headers={"Authorization": f"Bearer {TOKEN}"},
+            )
     finally:
         await database.dispose()
 
@@ -129,7 +132,7 @@ async def test_rejects_an_unauthenticated_reprocessing_request(
 
     assert response.status_code == 401
     assert response.headers["www-authenticate"] == "Bearer"
-    assert response.json()["type"] == "urn:problem:review-authentication-rejected"
+    assert response.json()["type"] == "urn:problem:operator-authentication-rejected"
 
 
 def test_exposes_a_stable_reprocessing_contract() -> None:

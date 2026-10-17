@@ -112,7 +112,7 @@ test("navigates through bounded pages of a work queue", async () => {
     });
     const listWorkQueue = vi
         .fn<DocumentApi["listWorkQueue"]>()
-        .mockImplementation(async (_queue, offset) =>
+        .mockImplementation(async (_queue, _operatorToken, offset) =>
             offset === 0
                 ? queuePage(firstPage, 26)
                 : queuePage([finalItem], 26),
@@ -126,6 +126,7 @@ test("navigates through bounded pages of a work queue", async () => {
     expect(screen.getByText("invoice-25.pdf")).toBeVisible();
     expect(listWorkQueue).toHaveBeenLastCalledWith(
         "ACTIVE",
+        "",
         25,
         expect.any(AbortSignal),
     );

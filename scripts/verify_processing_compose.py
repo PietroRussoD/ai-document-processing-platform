@@ -1,11 +1,13 @@
 """Smoke-test the running local processing Compose profile through its console."""
 
 import argparse
+import os
 import time
 from uuid import UUID, uuid4
 
 import httpx
 import pymupdf
+from dotenv import dotenv_values
 
 
 class SmokeTestError(Exception):
@@ -91,8 +93,18 @@ def main() -> None:
     if args.timeout_seconds <= 0:
         parser.error("--timeout-seconds must be positive")
 
+    token = os.environ.get("DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN") or dotenv_values(".env").get(
+        "DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN"
+    )
+    if not token:
+        parser.error("Set DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN in the environment or .env")
+
     try:
-        with httpx.Client(base_url=args.base_url, timeout=10.0) as client:
+        with httpx.Client(
+            base_url=args.base_url,
+            timeout=10.0,
+            headers={"Authorization": f"Bearer {token}"},
+        ) as client:
             document_id = verify_processing(client, timeout_seconds=args.timeout_seconds)
     except (httpx.HTTPError, KeyError, TypeError, ValueError, SmokeTestError) as error:
         raise SystemExit(f"Compose smoke test failed: {error}") from error

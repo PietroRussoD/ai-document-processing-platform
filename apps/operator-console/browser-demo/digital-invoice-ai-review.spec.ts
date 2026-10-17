@@ -1,6 +1,10 @@
 import { expect, test } from "@playwright/test";
 
 import type { DocumentStatus } from "../src/api/documentApi";
+import {
+    openDocumentsWithOperatorToken,
+    operatorHeaders,
+} from "./operatorAccess";
 
 test("digital invoice AI proposal remains advisory until operator approval", async ({
     page,
@@ -18,7 +22,9 @@ test("digital invoice AI proposal remains advisory until operator approval", asy
 
     const documentId = new URL(documentUrl).searchParams.get("documentId")!;
     const statusUrl = new URL(`/api/v1/documents/${documentId}`, documentUrl);
-    const beforeResponse = await page.request.get(statusUrl.toString());
+    const beforeResponse = await page.request.get(statusUrl.toString(), {
+        headers: operatorHeaders(),
+    });
     expect(beforeResponse.ok()).toBe(true);
     const before = (await beforeResponse.json()) as DocumentStatus;
     expect(before.status).toBe("REVIEW_REQUIRED");
@@ -36,6 +42,7 @@ test("digital invoice AI proposal remains advisory until operator approval", asy
     const browserErrors: string[] = [];
     page.on("pageerror", (error) => browserErrors.push(error.message));
     await page.goto(documentUrl);
+    await openDocumentsWithOperatorToken(page);
     await expect(
         page.getByText("Action required: review this document"),
     ).toBeVisible();
@@ -46,8 +53,6 @@ test("digital invoice AI proposal remains advisory until operator approval", asy
         ),
     ).toBeVisible();
     await page.getByText("Processing history", { exact: true }).click();
-    await page.getByLabel("Operator token").fill(operatorToken);
-
     const sourceResponse = page.waitForResponse((response) =>
         response.url().endsWith(`/api/v1/documents/${documentId}/source`),
     );
@@ -78,13 +83,17 @@ test("digital invoice AI proposal remains advisory until operator approval", asy
 
     await expect
         .poll(async () => {
-            const response = await page.request.get(statusUrl.toString());
+            const response = await page.request.get(statusUrl.toString(), {
+                headers: operatorHeaders(),
+            });
             expect(response.ok()).toBe(true);
             return ((await response.json()) as DocumentStatus).status;
         })
         .toBe("APPROVED");
     const after = (await (
-        await page.request.get(statusUrl.toString())
+        await page.request.get(statusUrl.toString(), {
+            headers: operatorHeaders(),
+        })
     ).json()) as DocumentStatus;
     expect(after.current_run.review_resolution?.decision).toBe("APPROVE");
     expect(after.current_run.review_resolution?.corrections).toMatchObject([

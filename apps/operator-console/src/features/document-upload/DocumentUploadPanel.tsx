@@ -11,6 +11,7 @@ import {
 import { Button } from "../../components/ui/Button";
 import { FeedbackMessage } from "../../components/ui/FeedbackMessage";
 import { DocumentFilePicker } from "./DocumentFilePicker";
+import { useOperatorToken } from "../operator-access/operatorToken";
 
 type UploadApi = Pick<DocumentApi, "upload">;
 
@@ -27,11 +28,12 @@ export function DocumentUploadPanel({
     idGenerator = () => crypto.randomUUID(),
     onAccepted,
 }: DocumentUploadPanelProps) {
+    const { operatorToken } = useOperatorToken();
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
     const upload = useMutation({
         mutationFn: ({ file, key }: { file: File; key: string }) =>
-            api.upload(file, key),
+            api.upload(file, key, operatorToken),
         onSuccess: onAccepted,
     });
 

@@ -12,6 +12,7 @@ const acceptedDocument = {
     accepted_at: "2026-09-14T19:00:00Z",
     replayed: false,
 };
+const operatorToken = "operator-token";
 
 test("lists a bounded document work queue and forwards cancellation", async () => {
     const page = { items: [], total: 0, limit: 25, offset: 0 } as const;
@@ -20,6 +21,7 @@ test("lists a bounded document work queue and forwards cancellation", async () =
 
     const result = await createDocumentApi(fetcher).listWorkQueue(
         "FAILED",
+        operatorToken,
         25,
         controller.signal,
     );
@@ -27,7 +29,10 @@ test("lists a bounded document work queue and forwards cancellation", async () =
     expect(result).toEqual(page);
     expect(fetcher).toHaveBeenCalledWith(
         "/api/v1/documents?queue=FAILED&limit=25&offset=25",
-        { signal: controller.signal },
+        {
+            headers: { Authorization: `Bearer ${operatorToken}` },
+            signal: controller.signal,
+        },
     );
 });
 
@@ -42,6 +47,7 @@ test("uploads a PDF as multipart data with its idempotency key", async () => {
     const result = await createDocumentApi(fetcher).upload(
         document,
         "upload-42",
+        operatorToken,
     );
 
     expect(result).toEqual(acceptedDocument);
@@ -49,7 +55,10 @@ test("uploads a PDF as multipart data with its idempotency key", async () => {
     const [url, request] = fetcher.mock.calls[0];
     expect(url).toBe("/api/v1/documents");
     expect(request?.method).toBe("POST");
-    expect(request?.headers).toEqual({ "Idempotency-Key": "upload-42" });
+    expect(request?.headers).toEqual({
+        Authorization: `Bearer ${operatorToken}`,
+        "Idempotency-Key": "upload-42",
+    });
     expect(request?.body).toBeInstanceOf(FormData);
     expect((request?.body as FormData).get("document")).toBe(document);
 });
@@ -85,13 +94,17 @@ test("retrieves document status and forwards cancellation", async () => {
 
     const result = await createDocumentApi(fetcher).getStatus(
         acceptedDocument.document_id,
+        operatorToken,
         controller.signal,
     );
 
     expect(result).toEqual(status);
     expect(fetcher).toHaveBeenCalledWith(
         `/api/v1/documents/${acceptedDocument.document_id}`,
-        { signal: controller.signal },
+        {
+            headers: { Authorization: `Bearer ${operatorToken}` },
+            signal: controller.signal,
+        },
     );
 });
 
@@ -211,7 +224,10 @@ test("maps RFC 9457 responses to a typed API error", async () => {
     );
 
     await expect(
-        createDocumentApi(fetcher).getStatus(acceptedDocument.document_id),
+        createDocumentApi(fetcher).getStatus(
+            acceptedDocument.document_id,
+            operatorToken,
+        ),
     ).rejects.toEqual(new DocumentApiProblem(problem));
 });
 
@@ -223,7 +239,10 @@ test("does not trust malformed error payloads", async () => {
     );
 
     await expect(
-        createDocumentApi(fetcher).getStatus(acceptedDocument.document_id),
+        createDocumentApi(fetcher).getStatus(
+            acceptedDocument.document_id,
+            operatorToken,
+        ),
     ).rejects.toThrow("Document API request failed with status 500");
 });
 
