@@ -68,6 +68,10 @@ lists the installed Trixie `libxml2` version as vulnerable but marks the issue
 `no-dsa`/Minor for that release. That is Debian's remediation assessment, not
 proof that crafted XML cannot reach the package here.
 
+The [PDF parser isolation design](security/pdf-parser-isolation-design.md)
+records why a disposable per-document parser runtime is deferred and what
+would need to change before that work could be resumed.
+
 ## v1.1 Image Review
 
 For the v1.1 API image reviewed on 2026-10-16, the
