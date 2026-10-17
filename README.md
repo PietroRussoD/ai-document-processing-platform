@@ -87,11 +87,11 @@ Stop the stack with `docker compose down`; named volumes retain the demo data.
   and a static interactive architecture map.
 
 The [capability table](docs/product-overview.md#capability-status) records the
-implemented and planned boundaries. The v1.1.0 source and API report `1.1.0`,
-as does the operator console. The [v1.1.0 release notes](docs/releases/v1.1.0.md)
-document the local-demo scope and its remaining limits. The latest tagged
-release is `v1.0.0`; v1.1.0 has not yet been tagged or published. See v1.0's
-[release notes](docs/releases/v1.0.0.md) and
+implemented and planned boundaries. Development targets `v1.2.0`; Python and
+the API report `1.2.0.dev0`, and the operator console reports `1.2.0-dev.0`.
+The [draft v1.2.0 release notes](docs/releases/v1.2.0.md) track the planned
+local-security work. The latest tagged release is `v1.1.0`; see its
+[release notes](docs/releases/v1.1.0.md) and the v1.0
 [verification record](docs/runbooks/v1.0-verification.md).
 
 ## Limits
