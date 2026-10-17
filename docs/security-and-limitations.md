@@ -86,10 +86,12 @@ rescanned the rebuilt ARM64 API image with a newly downloaded database and
 confirmed the same 33 CVEs across 76 HIGH/CRITICAL package associations, with
 no fixed versions reported by Trivy. The backend suite passed all 615 tests.
 
-The [v1.1 release scope proposal](runbooks/v1.1-release-scope-proposal.md)
-summarizes the residual risks and proposes a local synthetic-data release,
-with physical-device checks deferred. Owner confirmation remains pending;
-this proposal does not extend the v1.0 acceptance automatically.
+The [v1.1 release scope decision](runbooks/v1.1-release-scope-decision.md)
+records acceptance of the remaining image findings only for a local demo with
+synthetic documents, and defers physical-device checks for that release. The
+findings remain open. Public hosting, untrusted documents and API image
+distribution remain out of scope; this does not extend the v1.0 acceptance
+automatically.
 
 ## v1.0 Release Risk Decision
 
