@@ -127,6 +127,23 @@ used by the application. Do not give the worker the default Kind administrator
 kubeconfig or access to a remote production-named context. The parser container
 itself must never receive this identity.
 
+## Controller connection configuration spike
+
+The [standalone connection prototype](../../spikes/parser-runtime-connection/README.md)
+defines explicit endpoint, namespace, CA-file and token-file inputs. It builds
+a fresh Kubernetes client configuration without loading a kubeconfig or ambient
+administrator credentials. TLS verification stays enabled, the token is read
+again before each request, and errors omit credentials and raw response bodies.
+Its separate dependency environment keeps the Kubernetes SDK outside v1.2.0.
+
+The prototype passed host-side live checks with a namespace-scoped controller
+identity, and rejected an untrusted CA, invalid token, insufficient permissions
+and a temporary extra Secret API grant. It does not run the Temporal worker or
+validate UID 10001 file access and read-only credential mounts inside Compose.
+Those details still need validation before application integration. Neither
+these API checks nor the Role alone enforce parser Job templates or network
+isolation; keep the other isolation gates open.
+
 ## Result contract
 
 The parser returns one versioned JSON object for the requested operation. The
@@ -199,6 +216,7 @@ limit correction are recorded below.
 | Job completion and TTL | Pass for success and active deadline | The completion marker let a Job finish, and a short TTL removed the completed Job and Pod. The earlier isolation spike also observed a Job fail with `DeadlineExceeded`, followed by TTL removal of the Job and Pod. This verifies Kubernetes cleanup, not worker-driven cancellation or application error handling; see the [isolation design spike](pdf-parser-isolation-design.md). |
 | PID limit | Pass | On a separate Kind 1.37 cluster, both nodes were Ready with `podPidsLimit: 128`. Reading the cgroup hierarchy from the worker showed `pids.max=128` on the Pod parent and `pids.max=9397` on the container cgroup, confirming that the effective Pod limit is 128 without a process-spawn stress test. |
 | Compose-network reachability | Pass for network and credential smoke test | A disposable container using `document-platform-api:dev` on `ai-document-processing-platform_default`, with `host.docker.internal` mapped to the host gateway, reached the temporary Kind API with TLS verification enabled. The scoped token received `200` for listing Pods, `403` for listing Secrets, and SelfSubjectAccessReview allowed `get/create pods/exec` plus `create jobs` while denying `get secrets`. This did not exercise the `document_platform.worker` configuration or Kubernetes client integration. |
+| Explicit controller connection configuration | Pass for the standalone host prototype | The standalone spike constructs a fresh Python SDK configuration from a local HTTPS endpoint, namespace, CA file and short-lived token file; a bogus `KUBECONFIG` had no effect. Live checks passed with the scoped Role and rejected an untrusted CA, invalid token (401), insufficient permissions (403) and a temporary extra Secret API grant. Unit checks also cover token replacement and loss. Read-only credential mounts and file readability as UID 10001 in the actual worker are not verified. |
 | Worker Kubernetes configuration | Not implemented | `worker.py` still constructs local PyMuPDF and Tesseract extractors. `Settings`, `compose.yaml` and `pyproject.toml` define no Kubernetes endpoint, CA, controller token or Kubernetes client dependency. This is expected before the proposed integration; the network smoke test did not run the worker process. |
 
 The transport is promising enough to continue without designing an artifact
@@ -208,11 +226,12 @@ The 20 MiB file is mostly trailing padding, the 50-page PDF uses simple vector
 text, and concurrency and adversarial inputs were not measured. The
 extracted-text character-limit defect is corrected in the working source and
 verified at the exact 1,000,000-character boundary.
-Before implementation, define and validate the worker's endpoint, CA and
-scoped-token configuration; verify Internet egress denial and worker-driven
-cleanup after parser errors or cancellation; and extend resource measurements
-across representative and worst-case synthetic documents. Preserve the
-explicit stdin half-close and bounded streaming behavior in the implementation.
+The standalone connection contract is validated; the worker's actual endpoint,
+CA/token mounts and UID 10001 access remain unverified. Before implementation,
+validate those container details, Internet egress denial and worker-driven
+cleanup after parser errors or cancellation, and extend resource measurements
+across representative and worst-case synthetic documents. Preserve the explicit
+stdin half-close and bounded streaming behavior in the implementation.
 
 ## Acceptance criteria for a later implementation
 
