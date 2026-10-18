@@ -168,6 +168,29 @@ from the Temporal activity. Map invalid input, parser crash, timeout, resource
 termination, oversized output and runtime unavailability to bounded failure
 codes; never persist raw parser exceptions as user-visible errors.
 
+### OCR process failures and Temporal retries
+
+The high-entropy image probe exhausted the container cgroup while the parser
+process survived and returned the generic non-zero-exit error from Tesseract.
+The Kubernetes Job therefore cannot be assumed to report `OOMKilled` for every
+OCR memory exhaustion; that reason is available when the container process
+itself is killed. Use a reliable runtime signal, such as a change in the
+container's cgroup OOM counter when supported, before classifying a failure
+specifically as resource exhaustion. If no such signal is available, record a
+bounded OCR-engine failure rather than claiming an OOM. Do not include
+Tesseract stderr or document content in the result or logs.
+
+The current workflow applies a three-attempt retry policy to every processing
+stage, including OCR, in
+[`process_business_document.py`](../../src/document_platform/workflows/process_business_document.py).
+The parser integration must make deterministic input, OCR-engine and confirmed
+resource-limit failures non-retryable for the same PDF. Give transient runtime
+startup or connection failures their own capped retry policy. A worker must
+inspect the Job/container outcome, persist a bounded failure once, and clean up
+the Job; it must not resubmit the same expensive OCR operation merely because
+the parser child returned a non-zero status. Test child-process OOM separately
+from a Job container OOM and from an ordinary OCR timeout.
+
 Keep the existing upload-size, page-count, extracted-character, OCR-pixel and
 per-page timeout limits. Measure Job CPU, memory, scratch space, startup time
 and total deadlines against the synthetic fixtures before choosing numeric
@@ -278,8 +301,10 @@ half-close and bounded streaming behavior in the implementation.
   network access, and cannot read the Compose data volume.
 - Results are size-checked, validated and persisted by the trusted worker;
   document text does not enter logs or Temporal history.
-- Timeouts, crashes, oversized results, cancellation, retries and orphan
-  cleanup have focused tests using synthetic fixtures.
+- Timeouts, OCR child-process OOM, Job container OOM, ordinary OCR failures,
+  oversized results, cancellation, bounded retries and orphan cleanup have
+  focused tests using synthetic fixtures. Deterministic failures must not
+  trigger repeated OCR attempts for the same PDF.
 - Resource limits are based on measurements and the documentation describes
   this as per-Job containment on `runc`, not as a kernel sandbox.
 
