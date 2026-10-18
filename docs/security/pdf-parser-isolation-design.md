@@ -1,8 +1,9 @@
 # PDF Parser Isolation Design
 
-Status: design complete; no parser isolation is implemented.
+Status: design recorded; v1.3.0 scope proposed; no application parser isolation
+is implemented.
 
-## Decision for the current release
+## Decision for the released v1.2.0
 
 Keep v1.2.0 scoped to the local single-operator demo. Do not add a disposable
 parser runtime to the Compose stack in this release. The current loopback-only
@@ -137,11 +138,10 @@ and testing, but this does not establish that a custom `runsc` RuntimeClass is
 available. See [Docker Desktop Kubernetes](https://docs.docker.com/desktop/use-desktop/kubernetes/)
 and [Kubernetes RuntimeClass](https://kubernetes.io/docs/concepts/containers/runtime-class/).
 
-This option is not part of v1.2.0. It may become a separate v1.3.0 development
-track after v1.2.0 is closed if a concrete portfolio goal justifies operating
-the runtime. The infrastructure spike confirmed that Kind with Calico can be started and
-used for these checks on this machine. Do not change the project version as part of
-this documentation update.
+This option was excluded from the released v1.2.0. The separate
+[v1.3.0 development scope](../releases/v1.3.0.md) now proposes this portfolio
+exercise. The infrastructure spike confirms feasibility on this machine;
+final-topology network enforcement and application integration remain gates.
 
 The proposed application integration, including asynchronous page-count
 validation, Job data transfer, controller permissions and acceptance criteria,
@@ -154,20 +154,20 @@ credential and data-transfer channel on the target development environment.
 The end-to-end integration proposal defines the vertical slice and its
 acceptance criteria. The implementation must:
 
-- removes native PDF inspection from the API request path, or routes it
+- remove native PDF inspection from the API request path, or route it
   through the same isolated job boundary;
-- moves embedded-text extraction, rasterization and OCR behind that boundary;
-- sends at most the configured upload limit to a job and returns bounded
+- move embedded-text extraction, rasterization and OCR behind that boundary;
+- send at most the configured upload limit to a job and return bounded
   structured output, without logging PDF bytes, extracted text or secrets;
-- gives the parser job no database, Temporal or operator-token credentials;
-- provides no external network route and no writable host or application data
+- give the parser job no database, Temporal or operator-token credentials;
+- provide no external network route and no writable host or application data
   mount beyond its private scratch space;
-- enforces per-job CPU, memory, process-count and wall-clock limits, and
-  destroys the job and scratch data after success or failure;
-- handles malformed input, timeout, out-of-memory termination, process crash,
+- enforce per-job CPU, memory, process-count and wall-clock limits, and
+  destroy the job and scratch data after success or failure;
+- handle malformed input, timeout, out-of-memory termination, process crash,
   output overflow and runtime unavailability without wedging the worker or
   repeating an expensive hostile job indefinitely;
-- records a safe, bounded failure outcome while keeping the existing document
+- record a safe, bounded failure outcome while keeping the existing document
   and processing history consistent.
 
 Single-run container baselines cover representative fixtures and combined

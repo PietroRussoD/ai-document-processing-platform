@@ -103,7 +103,7 @@ def create_app(
 
     application = FastAPI(
         title="AI Document Processing Platform",
-        version=application_version,
+        version=application_version.replace(".dev", "-dev."),
         debug=active_settings.environment == "local",
         lifespan=lifespan,
     )

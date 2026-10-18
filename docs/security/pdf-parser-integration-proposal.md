@@ -2,11 +2,11 @@
 
 Status: proposed architecture; no application integration is implemented.
 
-This proposal refines the deferred parser-isolation work described in the
-[isolation design](pdf-parser-isolation-design.md). The v1.2.0 release is
-scoped to the local single-operator demo. Do not implement this proposal as
-part of v1.2.0; reconsider it for a separate future release only if the
-project takes on a concrete runtime need that justifies operating it.
+This proposal refines the parser-isolation work described in the
+[isolation design](pdf-parser-isolation-design.md). The local single-operator
+v1.2.0 release is closed. The separate [v1.3.0 scope](../releases/v1.3.0.md)
+proposes evaluating and integrating this runtime for the portfolio exercise;
+its acceptance gates remain open.
 
 ## Goal and scope
 

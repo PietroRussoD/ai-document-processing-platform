@@ -69,8 +69,9 @@ lists the installed Trixie `libxml2` version as vulnerable but marks the issue
 proof that crafted XML cannot reach the package here.
 
 The [PDF parser isolation design](security/pdf-parser-isolation-design.md)
-records why a disposable per-document parser runtime is deferred and what
-would need to change before that work could be resumed.
+records why a disposable per-document parser runtime was deferred from v1.2.0.
+The [v1.3.0 scope](releases/v1.3.0.md) proposes resuming that work; no parser
+containment is implemented in the application yet.
 
 ## v1.1 Image Review
 
