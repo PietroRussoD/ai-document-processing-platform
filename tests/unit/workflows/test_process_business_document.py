@@ -16,12 +16,15 @@ import document_platform.workflows.process_business_document as workflow_module
 from document_platform.application.temporal_contracts import (
     APPLY_INVOICE_VALIDATION_ACTIVITY,
     CLASSIFY_DOCUMENT_ACTIVITY,
+    EXTRACT_OCR_TEXT_ACTIVITY,
     PROPOSE_INVOICE_FIELDS_ACTIVITY,
     RECORD_INVOICE_PROPOSAL_FAILURE_ACTIVITY,
+    RECORD_PROCESSING_RUN_FAILURE_ACTIVITY,
 )
 from document_platform.domain.processing import (
     InvoiceProposalGenerationFailureCode,
     ProcessingFailureCode,
+    ProcessingStage,
 )
 from document_platform.workflows.process_business_document import (
     ProcessBusinessDocumentWorkflow,
@@ -53,6 +56,44 @@ def test_classifies_terminal_activity_failures_without_using_messages(
     )
 
     assert classify_activity_failure(error) is expected
+
+
+@pytest.mark.anyio
+async def test_records_non_retryable_ocr_failure_once_and_stops_workflow(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    async def execute_activity(*args: object, **kwargs: object) -> object:
+        name = str(args[0])
+        calls.append((name, kwargs))
+        if name == EXTRACT_OCR_TEXT_ACTIVITY:
+            raise ActivityError(
+                "bounded Temporal failure",
+                scheduled_event_id=1,
+                started_event_id=2,
+                identity="worker",
+                activity_type=EXTRACT_OCR_TEXT_ACTIVITY,
+                activity_id="activity-1",
+                retry_state=RetryState.NON_RETRYABLE_FAILURE,
+            )
+        return None
+
+    monkeypatch.setattr(workflow_module.workflow, "execute_activity", execute_activity)
+
+    with pytest.raises(ActivityError):
+        await ProcessBusinessDocumentWorkflow().run("run-1")
+
+    failure_calls = [
+        kwargs for name, kwargs in calls if name == RECORD_PROCESSING_RUN_FAILURE_ACTIVITY
+    ]
+    assert len(failure_calls) == 1
+    assert failure_calls[0]["args"] == [
+        "run-1",
+        ProcessingStage.OCR_TEXT_EXTRACTION.value,
+        ProcessingFailureCode.NON_RETRYABLE_ACTIVITY_FAILURE.value,
+    ]
+    assert calls[-1][0] == RECORD_PROCESSING_RUN_FAILURE_ACTIVITY
 
 
 def proposal_error(

@@ -253,10 +253,13 @@ separately from a Job container OOM and from an ordinary OCR timeout.
 
 Before the first failure-policy change, source inspection showed that a
 non-zero Tesseract exit became `OcrExtractionFailed` and that all three OCR
-attempts could run. The existing 27 focused OCR-adapter/workflow tests did not
-assert the number of retries. Add a Temporal activity regression that verifies
-the known OCR exceptions are surfaced as non-retryable application errors,
-and a workflow-level regression that checks the retry state and failure record.
+attempts could run. The activity regression now checks that the known OCR
+exceptions are surfaced as non-retryable application errors without exposing
+exception details. The workflow regression checks that a terminal
+non-retryable OCR failure is recorded once with the OCR stage and bounded
+failure code, then stops processing. The test uses a synthetic Temporal
+`ActivityError`; runtime-level attempt counts still need verification when the
+parser activity and its retry policy are integrated.
 
 Keep the existing upload-size, page-count, extracted-character, OCR-pixel and
 per-page timeout limits. Measure Job CPU, memory, scratch space, startup time

@@ -3,9 +3,15 @@
 from uuid import UUID
 
 import pytest
+from temporalio.exceptions import ApplicationError
 
 from document_platform.adapters.inbound.temporal import ExtractOcrTextActivity
 from document_platform.application.commands import ExtractOcrText, OcrTextExtractionResult
+from document_platform.application.ports import (
+    OcrEngineUnavailable,
+    OcrExtractionFailed,
+    OcrTextLimitExceeded,
+)
 
 RUN_ID = UUID("73737373-7373-4373-8373-737373737373")
 
@@ -27,3 +33,27 @@ async def test_maps_the_temporal_argument_to_the_application_command() -> None:
     await activity.extract_ocr_text(str(RUN_ID))
 
     assert handler.commands == [ExtractOcrText(RUN_ID)]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "failure",
+    [
+        OcrEngineUnavailable("local detail"),
+        OcrExtractionFailed("document detail"),
+        OcrTextLimitExceeded(100),
+    ],
+)
+async def test_marks_known_ocr_failures_non_retryable(failure: Exception) -> None:
+    class FailingExtractOcrText:
+        async def __call__(self, command: ExtractOcrText) -> OcrTextExtractionResult:
+            raise failure
+
+    activity = ExtractOcrTextActivity(FailingExtractOcrText())  # type: ignore[arg-type]
+
+    with pytest.raises(ApplicationError) as raised:
+        await activity.extract_ocr_text(str(RUN_ID))
+
+    assert raised.value.non_retryable is True
+    assert raised.value.type == "OCR_NON_RETRYABLE_FAILURE"
+    assert "document detail" not in str(raised.value)
