@@ -34,8 +34,11 @@ permissions for UID 10001. A directory mount allows atomic token file
 replacement to become visible. Neither the API nor parser Pods should receive
 this credential. A worker container needs a reachable endpoint, not its own
 loopback address; `host.docker.internal` must also appear in the server's
-certificate SAN. These mount and UID details are not validated by this
-host-side prototype.
+certificate SAN. The [container companion](CONTAINER.md) verified a read-only
+Docker credential volume, UID 10001 access, atomic token replacement and
+denied access by UID 10002 on 2026-10-18. It uses the worker image without
+running the actual Temporal worker. Bind-mounted host file ownership remains
+a separate deployment concern.
 
 ## Permission checks
 
