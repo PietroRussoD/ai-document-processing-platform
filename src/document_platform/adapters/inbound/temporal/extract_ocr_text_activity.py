@@ -3,9 +3,21 @@
 from uuid import UUID
 
 from temporalio import activity
+from temporalio.exceptions import ApplicationError
 
 from document_platform.application.commands import ExtractOcrText, ExtractOcrTextHandler
+from document_platform.application.ports import (
+    OcrEngineUnavailable,
+    OcrExtractionFailed,
+    OcrTextLimitExceeded,
+)
 from document_platform.application.temporal_contracts import EXTRACT_OCR_TEXT_ACTIVITY
+
+_NON_RETRYABLE_OCR_FAILURES = (
+    OcrEngineUnavailable,
+    OcrExtractionFailed,
+    OcrTextLimitExceeded,
+)
 
 
 class ExtractOcrTextActivity:
@@ -14,4 +26,11 @@ class ExtractOcrTextActivity:
 
     @activity.defn(name=EXTRACT_OCR_TEXT_ACTIVITY)
     async def extract_ocr_text(self, processing_run_id: str) -> None:
-        await self._extract_ocr_text(ExtractOcrText(UUID(processing_run_id)))
+        try:
+            await self._extract_ocr_text(ExtractOcrText(UUID(processing_run_id)))
+        except _NON_RETRYABLE_OCR_FAILURES as error:
+            raise ApplicationError(
+                "OCR processing failed with a non-retryable error",
+                type="OCR_NON_RETRYABLE_FAILURE",
+                non_retryable=True,
+            ) from error

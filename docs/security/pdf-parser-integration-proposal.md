@@ -239,24 +239,24 @@ specifically as resource exhaustion. If no such signal is available, record a
 bounded OCR-engine failure rather than claiming an OOM. Do not include
 Tesseract stderr or document content in the result or logs.
 
-The current workflow applies a three-attempt retry policy to every processing
-stage, including OCR, in
+The workflow applies a three-attempt retry policy to processing activities in
 [`process_business_document.py`](../../src/document_platform/workflows/process_business_document.py).
-The parser integration must make deterministic input, OCR-engine and confirmed
-resource-limit failures non-retryable for the same PDF. Give transient runtime
-startup or connection failures their own capped retry policy. A worker must
-inspect the Job/container outcome, persist a bounded failure once, and clean up
-the Job; it must not resubmit the same expensive OCR operation merely because
-the parser child returned a non-zero status. Test child-process OOM separately
-from a Job container OOM and from an ordinary OCR timeout.
+The OCR activity now marks known local OCR engine, extraction and output-limit
+errors non-retryable, so the same document is not sent through an identical
+expensive OCR attempt three times. This is a first failure-policy increment;
+it does not yet distinguish transient parser-runtime startup or connection
+failures, which need their own capped retry policy during integration. A worker
+must inspect the Job/container outcome, persist a bounded failure once, and
+clean up the Job; it must not resubmit the same expensive OCR operation merely
+because the parser child returned a non-zero status. Test child-process OOM
+separately from a Job container OOM and from an ordinary OCR timeout.
 
-Source inspection and the focused OCR-adapter/workflow tests confirm the
-current error path: a non-zero Tesseract exit becomes `OcrExtractionFailed`,
-the activity lets it propagate, and the shared three-attempt policy applies.
-The 27 focused tests pass, but none asserts the number of Temporal OCR attempts
-for this failure. Add that workflow-level regression when implementing the
-failure classification; do not change the current workflow as part of this
-proposal review.
+Before the first failure-policy change, source inspection showed that a
+non-zero Tesseract exit became `OcrExtractionFailed` and that all three OCR
+attempts could run. The existing 27 focused OCR-adapter/workflow tests did not
+assert the number of retries. Add a Temporal activity regression that verifies
+the known OCR exceptions are surfaced as non-retryable application errors,
+and a workflow-level regression that checks the retry state and failure record.
 
 Keep the existing upload-size, page-count, extracted-character, OCR-pixel and
 per-page timeout limits. Measure Job CPU, memory, scratch space, startup time
