@@ -239,27 +239,29 @@ specifically as resource exhaustion. If no such signal is available, record a
 bounded OCR-engine failure rather than claiming an OOM. Do not include
 Tesseract stderr or document content in the result or logs.
 
-The workflow applies a three-attempt retry policy to processing activities in
-[`process_business_document.py`](../../src/document_platform/workflows/process_business_document.py).
-The OCR activity now marks known local OCR engine, extraction and output-limit
-errors non-retryable, so the same document is not sent through an identical
-expensive OCR attempt three times. This is a first failure-policy increment;
-it does not yet distinguish transient parser-runtime startup or connection
-failures, which need their own capped retry policy during integration. A worker
-must inspect the Job/container outcome, persist a bounded failure once, and
-clean up the Job; it must not resubmit the same expensive OCR operation merely
-because the parser child returned a non-zero status. Test child-process OOM
-separately from a Job container OOM and from an ordinary OCR timeout.
+The workflow uses a separate two-attempt policy for embedded-text and OCR
+activities, with a two-second initial interval and ten-second maximum
+interval. `ParserRuntimeUnavailable` maps to a retryable Temporal error; known
+PDF content, OCR engine, extraction and output-limit errors map to non-retryable
+Temporal errors. These contracts prepare the activities for the parser adapter,
+which must report temporary startup or connection failures using
+`ParserRuntimeUnavailable`. The current local adapters do not emit that error
+yet. A worker must inspect the Job/container outcome, persist a bounded failure
+once, and clean up the Job; it must not resubmit the same expensive OCR
+operation merely because the parser child returned a non-zero status. Test
+child-process OOM separately from a Job container OOM and from an ordinary OCR
+timeout.
 
 Before the first failure-policy change, source inspection showed that a
 non-zero Tesseract exit became `OcrExtractionFailed` and that all three OCR
-attempts could run. The activity regression now checks that the known OCR
-exceptions are surfaced as non-retryable application errors without exposing
-exception details. The workflow regression checks that a terminal
-non-retryable OCR failure is recorded once with the OCR stage and bounded
-failure code, then stops processing. The test uses a synthetic Temporal
-`ActivityError`; runtime-level attempt counts still need verification when the
-parser activity and its retry policy are integrated.
+attempts could run. The activity regressions check that temporary runtime
+unavailability remains retryable and known PDF/OCR failures become
+non-retryable without exposing exception details. Workflow regressions check
+the bounded parser retry policy and that a terminal non-retryable OCR failure
+is recorded once with the OCR stage and bounded failure code, then stops
+processing. They verify policy configuration and terminal handling; a live
+Temporal retry count still needs verification when the parser adapter is
+integrated.
 
 Keep the existing upload-size, page-count, extracted-character, OCR-pixel and
 per-page timeout limits. Measure Job CPU, memory, scratch space, startup time

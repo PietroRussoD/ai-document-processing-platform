@@ -11,6 +11,7 @@ from document_platform.application.ports import (
     OcrEngineUnavailable,
     OcrExtractionFailed,
     OcrTextLimitExceeded,
+    ParserRuntimeUnavailable,
 )
 
 RUN_ID = UUID("73737373-7373-4373-8373-737373737373")
@@ -57,3 +58,19 @@ async def test_marks_known_ocr_failures_non_retryable(failure: Exception) -> Non
     assert raised.value.non_retryable is True
     assert raised.value.type == "OCR_NON_RETRYABLE_FAILURE"
     assert "document detail" not in str(raised.value)
+
+
+@pytest.mark.anyio
+async def test_keeps_parser_runtime_unavailability_retryable() -> None:
+    class UnavailableExtractOcrText:
+        async def __call__(self, command: ExtractOcrText) -> OcrTextExtractionResult:
+            raise ParserRuntimeUnavailable("private connection detail")
+
+    activity = ExtractOcrTextActivity(UnavailableExtractOcrText())  # type: ignore[arg-type]
+
+    with pytest.raises(ApplicationError) as raised:
+        await activity.extract_ocr_text(str(RUN_ID))
+
+    assert raised.value.type == "PARSER_RUNTIME_UNAVAILABLE"
+    assert raised.value.non_retryable is False
+    assert "private connection detail" not in str(raised.value)

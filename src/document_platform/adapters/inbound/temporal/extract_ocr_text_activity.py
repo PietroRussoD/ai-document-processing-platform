@@ -10,6 +10,7 @@ from document_platform.application.ports import (
     OcrEngineUnavailable,
     OcrExtractionFailed,
     OcrTextLimitExceeded,
+    ParserRuntimeUnavailable,
 )
 from document_platform.application.temporal_contracts import EXTRACT_OCR_TEXT_ACTIVITY
 
@@ -28,6 +29,11 @@ class ExtractOcrTextActivity:
     async def extract_ocr_text(self, processing_run_id: str) -> None:
         try:
             await self._extract_ocr_text(ExtractOcrText(UUID(processing_run_id)))
+        except ParserRuntimeUnavailable as error:
+            raise ApplicationError(
+                "PDF parser runtime is temporarily unavailable",
+                type="PARSER_RUNTIME_UNAVAILABLE",
+            ) from error
         except _NON_RETRYABLE_OCR_FAILURES as error:
             raise ApplicationError(
                 "OCR processing failed with a non-retryable error",

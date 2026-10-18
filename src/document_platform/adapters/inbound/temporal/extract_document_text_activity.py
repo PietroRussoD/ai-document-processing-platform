@@ -3,9 +3,19 @@
 from uuid import UUID
 
 from temporalio import activity
+from temporalio.exceptions import ApplicationError
 
 from document_platform.application.commands import ExtractDocumentText, ExtractDocumentTextHandler
+from document_platform.application.ports import (
+    EncryptedPdf,
+    InvalidPdf,
+    ParserRuntimeUnavailable,
+    PdfPageLimitExceeded,
+    PdfTextLimitExceeded,
+)
 from document_platform.application.temporal_contracts import EXTRACT_DOCUMENT_TEXT_ACTIVITY
+
+_NON_RETRYABLE_PDF_FAILURES = (EncryptedPdf, InvalidPdf, PdfPageLimitExceeded, PdfTextLimitExceeded)
 
 
 class ExtractDocumentTextActivity:
@@ -14,4 +24,16 @@ class ExtractDocumentTextActivity:
 
     @activity.defn(name=EXTRACT_DOCUMENT_TEXT_ACTIVITY)
     async def extract_document_text(self, processing_run_id: str) -> None:
-        await self._extract_document_text(ExtractDocumentText(UUID(processing_run_id)))
+        try:
+            await self._extract_document_text(ExtractDocumentText(UUID(processing_run_id)))
+        except ParserRuntimeUnavailable as error:
+            raise ApplicationError(
+                "PDF parser runtime is temporarily unavailable",
+                type="PARSER_RUNTIME_UNAVAILABLE",
+            ) from error
+        except _NON_RETRYABLE_PDF_FAILURES as error:
+            raise ApplicationError(
+                "PDF extraction failed with a non-retryable error",
+                type="PDF_NON_RETRYABLE_FAILURE",
+                non_retryable=True,
+            ) from error

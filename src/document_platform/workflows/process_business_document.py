@@ -30,6 +30,11 @@ from document_platform.domain.processing import (
 )
 
 _ACTIVITY_RETRY_POLICY = RetryPolicy(maximum_attempts=3)
+_PARSER_RUNTIME_RETRY_POLICY = RetryPolicy(
+    maximum_attempts=2,
+    initial_interval=timedelta(seconds=2),
+    maximum_interval=timedelta(seconds=10),
+)
 _FAILURE_RECORDING_RETRY_POLICY = RetryPolicy(maximum_attempts=3)
 _PROPOSAL_RETRY_POLICY = RetryPolicy(maximum_attempts=2)
 _ADVISORY_PROPOSAL_PATCH = "advisory-invoice-proposal-v1"
@@ -50,12 +55,14 @@ class ProcessBusinessDocumentWorkflow:
             processing_run_id,
             ProcessingStage.EMBEDDED_TEXT_EXTRACTION,
             timeout=timedelta(minutes=2),
+            retry_policy=_PARSER_RUNTIME_RETRY_POLICY,
         )
         await _execute_processing_stage(
             EXTRACT_OCR_TEXT_ACTIVITY,
             processing_run_id,
             ProcessingStage.OCR_TEXT_EXTRACTION,
             timeout=timedelta(minutes=5),
+            retry_policy=_PARSER_RUNTIME_RETRY_POLICY,
         )
         await _execute_processing_stage(
             SELECT_PROCESSING_TEXT_ACTIVITY,
@@ -108,13 +115,14 @@ async def _execute_processing_stage(
     stage: ProcessingStage,
     *,
     timeout: timedelta,
+    retry_policy: RetryPolicy = _ACTIVITY_RETRY_POLICY,
 ) -> object:
     try:
         return await workflow.execute_activity(
             activity_name,
             processing_run_id,
             start_to_close_timeout=timeout,
-            retry_policy=_ACTIVITY_RETRY_POLICY,
+            retry_policy=retry_policy,
         )
     except ActivityError as error:
         await workflow.execute_activity(

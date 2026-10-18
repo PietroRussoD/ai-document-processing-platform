@@ -16,6 +16,7 @@ import document_platform.workflows.process_business_document as workflow_module
 from document_platform.application.temporal_contracts import (
     APPLY_INVOICE_VALIDATION_ACTIVITY,
     CLASSIFY_DOCUMENT_ACTIVITY,
+    EXTRACT_DOCUMENT_TEXT_ACTIVITY,
     EXTRACT_OCR_TEXT_ACTIVITY,
     PROPOSE_INVOICE_FIELDS_ACTIVITY,
     RECORD_INVOICE_PROPOSAL_FAILURE_ACTIVITY,
@@ -94,6 +95,38 @@ async def test_records_non_retryable_ocr_failure_once_and_stops_workflow(
         ProcessingFailureCode.NON_RETRYABLE_ACTIVITY_FAILURE.value,
     ]
     assert calls[-1][0] == RECORD_PROCESSING_RUN_FAILURE_ACTIVITY
+
+
+@pytest.mark.anyio
+async def test_uses_capped_retry_policy_for_pdf_parser_activities(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    def patched(patch_id: str) -> bool:
+        return False
+
+    async def execute_activity(*args: object, **kwargs: object) -> object:
+        name = str(args[0])
+        calls.append((name, kwargs))
+        return "OTHER" if name == CLASSIFY_DOCUMENT_ACTIVITY else None
+
+    monkeypatch.setattr(workflow_module.workflow, "patched", patched)
+    monkeypatch.setattr(workflow_module.workflow, "execute_activity", execute_activity)
+
+    await ProcessBusinessDocumentWorkflow().run("run-1")
+
+    policies = {
+        name: kwargs["retry_policy"]
+        for name, kwargs in calls
+        if name in {EXTRACT_DOCUMENT_TEXT_ACTIVITY, EXTRACT_OCR_TEXT_ACTIVITY}
+    }
+    assert set(policies) == {EXTRACT_DOCUMENT_TEXT_ACTIVITY, EXTRACT_OCR_TEXT_ACTIVITY}
+    for policy in policies.values():
+        assert isinstance(policy, RetryPolicy)
+        assert policy.maximum_attempts == 2
+        assert policy.initial_interval == timedelta(seconds=2)
+        assert policy.maximum_interval == timedelta(seconds=10)
 
 
 def proposal_error(
