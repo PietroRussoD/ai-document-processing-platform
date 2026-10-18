@@ -170,14 +170,18 @@ acceptance criteria. The implementation must:
 - records a safe, bounded failure outcome while keeping the existing document
   and processing history consistent.
 
-Single-run, network-disabled container baselines now cover representative
-fixtures and combined synthetic 50-page/20-million-pixel OCR input; the latter
-completed in 35.2 seconds with a 253.9 MiB memory peak under a 512 MiB limit.
-These measurements are recorded in the [integration proposal](pdf-parser-integration-proposal.md).
-They are not resource-limit recommendations: timing excludes container and
-Python startup, scratch use and concurrency were not measured, and the selected
-Kubernetes runtime still needs measurement. Do not infer a safe memory budget
-only from compressed PDF size or page count.
+Single-run container baselines cover representative fixtures and combined
+synthetic 50-page/20-million-pixel OCR input. A follow-up one-node Kind run
+measured two sequential and two concurrent restricted Jobs: OCR took about
+36–39 seconds per Job, memory peaked around 253 MiB, Python imports completed
+about one second after container start, and a sampler polling every 10 ms
+observed no `/tmp` writes. The image was preloaded, and Kind's default CNI did
+not enforce NetworkPolicy. Full results and limits are recorded in the [integration
+proposal](pdf-parser-integration-proposal.md). This is an initial local
+baseline, not a capacity guarantee or resource-limit recommendation. Repeat on
+the selected deployment runtime, including cold pulls and higher concurrency,
+before setting numeric limits. Do not infer a safe memory budget only from
+compressed PDF size or page count.
 
 ## Scope and stop condition
 
