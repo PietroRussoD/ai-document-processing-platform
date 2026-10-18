@@ -3,10 +3,10 @@
 Status: proposed architecture; no application integration is implemented.
 
 This proposal refines the deferred parser-isolation work described in the
-[isolation design](pdf-parser-isolation-design.md). The project is still on
-`1.2.0.dev0`, and the v1.2.0 release remains in development. Do not implement
-this proposal as part of v1.2.0 or change the project version while reviewing
-it.
+[isolation design](pdf-parser-isolation-design.md). The v1.2.0 release is
+scoped to the local single-operator demo. Do not implement this proposal as
+part of v1.2.0; reconsider it for a separate future release only if the
+project takes on a concrete runtime need that justifies operating it.
 
 ## Goal and scope
 

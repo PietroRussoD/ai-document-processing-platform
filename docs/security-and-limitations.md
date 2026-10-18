@@ -103,7 +103,7 @@ automatically.
 On 2026-10-18, Trivy 0.74.0 scanned the locally built ARM64 v1.2 candidate
 images using a vulnerability database downloaded at 12:30 UTC. The API image
 `document-platform-api:dev` has local image ID
-`sha256:063b54f1be8ecec1b2771a018497585d26401dffffca1719163673b8c0bd897a`.
+`sha256:37b196acaff9e7b32ffcd788947cd04a0bb4d3e10e1fe6abe36fde0328eabea4`.
 Trivy reported 76 Debian 13.7 OS-package findings: 75 HIGH and one CRITICAL,
 across 33 distinct CVEs. No HIGH/CRITICAL Python-package findings were
 reported. The scan does not establish exploitability or clear the image for
@@ -111,7 +111,7 @@ untrusted input.
 
 The console image after a clean rebuild,
 `document-platform-console:dev` with local image ID
-`sha256:c710ce45a19543030a3810e82910e4dba2ca0e82d620cd6cb5edd930a469c29d`,
+`sha256:388751872d29c73005ca82e1f6a21fef7678c4fe54216731551256b354942fe8`,
 had no HIGH/CRITICAL findings. The first Compose build reused a cached Alpine
 upgrade layer and reported HIGH `CVE-2026-77214` in `libexpat 2.8.5-r0`, for
 which Trivy listed `2.9.0-r0` as fixed. Rebuilding without cache executed the
@@ -119,11 +119,10 @@ existing `apk --no-cache upgrade` step and installed `2.9.0-r0`; the subsequent
 scan reported no HIGH/CRITICAL findings. This confirms why a cached local
 image scan alone can miss package updates available at build time.
 
-The API findings are accepted only if the v1.2 release retains the local,
-synthetic-data scope and does not distribute the API image. The v1.1 decision
-was release-specific; a separate v1.2 scope decision is still required. These
-results are not a claim that the image is safe for public hosting, confidential
-documents or untrusted PDFs.
+The API findings are accepted for v1.2 only within the local, synthetic-data
+scope recorded in the [v1.2 release scope decision](runbooks/v1.2-release-scope-decision.md).
+The image is not approved for public hosting, confidential documents, untrusted
+PDFs or distribution.
 
 ## v1.0 Release Risk Decision
 
