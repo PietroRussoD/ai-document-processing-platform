@@ -8,7 +8,7 @@ beforeEach(() => {
     window.history.replaceState({}, "", "/");
 });
 
-test("renders the document intake shell", () => {
+test("renders the document shell and gates intake behind operator access", () => {
     render(
         <AppProviders>
             <App />
@@ -16,12 +16,15 @@ test("renders the document intake shell", () => {
     );
 
     expect(
-        screen.getByRole("heading", { name: "Upload a document" }),
+        screen.getByRole("heading", { level: 1, name: "Documents" }),
     ).toBeVisible();
-    expect(screen.getByLabelText("Choose a PDF")).toHaveAttribute(
-        "accept",
-        "application/pdf,.pdf",
-    );
+    expect(
+        screen.getByRole("region", { name: "Operator access" }),
+    ).toBeVisible();
+    expect(screen.getByLabelText("Operator token")).toBeVisible();
+    expect(
+        screen.queryByRole("heading", { name: "Upload a document" }),
+    ).not.toBeInTheDocument();
     expect(
         screen.getByRole("link", { name: "Skip to main content" }),
     ).toHaveAttribute("href", "#main-content");
