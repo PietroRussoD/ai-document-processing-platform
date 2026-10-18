@@ -9,6 +9,8 @@ from document_platform.application.commands import ExtractDocumentText, ExtractD
 from document_platform.application.ports import (
     EncryptedPdf,
     InvalidPdf,
+    ParserExecutionFailed,
+    ParserOutputExceeded,
     ParserRuntimeRejected,
     ParserRuntimeUnavailable,
     PdfPageLimitExceeded,
@@ -16,7 +18,14 @@ from document_platform.application.ports import (
 )
 from document_platform.application.temporal_contracts import EXTRACT_DOCUMENT_TEXT_ACTIVITY
 
-_NON_RETRYABLE_PDF_FAILURES = (EncryptedPdf, InvalidPdf, PdfPageLimitExceeded, PdfTextLimitExceeded)
+_NON_RETRYABLE_PDF_FAILURES = (
+    EncryptedPdf,
+    InvalidPdf,
+    ParserExecutionFailed,
+    ParserOutputExceeded,
+    PdfPageLimitExceeded,
+    PdfTextLimitExceeded,
+)
 
 
 class ExtractDocumentTextActivity:

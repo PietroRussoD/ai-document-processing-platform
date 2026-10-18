@@ -1,0 +1,335 @@
+"""Restricted Kubernetes Job controller tests."""
+
+from contextlib import nullcontext
+from pathlib import Path
+from typing import Any, cast
+from unittest.mock import Mock
+
+import pytest
+from kubernetes import client
+from kubernetes.client.exceptions import ApiException
+
+import document_platform.adapters.outbound.kubernetes.parser_job_controller as controller_module
+from document_platform.adapters.outbound.kubernetes import (
+    KubernetesParserJobController,
+    KubernetesParserJobSettings,
+    KubernetesParserRuntimeConnection,
+    KubernetesParserRuntimeSettings,
+    ParserOperation,
+)
+from document_platform.application.ports import (
+    ParserExecutionFailed,
+    ParserOutputExceeded,
+    ParserRuntimeRejected,
+)
+
+
+class FakeExecSocket:
+    def __init__(self, stdout: bytes = b"", returncode: int = 0) -> None:
+        self.returncode = returncode
+        self.subprotocol = "v5.channel.k8s.io"
+        self.stdout = stdout
+        self.input = bytearray()
+        self.closed_channels: list[int] = []
+        self.closed = False
+
+    def is_open(self) -> bool:
+        return not self.closed
+
+    def update(self, timeout: int) -> None:
+        self.closed = True
+
+    def read_stdout(self) -> bytes:
+        output, self.stdout = self.stdout, b""
+        return output
+
+    def read_stderr(self) -> bytes:
+        return b""
+
+    def write_stdin(self, data: bytes) -> None:
+        self.input.extend(data)
+
+    def close_channel(self, channel: int) -> None:
+        self.closed_channels.append(channel)
+
+    def close(self) -> None:
+        self.closed = True
+
+
+@pytest.fixture
+def controller(tmp_path: Path) -> KubernetesParserJobController:
+    token_file = tmp_path / "token"
+    token_file.write_text("synthetic-controller-token")
+    ca_file = tmp_path / "ca.pem"
+    ca_file.write_text("synthetic CA fixture")
+    connection = KubernetesParserRuntimeConnection(
+        KubernetesParserRuntimeSettings("https://127.0.0.1:6443", "pdf-parser", ca_file, token_file)
+    )
+    return KubernetesParserJobController(
+        connection=connection,
+        settings=KubernetesParserJobSettings(
+            image="document-platform-parser:dev",
+            max_input_bytes=20 * 1024 * 1024,
+            max_output_bytes=1_000_100,
+            cpu_request="250m",
+            cpu_limit="1",
+            memory_request="512Mi",
+            memory_limit="768Mi",
+            ephemeral_storage_request="64Mi",
+            ephemeral_storage_limit="128Mi",
+            scratch_limit="64Mi",
+            active_deadline_seconds=180,
+            ttl_seconds_after_finished=60,
+            max_concurrent_jobs=2,
+            startup_timeout_seconds=30,
+            execution_timeout_seconds=120,
+            cleanup_timeout_seconds=30,
+        ),
+    )
+
+
+def test_job_manifest_enforces_restricted_security_and_bounded_resources(
+    controller: KubernetesParserJobController,
+) -> None:
+    manifest = cast(
+        dict[str, Any], cast(Any, controller)._job_manifest("pdf-parser-embedded-1234567890abcdef")
+    )
+    spec = cast(dict[str, Any], manifest["spec"])
+    template = cast(dict[str, Any], spec["template"])
+    pod_spec = cast(dict[str, Any], template["spec"])
+    container = pod_spec["containers"][0]
+    assert container["securityContext"] == {
+        "allowPrivilegeEscalation": False,
+        "readOnlyRootFilesystem": True,
+        "capabilities": {"drop": ["ALL"]},
+    }
+    assert pod_spec["securityContext"]["runAsUser"] == 10001
+    assert pod_spec["securityContext"]["seccompProfile"] == {"type": "RuntimeDefault"}
+    assert pod_spec["automountServiceAccountToken"] is False
+    assert pod_spec["restartPolicy"] == "Never"
+    assert pod_spec["volumes"] == [{"name": "scratch", "emptyDir": {"sizeLimit": "64Mi"}}]
+    assert container["resources"]["limits"] == {
+        "cpu": "1",
+        "memory": "768Mi",
+        "ephemeral-storage": "128Mi",
+    }
+    assert "hostPath" not in str(manifest)
+    assert "serviceAccountName" not in pod_spec
+
+
+def test_rejects_invalid_job_limits() -> None:
+    with pytest.raises(ValueError, match="max_output_bytes must be positive"):
+        KubernetesParserJobSettings(
+            image="parser:dev",
+            max_input_bytes=10,
+            max_output_bytes=0,
+            cpu_request="1",
+            cpu_limit="1",
+            memory_request="1Gi",
+            memory_limit="1Gi",
+            ephemeral_storage_request="1Mi",
+            ephemeral_storage_limit="1Mi",
+            scratch_limit="1Mi",
+            active_deadline_seconds=10,
+            ttl_seconds_after_finished=1,
+            max_concurrent_jobs=1,
+            startup_timeout_seconds=1,
+            execution_timeout_seconds=1,
+            cleanup_timeout_seconds=1,
+        )
+
+
+def test_rejects_an_input_over_the_configured_limit(
+    controller: KubernetesParserJobController, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    create = Mock()
+    monkeypatch.setattr(controller, "_create_job", create)
+    with pytest.raises(ParserExecutionFailed, match="input exceeds"):
+        controller.execute(ParserOperation.EMBEDDED_TEXT, b"x" * (20 * 1024 * 1024 + 1))
+    create.assert_not_called()
+
+
+def test_exec_streams_binary_input_in_chunks_and_returns_bounded_output(
+    controller: KubernetesParserJobController, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    socket = FakeExecSocket(stdout=b'{"protocol_version":1}')
+    captured: dict[str, Any] = {}
+
+    def stream_call(*args: object, **kwargs: object) -> FakeExecSocket:
+        captured["args"] = args
+        captured["kwargs"] = kwargs
+        return socket
+
+    connection = cast(Any, controller)._connection
+    monkeypatch.setattr(connection, "new_api_client", lambda: nullcontext(object()))
+
+    class FakeCoreApi:
+        def connect_get_namespaced_pod_exec(self, *args: object, **kwargs: object) -> None:
+            return None
+
+    def core_api(api: Any) -> FakeCoreApi:
+        return FakeCoreApi()
+
+    monkeypatch.setattr(controller_module.client, "CoreV1Api", core_api)
+    monkeypatch.setattr(controller_module.streaming, "stream", stream_call)
+
+    payload = b"pdf-content" * 20_000
+    output, exit_code = cast(Any, controller)._exec(
+        "synthetic-pod",
+        ["python", "-m", "document_platform.parser_worker", "--operation", "ocr"],
+        stdin=payload,
+        output_limit=100,
+    )
+
+    assert bytes(socket.input) == payload
+    assert socket.closed_channels == [0]
+    assert socket.closed
+    assert output == b'{"protocol_version":1}'
+    assert exit_code == 0
+    assert captured["kwargs"]["binary"] is True
+    assert captured["kwargs"]["stdin"] is True
+    assert captured["kwargs"]["tty"] is False
+    assert captured["kwargs"]["command"][-1] == "ocr"
+
+
+def test_refuses_binary_transfer_without_stdin_half_close_support(
+    controller: KubernetesParserJobController, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    socket = FakeExecSocket()
+    socket.subprotocol = "v4.channel.k8s.io"
+    connection = cast(Any, controller)._connection
+    monkeypatch.setattr(connection, "new_api_client", lambda: nullcontext(object()))
+
+    class FakeCoreApi:
+        def connect_get_namespaced_pod_exec(self, *args: object, **kwargs: object) -> None:
+            return None
+
+    def core_api(api: Any) -> FakeCoreApi:
+        return FakeCoreApi()
+
+    def stream_call(*args: object, **kwargs: object) -> FakeExecSocket:
+        return socket
+
+    monkeypatch.setattr(controller_module.client, "CoreV1Api", core_api)
+    monkeypatch.setattr(controller_module.streaming, "stream", stream_call)
+
+    with pytest.raises(ParserRuntimeRejected, match="closing the stdin channel"):
+        cast(Any, controller)._exec("pod", ["python"], stdin=b"pdf", output_limit=100)
+    assert not socket.input
+    assert socket.closed
+
+
+def test_exec_stops_when_stdout_exceeds_its_byte_limit(
+    controller: KubernetesParserJobController, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    socket = FakeExecSocket(stdout=b"x" * 11)
+    connection = cast(Any, controller)._connection
+    monkeypatch.setattr(connection, "new_api_client", lambda: nullcontext(object()))
+
+    class FakeCoreApi:
+        def connect_get_namespaced_pod_exec(self, *args: object, **kwargs: object) -> None:
+            return None
+
+    def core_api(api: Any) -> FakeCoreApi:
+        return FakeCoreApi()
+
+    def stream_call(*args: object, **kwargs: object) -> FakeExecSocket:
+        return socket
+
+    monkeypatch.setattr(controller_module.client, "CoreV1Api", core_api)
+    monkeypatch.setattr(controller_module.streaming, "stream", stream_call)
+
+    with pytest.raises(ParserOutputExceeded, match="result exceeded"):
+        cast(Any, controller)._exec("pod", ["python"], stdin=b"pdf", output_limit=10)
+    assert socket.closed
+
+
+def test_successful_operation_signals_completion_and_cleans_owned_job(
+    controller: KubernetesParserJobController, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    created = client.V1Job(metadata=client.V1ObjectMeta(uid="owned-uid"))
+    create = Mock(return_value=created)
+    wait_for_pod = Mock(return_value="owned-pod")
+    exec_command = Mock(side_effect=[(b'{"valid":true}', 0), (b"", 0)])
+    wait_terminal = Mock()
+    cleanup = Mock()
+    monkeypatch.setattr(controller, "_create_job", create)
+    monkeypatch.setattr(controller, "_wait_for_pod", wait_for_pod)
+    monkeypatch.setattr(controller, "_exec", exec_command)
+    monkeypatch.setattr(controller, "_wait_for_terminal", wait_terminal)
+    monkeypatch.setattr(controller, "_cleanup", cleanup)
+
+    result = controller.execute(ParserOperation.EMBEDDED_TEXT, b"synthetic-pdf")
+
+    assert result == b'{"valid":true}'
+    assert exec_command.call_args_list[0].args[1] == [
+        "python",
+        "-m",
+        "document_platform.parser_worker",
+        "--operation",
+        "embedded-text",
+        "--max-input-bytes",
+        str(20 * 1024 * 1024),
+        "--max-output-bytes",
+        "1000100",
+    ]
+    assert "complete" in exec_command.call_args_list[1].args[1]
+    assert wait_terminal.call_args.args[0].uid == "owned-uid"
+    assert wait_terminal.call_args.args[1] == "Complete"
+    assert cleanup.call_args.args[0].uid == "owned-uid"
+
+
+def test_nonzero_parser_exit_marks_job_failed_then_cleans(
+    controller: KubernetesParserJobController, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        controller,
+        "_create_job",
+        Mock(return_value=client.V1Job(metadata=client.V1ObjectMeta(uid="owned-uid"))),
+    )
+    monkeypatch.setattr(controller, "_wait_for_pod", Mock(return_value="owned-pod"))
+    execute = Mock(side_effect=[(b"", 7), (b"", 0)])
+    terminal = Mock()
+    cleanup = Mock()
+    monkeypatch.setattr(controller, "_exec", execute)
+    monkeypatch.setattr(controller, "_wait_for_terminal", terminal)
+    monkeypatch.setattr(controller, "_cleanup", cleanup)
+
+    with pytest.raises(ParserExecutionFailed, match="returned a failure status"):
+        controller.execute(ParserOperation.OCR, b"synthetic-pdf")
+
+    assert "complete" in execute.call_args_list[1].args[1]
+    assert execute.call_args_list[1].kwargs["stdin"] is None
+    assert terminal.call_args.args[1] == "Failed"
+    assert cleanup.call_args.args[0].uid == "owned-uid"
+
+
+def test_cleanup_uses_foreground_uid_precondition_and_confirms_absence(
+    controller: KubernetesParserJobController, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    batch = Mock()
+    core = Mock()
+    batch.read_namespaced_job.side_effect = ApiException(status=404)
+    core.list_namespaced_pod.return_value = client.V1PodList(items=[])
+    connection = cast(Any, controller)._connection
+    monkeypatch.setattr(connection, "new_api_client", lambda: nullcontext(object()))
+
+    def batch_api(api: Any) -> Mock:
+        return batch
+
+    def core_api(api: Any) -> Mock:
+        return core
+
+    def no_sleep(seconds: float) -> None:
+        return None
+
+    monkeypatch.setattr(controller_module.client, "BatchV1Api", batch_api)
+    monkeypatch.setattr(controller_module.client, "CoreV1Api", core_api)
+    monkeypatch.setattr(controller_module.time, "sleep", no_sleep)
+
+    cast(Any, controller)._cleanup(controller_module.OwnedParserJob("synthetic", "owned-uid"))
+
+    delete_options = batch.delete_namespaced_job.call_args.kwargs["body"]
+    assert delete_options.propagation_policy == "Foreground"
+    assert delete_options.preconditions.uid == "owned-uid"
+    assert core.list_namespaced_pod.call_count == 1

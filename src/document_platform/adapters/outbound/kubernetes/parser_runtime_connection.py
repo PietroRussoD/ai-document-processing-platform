@@ -56,6 +56,10 @@ class KubernetesParserRuntimeConnection:
     def __init__(self, settings: KubernetesParserRuntimeSettings) -> None:
         self._settings = settings
 
+    @property
+    def namespace(self) -> str:
+        return self._settings.namespace
+
     def new_api_client(self) -> client.ApiClient:
         configuration = self._new_configuration()
         return client.ApiClient(configuration=configuration)

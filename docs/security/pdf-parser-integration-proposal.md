@@ -130,12 +130,27 @@ container's normal stdout or stderr, so the result is not written to container
 logs. The worker validates the result and persists it through the existing
 application handler.
 
-The parser Job receives no application volume, database or Temporal
-credentials, Kubernetes API token, operator token or external network route.
-It gets only its private bounded scratch volume. Use a fixed argument vector;
-never interpolate a filename, PDF value or other user input into a shell
-command. Do not use the Docker socket, host paths, ConfigMaps or Secrets as PDF
-transport, and do not use logs as the result channel.
+The application now has a controller slice that creates one restricted Job,
+waits for its owned Pod, streams the PDF to a fixed parser command and collects
+bounded binary stdout. It signals the PID 1 supervisor with a fixed completion
+command, observes the terminal Job condition and deletes the Job with a UID
+precondition in a `finally` path. The Job manifest has no application volume,
+database or Temporal credentials, Kubernetes API token, operator token or
+service port; it mounts only private bounded scratch storage. It uses the
+Pod Security `restricted` fields, `backoffLimit: 0`, a deadline and TTL.
+
+The parser command accepts only the two fixed operations, reads one bounded PDF
+from stdin and emits one versioned JSON result with the input digest, page
+count, text and character counts. It returns a generic non-zero status on
+invalid input or a result over its encoded-byte limit. The trusted worker still
+needs to validate the result before persistence. Commands use fixed argument
+vectors; never interpolate filenames, PDF values or other user input into a
+shell command. Do not use the Docker socket, host paths, ConfigMaps or Secrets
+as PDF transport, and do not use logs as the result channel.
+
+These components have focused offline tests but have not run together in a
+Kubernetes Job. The worker is not wired to the controller, so all three current
+PDF paths still use local extractors until that integration is complete.
 
 The Job container runs a small supervisor as PID 1. After it has validated
 and persisted the result, the controller invokes a fixed job-control command
@@ -205,10 +220,12 @@ errors become `ParserRuntimeUnavailable`; TLS, configuration, authentication
 and authorization rejections become `ParserRuntimeRejected`. The Temporal
 activities preserve that distinction for retry handling.
 
-This adapter is not yet configured or used by the worker. It does not create
-Jobs, transfer PDFs, validate parser output, or enforce the final Job template.
-The worker still uses local PDF extractors until all three parser entry points
-are moved behind the isolated runtime.
+The connection and Job controller adapters are not yet configured or used by
+the worker. Unit tests cover the restricted Job manifest, bounded binary
+transport, non-zero parser exits, UID-guarded cleanup and parser command
+protocol; no live Job has used these application classes. The worker still
+uses local PDF extractors until all three parser entry points are moved behind
+the isolated runtime.
 
 The prototype passed host-side live checks with a namespace-scoped controller
 identity, and rejected an untrusted CA, invalid token, insufficient permissions
@@ -229,8 +246,10 @@ isolation; keep those gates open.
 
 ## Result contract
 
-The parser returns one versioned JSON object for the requested operation. The
-worker rejects results with an unsupported protocol version, malformed JSON,
+The parser CLI returns one versioned JSON object with `protocol_version`,
+`operation`, `input_sha256`, `page_count`, `text`, `character_count` and
+`non_whitespace_character_count`. The worker must reject results with an
+unsupported protocol version, malformed JSON,
 unexpected fields, a page count outside the configured limit, text above the
 existing character limit, inconsistent character counts, invalid UTF-8 or an
 input digest that does not match the submitted PDF. Cap the encoded response
@@ -345,7 +364,7 @@ limit correction are recorded below.
 | Worker-image credential mount | Pass for the standalone container prototype, 2026-10-18 | A disposable derivative of `document-platform-api:dev` ran as `10001:10001` on the Compose network, with a read-only credential volume (directory 0700, CA/token 0600), no administrator kubeconfig and TLS hostname verification enabled. Writes failed with `EROFS`; UID 10002 could not read the token. The same SDK client refused an invalid replacement token (401), accepted a newly issued token, refused a removed file and resumed after restoration. This verifies Docker-volume ownership and client token reload, not the Temporal worker's integration or an automated renewal mechanism. |
 | Controller cleanup and interruption | Pass for the standalone lifecycle prototype, 2026-10-18 | With the scoped Role, synthetic success and parser exit 7 both reached the expected Job terminal state before foreground deletion removed Job and Pod. Deletion used the captured Job UID as a precondition and a fresh REST client after exec. SIGINT during a running synthetic parser removed Job and Pod in 3.69 s; repeated cleanup succeeded. After controller SIGKILL, Kubernetes reported `DeadlineExceeded` and TTL removed both resources, observed 66.54 s after the signal. No Job or Pod remained. See the [lifecycle companion](../../spikes/parser-runtime-connection/LIFECYCLE.md) for commands, offline failure checks and limits. This does not verify Temporal cancellation or real parser execution. |
 | Credential provisioning and renewal | Pass for the standalone host prototype, 2026-10-18 | An external provisioner requested short-lived tokens bound to an empty Secret's pinned UID and atomically renewed its private token file. The same SDK client accepted the replacement; the controller could not mint its own tokens. Stopping the provisioner removed the file but did not revoke retained tokens. Deleting the binding made both issued tokens receive HTTP 401, observed after 9.99 s. Recreating its name did not restore the old UID; explicit reprovisioning did restore access. Expiry removal is covered with a controlled clock, not a live wait for server JWT expiry. See the [credential lifecycle companion](../../spikes/parser-runtime-connection/CREDENTIALS.md). Automated delivery into the Docker volume and actual worker integration remain unimplemented. |
-| Worker Kubernetes configuration | Not implemented | `worker.py` still constructs local PyMuPDF and Tesseract extractors. `Settings`, `compose.yaml` and `pyproject.toml` define no Kubernetes endpoint, CA, controller token or Kubernetes client dependency. This is expected before the proposed integration; the network smoke test did not run the worker process. |
+| Worker Kubernetes configuration | Partial | `pyproject.toml` and `uv.lock` include the tested Kubernetes SDK, and outbound connection/Job controller code exists with offline tests. `worker.py`, `Settings` and `compose.yaml` do not configure or construct the controller; no application class has run against a live Job. All three PDF paths still use local extractors. |
 
 The transport is promising enough to continue without designing an artifact
 broker yet. The selected local network and worker-to-control-plane gates now

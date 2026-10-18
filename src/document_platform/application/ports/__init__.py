@@ -108,6 +108,8 @@ from document_platform.application.ports.pdf_ocr_extractor import (
     PdfOcrExtractor,
 )
 from document_platform.application.ports.pdf_parser_runtime import (
+    ParserExecutionFailed,
+    ParserOutputExceeded,
     ParserRuntimeRejected,
     ParserRuntimeUnavailable,
 )
@@ -214,6 +216,8 @@ __all__ = [
     "PdfOcrExtractor",
     "ParserRuntimeUnavailable",
     "ParserRuntimeRejected",
+    "ParserExecutionFailed",
+    "ParserOutputExceeded",
     "PdfInspector",
     "PdfPageLimitExceeded",
     "PdfTextExtractor",

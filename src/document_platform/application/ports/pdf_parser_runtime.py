@@ -7,3 +7,11 @@ class ParserRuntimeUnavailable(RuntimeError):
 
 class ParserRuntimeRejected(RuntimeError):
     """Raised when parser runtime configuration or controller access is refused."""
+
+
+class ParserExecutionFailed(RuntimeError):
+    """Raised when the isolated parser returns a bounded non-zero exit status."""
+
+
+class ParserOutputExceeded(RuntimeError):
+    """Raised when the isolated parser exceeds its configured output bound."""

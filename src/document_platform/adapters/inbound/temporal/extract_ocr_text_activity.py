@@ -10,6 +10,8 @@ from document_platform.application.ports import (
     OcrEngineUnavailable,
     OcrExtractionFailed,
     OcrTextLimitExceeded,
+    ParserExecutionFailed,
+    ParserOutputExceeded,
     ParserRuntimeRejected,
     ParserRuntimeUnavailable,
 )
@@ -18,6 +20,8 @@ from document_platform.application.temporal_contracts import EXTRACT_OCR_TEXT_AC
 _NON_RETRYABLE_OCR_FAILURES = (
     OcrEngineUnavailable,
     OcrExtractionFailed,
+    ParserExecutionFailed,
+    ParserOutputExceeded,
     OcrTextLimitExceeded,
 )
 
