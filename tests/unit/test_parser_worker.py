@@ -48,3 +48,22 @@ async def test_rejects_encoded_result_over_the_output_limit() -> None:
     result = await process_pdf("embedded-text", synthetic_pdf(), max_output_bytes=1)
 
     assert result is None
+
+
+@pytest.mark.anyio
+async def test_applies_the_supplied_page_and_character_limits() -> None:
+    document = cast(Any, pymupdf.open())
+    document.new_page()
+    document.new_page()
+    pdf = document.tobytes()
+    document.close()
+
+    result = await process_pdf(
+        "embedded-text",
+        pdf,
+        max_output_bytes=10_000,
+        max_pages=1,
+        max_characters=100,
+    )
+
+    assert result is None

@@ -216,6 +216,11 @@ services:
     environment:
       DOCUMENT_PLATFORM_DATABASE_URL: postgresql+asyncpg://document_platform:local-development-only@postgres:5432/document_platform
       DOCUMENT_PLATFORM_TEMPORAL_TARGET_HOST: temporal:7233
+      DOCUMENT_PLATFORM_PARSER_KUBERNETES_ENDPOINT: ${DOCUMENT_PLATFORM_PARSER_KUBERNETES_ENDPOINT:?Bootstrap the isolated parser runtime before starting processing}
+      DOCUMENT_PLATFORM_PARSER_KUBERNETES_NAMESPACE: ${DOCUMENT_PLATFORM_PARSER_KUBERNETES_NAMESPACE:?Set the dedicated parser namespace}
+      DOCUMENT_PLATFORM_PARSER_KUBERNETES_CA_FILE: /run/parser-runtime/ca.pem
+      DOCUMENT_PLATFORM_PARSER_KUBERNETES_TOKEN_FILE: /run/parser-runtime/token
+      DOCUMENT_PLATFORM_PARSER_JOB_IMAGE: ${DOCUMENT_PLATFORM_PARSER_JOB_IMAGE:?Build and load the parser image before starting processing}
       DOCUMENT_PLATFORM_TESSERACT_MAX_PAGE_PIXELS: ${DOCUMENT_PLATFORM_TESSERACT_MAX_PAGE_PIXELS:-20000000}
       DOCUMENT_PLATFORM_OLLAMA_ENABLED: ${DOCUMENT_PLATFORM_OLLAMA_ENABLED:-false}
       DOCUMENT_PLATFORM_OLLAMA_BASE_URL: ${OLLAMA_COMPOSE_BASE_URL:-http://host.docker.internal:11434}
@@ -227,6 +232,7 @@ services:
     restart: unless-stopped
     volumes:
       - document-platform-data:/app/data
+      - ${DOCUMENT_PLATFORM_PARSER_CREDENTIALS_DIR:?Provision the parser CA and scoped token before starting processing}:/run/parser-runtime:ro
 
 volumes:
   document-platform-data:

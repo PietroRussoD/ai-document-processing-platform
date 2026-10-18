@@ -9,11 +9,17 @@ from document_platform.adapters.outbound.kubernetes.parser_runtime_connection im
     KubernetesParserRuntimeConnection,
     KubernetesParserRuntimeSettings,
 )
+from document_platform.adapters.outbound.kubernetes.pdf_parser_extractors import (
+    KubernetesPdfOcrExtractor,
+    KubernetesPdfTextExtractor,
+)
 
 __all__ = [
     "KubernetesParserJobController",
     "KubernetesParserJobSettings",
     "KubernetesParserRuntimeConnection",
     "KubernetesParserRuntimeSettings",
+    "KubernetesPdfOcrExtractor",
+    "KubernetesPdfTextExtractor",
     "ParserOperation",
 ]

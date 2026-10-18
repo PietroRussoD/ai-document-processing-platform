@@ -1,13 +1,14 @@
 # PDF Parser Isolation Integration Proposal
 
-Status: local runtime topology selected and network-tested; no application
-integration is implemented.
+Status: local runtime topology tested; worker integration covers embedded-text
+and OCR. Upload inspection, Compose startup and Temporal lifecycle checks remain
+open.
 
 This proposal refines the parser-isolation work described in the
 [isolation design](pdf-parser-isolation-design.md). The local single-operator
 v1.2.0 release is closed. The separate [v1.3.0 scope](../releases/v1.3.0.md)
-proposes integrating the selected local runtime for the portfolio exercise;
-application integration gates remain open.
+tracks the selected local runtime for the portfolio exercise; acceptance gates
+remain open.
 
 ## Goal and scope
 
@@ -75,8 +76,9 @@ should report success until the validated result is persisted. On worker
 restart, preserve the activity names and order, recognize a result already
 persisted before a crash, and avoid submitting duplicate expensive OCR work.
 Persist only a small activity summary so PDF bytes and extracted text never
-enter Temporal history. These are integration requirements; the current
-worker has not been configured for this lifecycle.
+enter Temporal history. The worker has the runtime connection and two extraction
+adapters; cluster bootstrap, credential renewal and cancellation/restart
+handling still need integration and live verification.
 
 ## Proposed vertical slice
 
@@ -142,15 +144,21 @@ Pod Security `restricted` fields, `backoffLimit: 0`, a deadline and TTL.
 The parser command accepts only the two fixed operations, reads one bounded PDF
 from stdin and emits one versioned JSON result with the input digest, page
 count, text and character counts. It returns a generic non-zero status on
-invalid input or a result over its encoded-byte limit. The trusted worker still
-needs to validate the result before persistence. Commands use fixed argument
-vectors; never interpolate filenames, PDF values or other user input into a
-shell command. Do not use the Docker socket, host paths, ConfigMaps or Secrets
-as PDF transport, and do not use logs as the result channel.
+invalid input or a result over its encoded-byte limit. The trusted worker
+adapter validates the exact result schema, protocol version, operation, input
+digest, page count, text length and character counts before persistence.
+Commands use fixed argument vectors; never interpolate filenames, PDF values or
+other user input into a shell command. Do not use the Docker socket, host paths,
+ConfigMaps or Secrets as PDF transport, and do not use logs as the result
+channel.
 
-These components have focused offline tests but have not run together in a
-Kubernetes Job. The worker is not wired to the controller, so all three current
-PDF paths still use local extractors until that integration is complete.
+The Temporal worker now uses the isolated adapter for embedded-text extraction
+and OCR. It requires an explicit local API endpoint, namespace, CA file, scoped
+token file and parser image, verifies the API before opening the database, and
+fails startup when this configuration is missing or refused. Compose requires
+the same settings and mounts the private credentials directory read-only only
+in the worker. The upload-time PDF inspection path still runs locally; the
+milestone is incomplete until that inspection moves behind the same boundary.
 
 The Job container runs a small supervisor as PID 1. After it has validated
 and persisted the result, the controller invokes a fixed job-control command
@@ -220,18 +228,19 @@ errors become `ParserRuntimeUnavailable`; TLS, configuration, authentication
 and authorization rejections become `ParserRuntimeRejected`. The Temporal
 activities preserve that distinction for retry handling.
 
-The connection and Job controller adapters are not yet configured or used by
-the worker. Focused unit tests cover the restricted Job manifest, bounded
-binary transport, non-zero parser exits, UID-guarded cleanup and parser command
-protocol. On 2026-10-18, the application controller and parser CLI also ran
+Focused unit tests cover the restricted Job manifest, bounded binary transport,
+strict result validation, non-zero parser exits, UID-guarded cleanup and parser
+command protocol. On 2026-10-18, the application controller and parser CLI ran
 embedded-text and OCR Jobs in a fresh Kind v1.37.0/Calico 3.33.0 cluster. DNS
 and IPv4 TLS to `1.1.1.1:443` succeeded before the namespace policy; both were
 blocked after applying default-deny ingress and egress. The scoped controller
 token created and executed Jobs, while authorization checks denied Pod creation
 and Secret access. Both Jobs returned the expected synthetic result and the
 controller removed each Job and Pod. The probe ran from the host using the
-namespace token, not from the Compose worker or Temporal. All three production
-PDF paths still use local extractors until their integration is complete.
+namespace token, not from the Compose worker or Temporal. The embedded-text and
+OCR results were then wired into the Temporal worker. The current Job settings
+use 512 MiB memory request and 1 GiB limit; this smoke run is not a resource
+stress test or a final budget. Upload-time inspection remains local.
 
 The prototype passed host-side live checks with a namespace-scoped controller
 identity, and rejected an untrusted CA, invalid token, insufficient permissions
@@ -299,9 +308,9 @@ unavailability remains retryable and known PDF/OCR failures become
 non-retryable without exposing exception details. Workflow regressions check
 the bounded parser retry policy and that a terminal non-retryable OCR failure
 is recorded once with the OCR stage and bounded failure code, then stops
-processing. They verify policy configuration and terminal handling; a live
-Temporal retry count still needs verification when the parser adapter is
-integrated.
+processing. They verify policy configuration and terminal handling; live
+Temporal retry counts and cancellation with the configured adapter remain to
+be verified in Compose.
 
 Keep the existing upload-size, page-count, extracted-character, OCR-pixel and
 per-page timeout limits. Measure Job CPU, memory, scratch space, startup time
@@ -309,11 +318,11 @@ and total deadlines against the synthetic fixtures before choosing numeric
 Kubernetes limits. The existing aggregate Compose limits are not a substitute
 for per-Job limits.
 
-## Required integration spike before implementation
+## Live parser Job smoke check
 
-The disposable infrastructure spike for the selected local topology was run
-on 2026-10-18. Existing transport and lifecycle probes provide separate
-evidence for these Job behaviors:
+The disposable infrastructure spike and application controller smoke check for
+the selected local topology ran on 2026-10-18. Existing transport and lifecycle
+probes plus the current Job controller provide evidence for these behaviors:
 
 1. receive a synthetic PDF up to the configured upload limit over `pods/exec`
    stdin without buffering the entire transfer unexpectedly;
@@ -325,12 +334,13 @@ evidence for these Job behaviors:
    parser Pod has no token and cannot reach another Pod or the Internet.
 
 The worker-shaped route probe reached the Kind API over the project network
-with a scoped credential. The actual Temporal worker remains unintegrated.
-Do not use `hub` or a remote context. If binary streaming, output bounds,
-scoped credentials or cleanup fail when reproduced against the final Job
-template, stop and compare a narrowly scoped artifact broker design. Do not
-weaken network policy or mount the Docker socket to make the integration
-appear to work.
+with a scoped credential. The Temporal worker now constructs the controller
+from explicit settings, verifies access at startup and uses it for embedded
+text and OCR. It has not yet been started inside Compose against Kind; live
+Temporal retries, cancellation and restart recovery remain open. Do not use
+`hub` or a remote context. If the checks fail in Compose, stop and compare a
+narrowly scoped artifact broker design. Do not weaken network policy or mount
+the Docker socket to make the integration appear to work.
 
 ### Initial spike results — 2026-10-17
 
@@ -371,7 +381,7 @@ limit correction are recorded below.
 | Worker-image credential mount | Pass for the standalone container prototype, 2026-10-18 | A disposable derivative of `document-platform-api:dev` ran as `10001:10001` on the Compose network, with a read-only credential volume (directory 0700, CA/token 0600), no administrator kubeconfig and TLS hostname verification enabled. Writes failed with `EROFS`; UID 10002 could not read the token. The same SDK client refused an invalid replacement token (401), accepted a newly issued token, refused a removed file and resumed after restoration. This verifies Docker-volume ownership and client token reload, not the Temporal worker's integration or an automated renewal mechanism. |
 | Controller cleanup and interruption | Pass for the standalone lifecycle prototype, 2026-10-18 | With the scoped Role, synthetic success and parser exit 7 both reached the expected Job terminal state before foreground deletion removed Job and Pod. Deletion used the captured Job UID as a precondition and a fresh REST client after exec. SIGINT during a running synthetic parser removed Job and Pod in 3.69 s; repeated cleanup succeeded. After controller SIGKILL, Kubernetes reported `DeadlineExceeded` and TTL removed both resources, observed 66.54 s after the signal. No Job or Pod remained. See the [lifecycle companion](../../spikes/parser-runtime-connection/LIFECYCLE.md) for commands, offline failure checks and limits. This does not verify Temporal cancellation or real parser execution. |
 | Credential provisioning and renewal | Pass for the standalone host prototype, 2026-10-18 | An external provisioner requested short-lived tokens bound to an empty Secret's pinned UID and atomically renewed its private token file. The same SDK client accepted the replacement; the controller could not mint its own tokens. Stopping the provisioner removed the file but did not revoke retained tokens. Deleting the binding made both issued tokens receive HTTP 401, observed after 9.99 s. Recreating its name did not restore the old UID; explicit reprovisioning did restore access. Expiry removal is covered with a controlled clock, not a live wait for server JWT expiry. See the [credential lifecycle companion](../../spikes/parser-runtime-connection/CREDENTIALS.md). Automated delivery into the Docker volume and actual worker integration remain unimplemented. |
-| Worker Kubernetes configuration | Partial | `pyproject.toml` and `uv.lock` include the tested Kubernetes SDK, and outbound connection/Job controller code has offline tests plus the live synthetic Job check above. `worker.py`, `Settings` and `compose.yaml` do not configure or construct the controller. All three PDF paths still use local extractors. |
+| Worker Kubernetes configuration | Partial | `worker.py` builds and verifies the controller from explicit settings, and the embedded-text/OCR handlers use strict-result adapters. Compose requires the endpoint, namespace, image and a read-only credentials directory mounted only in the worker. Missing runtime settings fail closed. Compose/Temporal have not run against Kind, credentials are still provisioned outside Compose, and upload-time inspection remains local. |
 
 The transport is promising enough to continue without designing an artifact
 broker yet. The selected local network and worker-to-control-plane gates now
@@ -382,9 +392,11 @@ text, and concurrency and adversarial inputs were not measured. The
 extracted-text character-limit defect is corrected in the working source and
 verified at the exact 1,000,000-character boundary.
 The standalone connection, worker-image credential mount and synchronous
-controller cleanup contracts are validated. The actual Temporal worker remains
-unintegrated. A host-side credential provisioner now validates renewal and
-session revocation, with clock-controlled expiry checks. Current-source,
+controller cleanup contracts are validated. The Temporal worker now routes its
+embedded-text and OCR activities through the adapter, but a live Compose run,
+Temporal cancellation and restart recovery remain unverified. A host-side
+credential provisioner now validates renewal and session revocation, with
+clock-controlled expiry checks. Current-source,
 single-run resource baselines now include representative fixtures and combined
 page/pixel-limit synthetic OCR. A separate high-entropy image stress case
 reached the cgroup OOM limit at both 512 MiB and 768 MiB, despite staying under

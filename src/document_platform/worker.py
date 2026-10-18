@@ -21,15 +21,19 @@ from document_platform.adapters.inbound.temporal import (
     ValidateInvoiceActivity,
 )
 from document_platform.adapters.outbound.filesystem import LocalBlobStore
-from document_platform.adapters.outbound.ocr import TesseractPdfOcrExtractor
+from document_platform.adapters.outbound.kubernetes import (
+    KubernetesParserJobController,
+    KubernetesParserJobSettings,
+    KubernetesParserRuntimeConnection,
+    KubernetesParserRuntimeSettings,
+    KubernetesPdfOcrExtractor,
+    KubernetesPdfTextExtractor,
+)
 from document_platform.adapters.outbound.ollama import (
     OllamaInvoiceProposalAdapter,
     OllamaInvoiceProposalSettings,
 )
-from document_platform.adapters.outbound.pdf import (
-    LocalFaultInjectingPdfTextExtractor,
-    PyMuPdfTextExtractor,
-)
+from document_platform.adapters.outbound.pdf import LocalFaultInjectingPdfTextExtractor
 from document_platform.adapters.outbound.postgresql import SqlAlchemyUnitOfWork
 from document_platform.adapters.outbound.postgresql.database import create_database
 from document_platform.application.commands import (
@@ -62,6 +66,8 @@ from document_platform.workflows import ProcessBusinessDocumentWorkflow
 
 
 async def run_worker(settings: Settings) -> None:
+    parser_connection, parser_controller = _create_parser_runtime(settings)
+    await asyncio.to_thread(parser_connection.verify_connection)
     database = create_database(settings)
     try:
         client = await Client.connect(
@@ -78,7 +84,8 @@ async def run_worker(settings: Settings) -> None:
                 clock=lambda: datetime.now(UTC),
             )
         )
-        pdf_text_extractor: PdfTextExtractor = PyMuPdfTextExtractor(
+        pdf_text_extractor: PdfTextExtractor = KubernetesPdfTextExtractor(
+            controller=parser_controller,
             max_pages=settings.max_document_pages,
             max_characters=settings.max_extracted_text_characters,
         )
@@ -106,14 +113,10 @@ async def run_worker(settings: Settings) -> None:
                     root=settings.storage_root,
                     max_bytes=settings.max_document_bytes,
                 ),
-                pdf_ocr_extractor=TesseractPdfOcrExtractor(
-                    command=settings.tesseract_command,
-                    language=settings.tesseract_language,
+                pdf_ocr_extractor=KubernetesPdfOcrExtractor(
+                    controller=parser_controller,
                     max_pages=settings.max_document_pages,
                     max_characters=settings.max_extracted_text_characters,
-                    raster_dpi=settings.tesseract_raster_dpi,
-                    max_page_pixels=settings.tesseract_max_page_pixels,
-                    page_timeout_seconds=settings.tesseract_page_timeout_seconds,
                 ),
                 clock=lambda: datetime.now(UTC),
             )
@@ -210,6 +213,70 @@ async def run_worker(settings: Settings) -> None:
         await worker.run()
     finally:
         await database.dispose()
+
+
+def _create_parser_runtime(
+    settings: Settings,
+) -> tuple[KubernetesParserRuntimeConnection, KubernetesParserJobController]:
+    endpoint = settings.parser_kubernetes_endpoint
+    namespace = settings.parser_kubernetes_namespace
+    ca_file = settings.parser_kubernetes_ca_file
+    token_file = settings.parser_kubernetes_token_file
+    image = settings.parser_job_image
+    required = {
+        "parser_kubernetes_endpoint": endpoint,
+        "parser_kubernetes_namespace": namespace,
+        "parser_kubernetes_ca_file": ca_file,
+        "parser_kubernetes_token_file": token_file,
+        "parser_job_image": image,
+    }
+    missing = [name for name, value in required.items() if value is None]
+    if missing:
+        raise ValueError(
+            "isolated parser runtime configuration is required; missing " + ", ".join(missing)
+        )
+    assert endpoint is not None
+    assert namespace is not None
+    assert ca_file is not None
+    assert token_file is not None
+    assert image is not None
+
+    connection = KubernetesParserRuntimeConnection(
+        KubernetesParserRuntimeSettings(
+            endpoint=endpoint,
+            namespace=namespace,
+            ca_file=ca_file,
+            token_file=token_file,
+        )
+    )
+    controller = KubernetesParserJobController(
+        connection=connection,
+        settings=KubernetesParserJobSettings(
+            image=image,
+            max_input_bytes=settings.max_document_bytes,
+            max_output_bytes=settings.max_extracted_text_characters * 6 + 2_048,
+            cpu_request="250m",
+            cpu_limit="1",
+            memory_request="512Mi",
+            memory_limit="1Gi",
+            ephemeral_storage_request="64Mi",
+            ephemeral_storage_limit="128Mi",
+            scratch_limit="64Mi",
+            active_deadline_seconds=120,
+            ttl_seconds_after_finished=60,
+            max_concurrent_jobs=2,
+            startup_timeout_seconds=20,
+            execution_timeout_seconds=90,
+            cleanup_timeout_seconds=10,
+            max_pages=settings.max_document_pages,
+            max_characters=settings.max_extracted_text_characters,
+            tesseract_language=settings.tesseract_language,
+            tesseract_raster_dpi=settings.tesseract_raster_dpi,
+            tesseract_max_page_pixels=settings.tesseract_max_page_pixels,
+            tesseract_page_timeout_seconds=settings.tesseract_page_timeout_seconds,
+        ),
+    )
+    return connection, controller
 
 
 def main() -> None:

@@ -4,6 +4,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
+from math import isfinite
 from threading import BoundedSemaphore
 from typing import Protocol, cast
 from uuid import uuid4
@@ -68,6 +69,12 @@ class KubernetesParserJobSettings:
     startup_timeout_seconds: float
     execution_timeout_seconds: float
     cleanup_timeout_seconds: float
+    max_pages: int = 50
+    max_characters: int = 1_000_000
+    tesseract_language: str = "eng"
+    tesseract_raster_dpi: int = 200
+    tesseract_max_page_pixels: int = 20_000_000
+    tesseract_page_timeout_seconds: float = 30.0
 
     def __post_init__(self) -> None:
         if not self.image.strip():
@@ -80,6 +87,11 @@ class KubernetesParserJobSettings:
             "startup_timeout_seconds",
             "execution_timeout_seconds",
             "cleanup_timeout_seconds",
+            "max_pages",
+            "max_characters",
+            "tesseract_raster_dpi",
+            "tesseract_max_page_pixels",
+            "tesseract_page_timeout_seconds",
         ):
             if getattr(self, name) <= 0:
                 raise ValueError(f"{name} must be positive")
@@ -91,11 +103,16 @@ class KubernetesParserJobSettings:
             "ephemeral_storage_request",
             "ephemeral_storage_limit",
             "scratch_limit",
+            "tesseract_language",
         ):
             if not getattr(self, name).strip():
                 raise ValueError(f"{name} must not be blank")
         if self.ttl_seconds_after_finished < 0:
             raise ValueError("ttl_seconds_after_finished must not be negative")
+        if not isfinite(self.tesseract_page_timeout_seconds):
+            raise ValueError("tesseract_page_timeout_seconds must be finite")
+        if not 72 <= self.tesseract_raster_dpi <= 600:
+            raise ValueError("tesseract_raster_dpi must be between 72 and 600")
 
 
 @dataclass(frozen=True, slots=True)
@@ -186,6 +203,18 @@ class KubernetesParserJobController:
             str(self._settings.max_input_bytes),
             "--max-output-bytes",
             str(self._settings.max_output_bytes),
+            "--max-pages",
+            str(self._settings.max_pages),
+            "--max-characters",
+            str(self._settings.max_characters),
+            "--tesseract-language",
+            self._settings.tesseract_language,
+            "--tesseract-raster-dpi",
+            str(self._settings.tesseract_raster_dpi),
+            "--tesseract-max-page-pixels",
+            str(self._settings.tesseract_max_page_pixels),
+            "--tesseract-page-timeout-seconds",
+            str(self._settings.tesseract_page_timeout_seconds),
         ]
 
     def _create_job(self, name: str) -> client.V1Job:

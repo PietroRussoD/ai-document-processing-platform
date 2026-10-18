@@ -26,7 +26,11 @@ class Settings(BaseSettings):
     max_document_pages: Annotated[int, Field(gt=0)] = 50
     max_extracted_text_characters: Annotated[int, Field(gt=0)] = 1_000_000
     minimum_embedded_text_characters: Annotated[int, Field(gt=0)] = 100
-    tesseract_command: Annotated[str, Field(min_length=1)] = "tesseract"
+    parser_kubernetes_endpoint: str | None = None
+    parser_kubernetes_namespace: str | None = None
+    parser_kubernetes_ca_file: Path | None = None
+    parser_kubernetes_token_file: Path | None = None
+    parser_job_image: str | None = None
     tesseract_language: Annotated[str, Field(min_length=1)] = "eng"
     tesseract_raster_dpi: Annotated[int, Field(ge=72, le=600)] = 200
     tesseract_max_page_pixels: Annotated[int, Field(gt=0)] = 20_000_000

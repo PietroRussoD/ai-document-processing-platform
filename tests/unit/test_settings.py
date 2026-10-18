@@ -27,6 +27,11 @@ def test_uses_safe_local_defaults(
     assert settings.max_document_pages == 50
     assert settings.tesseract_max_page_pixels == 20_000_000
     assert settings.max_extracted_text_characters == 1_000_000
+    assert settings.parser_kubernetes_endpoint is None
+    assert settings.parser_kubernetes_namespace is None
+    assert settings.parser_kubernetes_ca_file is None
+    assert settings.parser_kubernetes_token_file is None
+    assert settings.parser_job_image is None
     assert settings.database_url.scheme == "postgresql+asyncpg"
     assert settings.database_pool_size == 5
     assert settings.database_max_overflow == 5

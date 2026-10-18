@@ -74,7 +74,7 @@ def controller(tmp_path: Path) -> KubernetesParserJobController:
             cpu_request="250m",
             cpu_limit="1",
             memory_request="512Mi",
-            memory_limit="768Mi",
+            memory_limit="1Gi",
             ephemeral_storage_request="64Mi",
             ephemeral_storage_limit="128Mi",
             scratch_limit="64Mi",
@@ -110,7 +110,7 @@ def test_job_manifest_enforces_restricted_security_and_bounded_resources(
     assert pod_spec["volumes"] == [{"name": "scratch", "emptyDir": {"sizeLimit": "64Mi"}}]
     assert container["resources"]["limits"] == {
         "cpu": "1",
-        "memory": "768Mi",
+        "memory": "1Gi",
         "ephemeral-storage": "128Mi",
     }
     assert "hostPath" not in str(manifest)
@@ -147,6 +147,22 @@ def test_rejects_an_input_over_the_configured_limit(
     with pytest.raises(ParserExecutionFailed, match="input exceeds"):
         controller.execute(ParserOperation.EMBEDDED_TEXT, b"x" * (20 * 1024 * 1024 + 1))
     create.assert_not_called()
+
+
+def test_parser_command_receives_all_configured_limits(
+    controller: KubernetesParserJobController,
+) -> None:
+    command = cast(Any, controller)._parser_command(ParserOperation.OCR)
+
+    assert command[command.index("--operation") + 1] == "ocr"
+    assert command[command.index("--max-input-bytes") + 1] == str(20 * 1024 * 1024)
+    assert command[command.index("--max-output-bytes") + 1] == "1000100"
+    assert command[command.index("--max-pages") + 1] == "50"
+    assert command[command.index("--max-characters") + 1] == "1000000"
+    assert command[command.index("--tesseract-language") + 1] == "eng"
+    assert command[command.index("--tesseract-raster-dpi") + 1] == "200"
+    assert command[command.index("--tesseract-max-page-pixels") + 1] == "20000000"
+    assert command[command.index("--tesseract-page-timeout-seconds") + 1] == "30.0"
 
 
 def test_exec_streams_binary_input_in_chunks_and_returns_bounded_output(
@@ -262,17 +278,9 @@ def test_successful_operation_signals_completion_and_cleans_owned_job(
     result = controller.execute(ParserOperation.EMBEDDED_TEXT, b"synthetic-pdf")
 
     assert result == b'{"valid":true}'
-    assert exec_command.call_args_list[0].args[1] == [
-        "python",
-        "-m",
-        "document_platform.parser_worker",
-        "--operation",
-        "embedded-text",
-        "--max-input-bytes",
-        str(20 * 1024 * 1024),
-        "--max-output-bytes",
-        "1000100",
-    ]
+    assert exec_command.call_args_list[0].args[1] == cast(Any, controller)._parser_command(
+        ParserOperation.EMBEDDED_TEXT
+    )
     assert "complete" in exec_command.call_args_list[1].args[1]
     assert wait_terminal.call_args.args[0].uid == "owned-uid"
     assert wait_terminal.call_args.args[1] == "Complete"
