@@ -5,6 +5,9 @@ from uuid import UUID
 from temporalio import activity
 from temporalio.exceptions import ApplicationError
 
+from document_platform.adapters.inbound.temporal.parser_activity_heartbeat import (
+    parser_activity_heartbeat,
+)
 from document_platform.application.commands import ExtractDocumentText, ExtractDocumentTextHandler
 from document_platform.application.ports import (
     EncryptedPdf,
@@ -35,7 +38,8 @@ class ExtractDocumentTextActivity:
     @activity.defn(name=EXTRACT_DOCUMENT_TEXT_ACTIVITY)
     async def extract_document_text(self, processing_run_id: str) -> None:
         try:
-            await self._extract_document_text(ExtractDocumentText(UUID(processing_run_id)))
+            async with parser_activity_heartbeat():
+                await self._extract_document_text(ExtractDocumentText(UUID(processing_run_id)))
         except ParserRuntimeUnavailable as error:
             raise ApplicationError(
                 "PDF parser runtime is temporarily unavailable",

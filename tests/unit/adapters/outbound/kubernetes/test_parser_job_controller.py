@@ -2,6 +2,7 @@
 
 from contextlib import nullcontext
 from pathlib import Path
+from threading import Event
 from typing import Any, cast
 from unittest.mock import Mock
 
@@ -206,6 +207,26 @@ def test_exec_streams_binary_input_in_chunks_and_returns_bounded_output(
     assert captured["kwargs"]["stdin"] is True
     assert captured["kwargs"]["tty"] is False
     assert captured["kwargs"]["command"][-1] == "ocr"
+
+
+def test_exec_checks_cancellation_before_opening_websocket(
+    controller: KubernetesParserJobController, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    event = Event()
+    event.set()
+    stream_call = Mock()
+    monkeypatch.setattr(controller_module.streaming, "stream", stream_call)
+
+    with pytest.raises(RuntimeError, match="Parser Job cancellation was requested"):
+        cast(Any, controller)._exec(
+            "pod",
+            ["python"],
+            stdin=b"pdf",
+            output_limit=100,
+            cancel_event=event,
+        )
+
+    stream_call.assert_not_called()
 
 
 def test_refuses_binary_transfer_without_stdin_half_close_support(

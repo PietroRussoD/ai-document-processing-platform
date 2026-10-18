@@ -5,7 +5,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from math import isfinite
-from threading import BoundedSemaphore
+from threading import BoundedSemaphore, Event
 from typing import Protocol, cast
 from uuid import uuid4
 
@@ -121,6 +121,10 @@ class OwnedParserJob:
     uid: str
 
 
+class _ParserJobCancelled(RuntimeError):
+    """Signal the controller thread to delete its Job after activity cancellation."""
+
+
 class _ExecSocket(Protocol):
     returncode: int | None
     subprotocol: str | None
@@ -145,7 +149,13 @@ class KubernetesParserJobController:
         self._settings = settings
         self._capacity = BoundedSemaphore(settings.max_concurrent_jobs)
 
-    def execute(self, operation: ParserOperation, pdf: bytes) -> bytes:
+    def execute(
+        self,
+        operation: ParserOperation,
+        pdf: bytes,
+        *,
+        cancel_event: Event | None = None,
+    ) -> bytes:
         if len(pdf) > self._settings.max_input_bytes:
             raise ParserExecutionFailed("PDF input exceeds the configured byte limit")
         if not self._capacity.acquire(timeout=self._settings.startup_timeout_seconds):
@@ -155,26 +165,34 @@ class KubernetesParserJobController:
         job: OwnedParserJob | None = None
         create_attempted = False
         try:
+            _raise_if_cancelled(cancel_event)
             create_attempted = True
             created = self._create_job(name)
             job = self._identity(name, created)
-            pod = self._wait_for_pod(job)
+            pod = self._wait_for_pod(job, cancel_event=cancel_event)
             output, exit_code = self._exec(
                 pod,
                 self._parser_command(operation),
                 stdin=pdf,
                 output_limit=self._settings.max_output_bytes,
+                cancel_event=cancel_event,
             )
+            _raise_if_cancelled(cancel_event)
             outcome = "success" if exit_code == 0 else "failure"
             _, completion_code = self._exec(
                 pod,
                 [*_SUPERVISOR_COMMAND, "complete", "--outcome", outcome],
                 stdin=None,
                 output_limit=1024,
+                cancel_event=cancel_event,
             )
             if completion_code != 0:
                 raise ParserExecutionFailed("Parser Job completion command failed")
-            self._wait_for_terminal(job, "Complete" if exit_code == 0 else "Failed")
+            self._wait_for_terminal(
+                job,
+                "Complete" if exit_code == 0 else "Failed",
+                cancel_event=cancel_event,
+            )
             if exit_code != 0:
                 raise ParserExecutionFailed("Isolated PDF parser returned a failure status")
             return output
@@ -333,9 +351,10 @@ class KubernetesParserJobController:
             )
         ]
 
-    def _wait_for_pod(self, job: OwnedParserJob) -> str:
+    def _wait_for_pod(self, job: OwnedParserJob, *, cancel_event: Event | None = None) -> str:
         deadline = time.monotonic() + self._settings.startup_timeout_seconds
         while time.monotonic() < deadline:
+            _raise_if_cancelled(cancel_event)
             with self._connection.new_api_client() as api:
                 core = client.CoreV1Api(api)
                 for pod in self._owned_pods(core, job):
@@ -368,7 +387,9 @@ class KubernetesParserJobController:
         *,
         stdin: bytes | None,
         output_limit: int,
+        cancel_event: Event | None = None,
     ) -> tuple[bytes, int]:
+        _raise_if_cancelled(cancel_event)
         with self._connection.new_api_client() as api:
             core = client.CoreV1Api(api)
             stream_call = cast(Callable[..., _ExecSocket], streaming.stream)  # pyright: ignore[reportUnknownMemberType]
@@ -396,11 +417,13 @@ class KubernetesParserJobController:
                             "Kubernetes exec does not support closing the stdin channel"
                         )
                     for offset in range(0, len(stdin), _STDIN_CHUNK_BYTES):
+                        _raise_if_cancelled(cancel_event)
                         if time.monotonic() >= deadline:
                             raise ParserRuntimeUnavailable("Parser input transfer timed out")
                         websocket.write_stdin(stdin[offset : offset + _STDIN_CHUNK_BYTES])
                     websocket.close_channel(0)
                 while websocket.is_open():
+                    _raise_if_cancelled(cancel_event)
                     if time.monotonic() >= deadline:
                         raise ParserRuntimeUnavailable("Parser command exceeded its deadline")
                     websocket.update(timeout=1)
@@ -417,9 +440,16 @@ class KubernetesParserJobController:
             finally:
                 websocket.close()
 
-    def _wait_for_terminal(self, job: OwnedParserJob, expected: str) -> None:
+    def _wait_for_terminal(
+        self,
+        job: OwnedParserJob,
+        expected: str,
+        *,
+        cancel_event: Event | None = None,
+    ) -> None:
         deadline = time.monotonic() + self._settings.execution_timeout_seconds
         while time.monotonic() < deadline:
+            _raise_if_cancelled(cancel_event)
             with self._connection.new_api_client() as api:
                 current = client.BatchV1Api(api).read_namespaced_job(
                     job.name,
@@ -483,3 +513,8 @@ class KubernetesParserJobController:
         return ParserRuntimeRejected(
             f"Kubernetes API refused the parser request (HTTP {status_code})"
         )
+
+
+def _raise_if_cancelled(cancel_event: Event | None) -> None:
+    if cancel_event is not None and cancel_event.is_set():
+        raise _ParserJobCancelled("Parser Job cancellation was requested")

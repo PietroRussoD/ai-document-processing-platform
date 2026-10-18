@@ -1,7 +1,9 @@
 """Strict validation of parser Job responses."""
 
+import asyncio
 import hashlib
 import json
+from threading import Event
 
 import pytest
 
@@ -26,8 +28,37 @@ class FakeParserJobController:
         self.response = response
         self.calls: list[tuple[ParserOperation, bytes]] = []
 
-    def execute(self, operation: ParserOperation, pdf: bytes) -> bytes:
+    def execute(
+        self,
+        operation: ParserOperation,
+        pdf: bytes,
+        *,
+        cancel_event: Event | None = None,
+    ) -> bytes:
+        del cancel_event
         self.calls.append((operation, pdf))
+        return self.response
+
+
+class BlockingParserJobController(FakeParserJobController):
+    def __init__(self, response: bytes) -> None:
+        super().__init__(response)
+        self.started = Event()
+        self.cancelled = Event()
+
+    def execute(
+        self,
+        operation: ParserOperation,
+        pdf: bytes,
+        *,
+        cancel_event: Event | None = None,
+    ) -> bytes:
+        self.calls.append((operation, pdf))
+        self.started.set()
+        if cancel_event is not None:
+            cancel_event.wait(timeout=2)
+            if cancel_event.is_set():
+                self.cancelled.set()
         return self.response
 
 
@@ -84,6 +115,24 @@ async def test_ocr_extractor_uses_ocr_operation() -> None:
 
     assert result.text == "OCR result"
     assert controller.calls == [(ParserOperation.OCR, _PDF)]
+
+
+@pytest.mark.anyio
+async def test_activity_cancellation_reaches_controller_thread() -> None:
+    controller = BlockingParserJobController(_response())
+    extractor = KubernetesPdfTextExtractor(
+        controller=controller,
+        max_pages=5,
+        max_characters=100,
+    )
+    task = asyncio.create_task(extractor.extract(_PDF))
+
+    assert await asyncio.to_thread(controller.started.wait, 1)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert await asyncio.to_thread(controller.cancelled.wait, 1)
 
 
 @pytest.mark.anyio

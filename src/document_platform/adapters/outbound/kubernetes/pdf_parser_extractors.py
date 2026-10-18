@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+from threading import Event
 from typing import Protocol, cast
 
 import anyio
@@ -31,7 +32,13 @@ _RESULT_FIELDS = {
 
 
 class _ParserJobExecutor(Protocol):
-    def execute(self, operation: ParserOperation, pdf: bytes) -> bytes: ...
+    def execute(
+        self,
+        operation: ParserOperation,
+        pdf: bytes,
+        *,
+        cancel_event: Event | None = None,
+    ) -> bytes: ...
 
 
 class _KubernetesPdfExtractor:
@@ -53,11 +60,20 @@ class _KubernetesPdfExtractor:
         self._max_characters = max_characters
 
     async def _extract(self, content: bytes) -> tuple[str, int, int, int]:
-        response = await anyio.to_thread.run_sync(
-            self._controller.execute,
-            self._operation,
-            content,
-        )
+        cancel_event = Event()
+
+        def execute() -> bytes:
+            return self._controller.execute(
+                self._operation,
+                content,
+                cancel_event=cancel_event,
+            )
+
+        try:
+            response = await anyio.to_thread.run_sync(execute, abandon_on_cancel=True)
+        except BaseException:
+            cancel_event.set()
+            raise
         result = _decode_result(response, self._operation, content)
         if result[1] > self._max_pages:
             self._raise_page_limit()

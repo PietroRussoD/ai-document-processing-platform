@@ -1,8 +1,9 @@
 # PDF Parser Isolation Integration Proposal
 
-Status: local runtime topology tested; worker integration covers embedded-text
-and OCR. Upload inspection, Compose startup and Temporal lifecycle checks remain
-open.
+Status: embedded-text/OCR worker flow and Temporal cancellation/restart have
+live evidence on a disposable Compose + Kind/Calico stack. Upload inspection,
+automated Compose bootstrap, the base host bind-mount credential path and some
+Temporal recovery cases remain open.
 
 This proposal refines the parser-isolation work described in the
 [isolation design](pdf-parser-isolation-design.md). The local single-operator
@@ -72,13 +73,17 @@ workflow history survive a runtime restart.
 The dispatcher can continue to start Temporal workflows while the worker is
 unavailable, so bootstrap the runtime before Compose. If the runtime later
 goes down, activities wait or retry under their bounded policies; no activity
-should report success until the validated result is persisted. On worker
-restart, preserve the activity names and order, recognize a result already
-persisted before a crash, and avoid submitting duplicate expensive OCR work.
-Persist only a small activity summary so PDF bytes and extracted text never
-enter Temporal history. The worker has the runtime connection and two extraction
-adapters; cluster bootstrap, credential renewal and cancellation/restart
-handling still need integration and live verification.
+should report success until the validated result is persisted. A live restart
+test stopped the worker during a 40-page OCR Job. The parser Job remained until
+its active deadline and TTL removed it within 185 seconds. After the OCR
+activity's five-minute start-to-close timeout, Temporal retried on the
+restarted worker and persisted one OCR extraction row. This recovered the
+workflow but repeated OCR work; the crash window after result persistence and
+before activity completion remains untested. Keep the activity names and order,
+persist only small activity summaries, and keep PDF bytes and extracted text
+out of Temporal history. The cancellation test added lightweight activity
+heartbeats and confirmed that explicit workflow cancellation removed an active
+parser Job in 4.8 seconds.
 
 ## Proposed vertical slice
 
@@ -308,9 +313,9 @@ unavailability remains retryable and known PDF/OCR failures become
 non-retryable without exposing exception details. Workflow regressions check
 the bounded parser retry policy and that a terminal non-retryable OCR failure
 is recorded once with the OCR stage and bounded failure code, then stops
-processing. They verify policy configuration and terminal handling; live
-Temporal retry counts and cancellation with the configured adapter remain to
-be verified in Compose.
+processing. They verify policy configuration and terminal handling; Compose +
+Kind now provides a live retry and cancellation baseline. Historical workflow
+replay and the crash window after result persistence remain to be verified.
 
 Keep the existing upload-size, page-count, extracted-character, OCR-pixel and
 per-page timeout limits. Measure Job CPU, memory, scratch space, startup time
@@ -334,13 +339,21 @@ probes plus the current Job controller provide evidence for these behaviors:
    parser Pod has no token and cannot reach another Pod or the Internet.
 
 The worker-shaped route probe reached the Kind API over the project network
-with a scoped credential. The Temporal worker now constructs the controller
-from explicit settings, verifies access at startup and uses it for embedded
-text and OCR. It has not yet been started inside Compose against Kind; live
-Temporal retries, cancellation and restart recovery remain open. Do not use
-`hub` or a remote context. If the checks fail in Compose, stop and compare a
-narrowly scoped artifact broker design. Do not weaken network policy or mount
-the Docker socket to make the integration appear to work.
+with a scoped credential. The actual Temporal worker also ran in the isolated
+Compose stack against Kind, verified access at startup, and processed a
+synthetic image-only PDF through embedded-text and OCR Jobs under default-deny
+network policy. The workflow persisted OCR text and completed with
+`REVIEW_REQUIRED`; parser Jobs and Pods were removed. The PDF's synthetic text
+markers were absent from Temporal history and API/worker logs.
+
+Cancellation and worker restart were tested against active OCR Jobs. A workflow
+cancel removed its Job in 4.8 seconds after activity heartbeats were added. A
+worker stop left the Job for deadline/TTL cleanup (observed within 185 seconds);
+the five-minute activity timeout then caused Temporal to retry on the restarted
+worker and persist one OCR row. This does not cover a crash after result
+persistence but before activity completion. Do not use `hub` or a remote
+context. Do not weaken network policy or mount the Docker socket to make the
+integration appear to work.
 
 ### Initial spike results — 2026-10-17
 
@@ -380,8 +393,9 @@ limit correction are recorded below.
 | Explicit controller connection configuration | Pass for the standalone host prototype | The standalone spike constructs a fresh Python SDK configuration from a local HTTPS endpoint, namespace, CA file and short-lived token file; a bogus `KUBECONFIG` had no effect. Live checks passed with the scoped Role and rejected an untrusted CA, invalid token (401), insufficient permissions (403) and a temporary extra Secret API grant. Unit checks cover token replacement and loss; the following row records the container credential check. |
 | Worker-image credential mount | Pass for the standalone container prototype, 2026-10-18 | A disposable derivative of `document-platform-api:dev` ran as `10001:10001` on the Compose network, with a read-only credential volume (directory 0700, CA/token 0600), no administrator kubeconfig and TLS hostname verification enabled. Writes failed with `EROFS`; UID 10002 could not read the token. The same SDK client refused an invalid replacement token (401), accepted a newly issued token, refused a removed file and resumed after restoration. This verifies Docker-volume ownership and client token reload, not the Temporal worker's integration or an automated renewal mechanism. |
 | Controller cleanup and interruption | Pass for the standalone lifecycle prototype, 2026-10-18 | With the scoped Role, synthetic success and parser exit 7 both reached the expected Job terminal state before foreground deletion removed Job and Pod. Deletion used the captured Job UID as a precondition and a fresh REST client after exec. SIGINT during a running synthetic parser removed Job and Pod in 3.69 s; repeated cleanup succeeded. After controller SIGKILL, Kubernetes reported `DeadlineExceeded` and TTL removed both resources, observed 66.54 s after the signal. No Job or Pod remained. See the [lifecycle companion](../../spikes/parser-runtime-connection/LIFECYCLE.md) for commands, offline failure checks and limits. This does not verify Temporal cancellation or real parser execution. |
-| Credential provisioning and renewal | Pass for the standalone host prototype, 2026-10-18 | An external provisioner requested short-lived tokens bound to an empty Secret's pinned UID and atomically renewed its private token file. The same SDK client accepted the replacement; the controller could not mint its own tokens. Stopping the provisioner removed the file but did not revoke retained tokens. Deleting the binding made both issued tokens receive HTTP 401, observed after 9.99 s. Recreating its name did not restore the old UID; explicit reprovisioning did restore access. Expiry removal is covered with a controlled clock, not a live wait for server JWT expiry. See the [credential lifecycle companion](../../spikes/parser-runtime-connection/CREDENTIALS.md). Automated delivery into the Docker volume and actual worker integration remain unimplemented. |
-| Worker Kubernetes configuration | Partial | `worker.py` builds and verifies the controller from explicit settings, and the embedded-text/OCR handlers use strict-result adapters. Compose requires the endpoint, namespace, image and a read-only credentials directory mounted only in the worker. Missing runtime settings fail closed. Compose/Temporal have not run against Kind, credentials are still provisioned outside Compose, and upload-time inspection remains local. |
+| Credential provisioning and renewal | Pass for the standalone host prototype, 2026-10-18 | An external provisioner requested short-lived tokens bound to an empty Secret's pinned UID and atomically renewed its private token file. The same SDK client accepted the replacement; the controller could not mint its own tokens. Stopping the provisioner removed the file but did not revoke retained tokens. Deleting the binding made both issued tokens receive HTTP 401, observed after 9.99 s. Recreating its name did not restore the old UID; explicit reprovisioning did restore access. Expiry removal is covered with a controlled clock, not a live wait for server JWT expiry. See the [credential lifecycle companion](../../spikes/parser-runtime-connection/CREDENTIALS.md). Automated delivery and renewal into the Compose worker volume remain unimplemented. |
+| Temporal worker with parser Jobs in Compose + Kind | Pass for embedded-text, OCR, cancellation and retry after worker restart, 2026-10-18 | A fresh Kind v1.37.0/Calico 3.33.0 cluster used the scoped Role and default-deny ingress/egress. The actual Compose API, dispatcher, Temporal and worker started with explicit endpoint/CA/token settings. A synthetic image-only invoice produced zero embedded characters, 380 OCR characters, selected OCR text, and completed its workflow. Text markers were absent from Temporal history and API/worker logs. Canceling a second workflow during a 40-page OCR Job removed the Job in 4.8 s. Stopping the worker during another 40-page OCR Job left it for `activeDeadlineSeconds`/TTL cleanup within 185 s; after the five-minute activity timeout, Temporal retried on the restarted worker, persisted one OCR row and ended `REVIEW_REQUIRED`. This does not cover the crash window after persistence but before activity completion or historical workflow replay. |
+| Compose credential bind mount | Not verified on this macOS host | With the host-owned private directory at mode 0700 and CA/token at 0600, UID 10001 in the worker could not read the CA and startup failed closed. `chown` to UID 10001 was unavailable to the unprivileged host user. The live worker tests used a disposable named Docker volume populated by a temporary host-side helper, with the CA/token owned by UID 10001 and the volume mounted read-only. Automated token renewal into that volume and the repository's base bind-mount path remain open. |
 
 The transport is promising enough to continue without designing an artifact
 broker yet. The selected local network and worker-to-control-plane gates now
@@ -392,11 +406,13 @@ text, and concurrency and adversarial inputs were not measured. The
 extracted-text character-limit defect is corrected in the working source and
 verified at the exact 1,000,000-character boundary.
 The standalone connection, worker-image credential mount and synchronous
-controller cleanup contracts are validated. The Temporal worker now routes its
-embedded-text and OCR activities through the adapter, but a live Compose run,
-Temporal cancellation and restart recovery remain unverified. A host-side
-credential provisioner now validates renewal and session revocation, with
-clock-controlled expiry checks. Current-source,
+controller cleanup contracts are validated. The Temporal worker runs both
+parser activities in Compose against Kind; workflow cancellation and restart
+retry also have live evidence. The base Compose credential bind mount still
+needs host-UID provisioning or a supported private volume-delivery mechanism.
+The preflight/bootstrap command, automated token renewal and crash window after
+result persistence remain open. A host-side credential provisioner validates
+renewal and session revocation, with clock-controlled expiry checks. Current-source,
 single-run resource baselines now include representative fixtures and combined
 page/pixel-limit synthetic OCR. A separate high-entropy image stress case
 reached the cgroup OOM limit at both 512 MiB and 768 MiB, despite staying under
@@ -412,12 +428,11 @@ A one-node Kind run also measured Job startup,
 localhost-only registry. Treat these as initial observations only; measure
 pulls from the intended deployment registry and repeat under the selected
 deployment runtime before choosing numeric Job budgets.
-Connect credential delivery to the UID-10001 Docker volume as part of worker
-integration.
-Later implementation
-must connect Temporal cancellation to confirmed Job removal and retain the
-deadline/TTL fallback when cleanup cannot run. Preserve the explicit stdin
-half-close and bounded streaming behavior in the implementation.
+Automate credential delivery and renewal to the UID-10001 worker volume, add a
+Compose preflight/bootstrap command, and exercise the crash window after result
+persistence but before activity completion. Keep deadline/TTL as the fallback
+when worker-driven cleanup cannot run. Preserve the explicit stdin half-close
+and bounded streaming behavior in the implementation.
 
 ## Acceptance criteria for a later implementation
 
