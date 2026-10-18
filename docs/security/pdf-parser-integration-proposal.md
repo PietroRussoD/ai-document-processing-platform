@@ -1,12 +1,13 @@
 # PDF Parser Isolation Integration Proposal
 
-Status: proposed architecture; no application integration is implemented.
+Status: local runtime topology selected and network-tested; no application
+integration is implemented.
 
 This proposal refines the parser-isolation work described in the
 [isolation design](pdf-parser-isolation-design.md). The local single-operator
 v1.2.0 release is closed. The separate [v1.3.0 scope](../releases/v1.3.0.md)
-proposes evaluating and integrating this runtime for the portfolio exercise;
-its acceptance gates remain open.
+proposes integrating the selected local runtime for the portfolio exercise;
+application integration gates remain open.
 
 ## Goal and scope
 
@@ -18,6 +19,64 @@ trusted application boundary.
 This is a local portfolio and learning exercise using synthetic documents. It
 does not claim kernel-level isolation, public-service readiness or protection
 against every vulnerability in the container runtime.
+
+## Selected local topology
+
+Keep the application API, PostgreSQL, dispatcher, Temporal and worker in
+Compose. Run each parser operation in a short-lived Job on a separately named
+Kind cluster with Calico. The worker remains the only controller. It connects
+to the Kind API through `host.docker.internal:<published-port>`; the API server
+binds host loopback and its certificate includes `host.docker.internal`.
+Configure the worker with an explicit endpoint, CA file and short-lived,
+namespace-scoped token. Keep the cluster administrator kubeconfig on the host
+for bootstrap only. Never mount the Docker socket or administrator credentials
+in an application container.
+
+The parser namespace enforces Pod Security `restricted` and default-deny
+ingress and egress. Each Job has no service-account token, application
+credentials or writable application/host mount. Use a private bounded scratch
+volume. The selected runtime uses `runc`; it shares the Linux node kernel and
+provides per-Job containment, not a strong sandbox.
+
+### Local startup and shutdown contract
+
+Compose cannot express readiness for an external Kind cluster. Before starting
+the processing profile, a later bootstrap command must:
+
+1. Use an explicit kubeconfig under a private temporary directory and a unique
+   cluster name. It must refuse to use `hub` or any remote context.
+2. Create Kind with the default CNI disabled, pod CIDR `192.168.0.0/16`, API
+   bind address `127.0.0.1` and the `host.docker.internal` certificate SAN.
+   Do not wait for node readiness before installing Calico: without a CNI the
+   node is expected to stay `NotReady`.
+3. Install pinned Calico 3.33 manifests, wait for Calico and the node to become
+   Ready, then apply the restricted namespace, narrow Role and default-deny
+   policy. Run positive baseline checks followed by deny checks.
+4. Build and load the parser image, provision the scoped credential through
+   the external issuer, and provide the worker a read-only credential mount.
+   Verify TLS, endpoint access and required RBAC before declaring the worker
+   ready. Keep renewal outside the worker's controller permissions.
+5. Start Compose only after these checks pass. If the cluster or credential is
+   unavailable, fail worker startup/readiness; never fall back to local PDF
+   parsing. A single local command should run this preflight before
+   `docker compose --profile processing up`.
+
+For shutdown, stop accepting parser work and stop the worker with enough grace
+to cancel active Jobs and confirm their deletion. Stop the credential issuer,
+remove or revoke its token and delete the disposable cluster. If the worker
+dies before cleanup, `activeDeadlineSeconds` and TTL remove orphaned Jobs.
+Keep the Compose database and Temporal volumes so local document data and
+workflow history survive a runtime restart.
+
+The dispatcher can continue to start Temporal workflows while the worker is
+unavailable, so bootstrap the runtime before Compose. If the runtime later
+goes down, activities wait or retry under their bounded policies; no activity
+should report success until the validated result is persisted. On worker
+restart, preserve the activity names and order, recognize a result already
+persisted before a crash, and avoid submitting duplicate expensive OCR work.
+Persist only a small activity summary so PDF bytes and extracted text never
+enter Temporal history. These are integration requirements; the current
+worker has not been configured for this lifecycle.
 
 ## Proposed vertical slice
 
@@ -207,9 +266,9 @@ for per-Job limits.
 
 ## Required integration spike before implementation
 
-The first implementation step should be a disposable infrastructure spike,
-not an application change. On a newly created, separately named Kind cluster
-with Calico and an isolated kubeconfig, prove that a restricted Job can:
+The disposable infrastructure spike for the selected local topology was run
+on 2026-10-18. Existing transport and lifecycle probes provide separate
+evidence for these Job behaviors:
 
 1. receive a synthetic PDF up to the configured upload limit over `pods/exec`
    stdin without buffering the entire transfer unexpectedly;
@@ -220,12 +279,13 @@ with Calico and an isolated kubeconfig, prove that a restricted Job can:
 4. run under the proposed namespace-scoped controller permissions while the
    parser Pod has no token and cannot reach another Pod or the Internet.
 
-Also prove that the Compose worker can reach only this separate local cluster
-using the scoped credential. Do not use the existing `hub` cluster or the
-remote context. If binary streaming, output bounds, scoped credentials or
-cleanup cannot be demonstrated, stop and compare a narrowly scoped artifact
-broker design. Do not weaken the network policy or mount the Docker socket to
-make the integration appear to work.
+The worker-shaped route probe reached the Kind API over the project network
+with a scoped credential. The actual Temporal worker remains unintegrated.
+Do not use `hub` or a remote context. If binary streaming, output bounds,
+scoped credentials or cleanup fail when reproduced against the final Job
+template, stop and compare a narrowly scoped artifact broker design. Do not
+weaken network policy or mount the Docker socket to make the integration
+appear to work.
 
 ### Initial spike results — 2026-10-17
 
@@ -256,11 +316,11 @@ limit correction are recorded below.
 | Process exit status | Pass | Exit code `7` arrived in the exec status channel. |
 | Job logs | Pass | A marker returned through exec stdout was absent from the Job container logs. |
 | Scoped RBAC | Partial | With a short-lived service-account token, the probe could read/list Pods and create Jobs but could not read Secrets. Exec failed when the role allowed only `get` on `pods/exec`; it worked after granting both `get` and `create` on that subresource. Confirm the required verbs against the exact Kubernetes and client versions used by the application. |
-| Network policy | Pass for pod-to-pod and Internet egress checks | Calico denied pod-to-pod ingress and egress in the earlier probe. In a separate Kind v1.37.0 cluster with Calico v3.33.0, the host and a restricted project-image Pod both established TLS 1.3 to `1.1.1.1:443` before policy. After applying an egress-only Kubernetes NetworkPolicy with no allowed destinations, the same Pod timed out connecting to that IP. The probe used a direct IP to exclude DNS from the result. This verifies the tested route and TCP port in this disposable setup; it does not verify every protocol, route or the final parser runtime topology. See the [isolation design spike](pdf-parser-isolation-design.md). |
+| Selected-topology network policy | Pass for tested IPv4 and service routes, 2026-10-18 | A fresh one-node Kind v1.37.0/Calico 3.33.0 cluster used the project API image in a restricted UID-10001 probe Pod. Before policy it completed TLS 1.3 to `1.1.1.1:443`, resolved an external DNS name, reached a worker-probe Service and accepted a request from that namespace. A default-deny ingress/egress policy then blocked the same IPv4 TLS route, DNS, egress to the worker Service ClusterIP and ingress from the worker probe. The Pod had no IPv6 route (`Network is unreachable` before policy), so IPv6 is not covered. It ran Python's HTTP server, not the PDF parser. This confirms Calico enforcement for the tested routes, not every protocol or host route. See the [selected topology record](pdf-parser-isolation-design.md).
 | Disconnect and cancellation | Failure as cancellation | Closing the client WebSocket did not stop the remote child process; it continued and created a marker. A disconnected exec session is therefore not a cancellation mechanism. The controller must delete the Job or invoke an explicit fixed job-control command; `activeDeadlineSeconds` remains the fallback for abandoned Jobs. |
 | Job completion and TTL | Pass for success and active deadline | The completion marker let a Job finish, and a short TTL removed the completed Job and Pod. The earlier isolation spike also observed a Job fail with `DeadlineExceeded`, followed by TTL removal of the Job and Pod. This verifies Kubernetes cleanup, not worker-driven cancellation or application error handling; see the [isolation design spike](pdf-parser-isolation-design.md). |
 | PID limit | Pass | On a separate Kind 1.37 cluster, both nodes were Ready with `podPidsLimit: 128`. Reading the cgroup hierarchy from the worker showed `pids.max=128` on the Pod parent and `pids.max=9397` on the container cgroup, confirming that the effective Pod limit is 128 without a process-spawn stress test. |
-| Compose-network reachability | Pass for network and credential smoke test | A disposable container using `document-platform-api:dev` on `ai-document-processing-platform_default`, with `host.docker.internal` mapped to the host gateway, reached the temporary Kind API with TLS verification enabled. The scoped token received `200` for listing Pods, `403` for listing Secrets, and SelfSubjectAccessReview allowed `get/create pods/exec` plus `create jobs` while denying `get secrets`. This did not exercise the `document_platform.worker` configuration or Kubernetes client integration. |
+| Worker-shaped connection on Compose project network | Pass for TLS and selected RBAC checks, 2026-10-18 | A non-root `document-platform-api:dev` container with the worker's host-gateway mapping reached the loopback-published Kind API at `host.docker.internal:63354`; TLS hostname and CA verification passed. A temporary ten-minute ServiceAccount token listed Pods in `pdf-parser-probe` (200); Secret access and Pod listing in `worker-probe` were denied (403). The container used a read-only root, dropped capabilities, no privilege escalation, CPU/memory/PID limits and no Docker socket. The project network was created temporarily because the Compose network was absent. This did not start Compose services or the actual Temporal worker. |
 | Explicit controller connection configuration | Pass for the standalone host prototype | The standalone spike constructs a fresh Python SDK configuration from a local HTTPS endpoint, namespace, CA file and short-lived token file; a bogus `KUBECONFIG` had no effect. Live checks passed with the scoped Role and rejected an untrusted CA, invalid token (401), insufficient permissions (403) and a temporary extra Secret API grant. Unit checks cover token replacement and loss; the following row records the container credential check. |
 | Worker-image credential mount | Pass for the standalone container prototype, 2026-10-18 | A disposable derivative of `document-platform-api:dev` ran as `10001:10001` on the Compose network, with a read-only credential volume (directory 0700, CA/token 0600), no administrator kubeconfig and TLS hostname verification enabled. Writes failed with `EROFS`; UID 10002 could not read the token. The same SDK client refused an invalid replacement token (401), accepted a newly issued token, refused a removed file and resumed after restoration. This verifies Docker-volume ownership and client token reload, not the Temporal worker's integration or an automated renewal mechanism. |
 | Controller cleanup and interruption | Pass for the standalone lifecycle prototype, 2026-10-18 | With the scoped Role, synthetic success and parser exit 7 both reached the expected Job terminal state before foreground deletion removed Job and Pod. Deletion used the captured Job UID as a precondition and a fresh REST client after exec. SIGINT during a running synthetic parser removed Job and Pod in 3.69 s; repeated cleanup succeeded. After controller SIGKILL, Kubernetes reported `DeadlineExceeded` and TTL removed both resources, observed 66.54 s after the signal. No Job or Pod remained. See the [lifecycle companion](../../spikes/parser-runtime-connection/LIFECYCLE.md) for commands, offline failure checks and limits. This does not verify Temporal cancellation or real parser execution. |
@@ -268,7 +328,8 @@ limit correction are recorded below.
 | Worker Kubernetes configuration | Not implemented | `worker.py` still constructs local PyMuPDF and Tesseract extractors. `Settings`, `compose.yaml` and `pyproject.toml` define no Kubernetes endpoint, CA, controller token or Kubernetes client dependency. This is expected before the proposed integration; the network smoke test did not run the worker process. |
 
 The transport is promising enough to continue without designing an artifact
-broker yet, but this spike does not clear the full integration gate. These
+broker yet. The selected local network and worker-to-control-plane gates now
+have repeatable evidence, but this spike does not clear the full integration gate. These
 single-run measurements are baselines, not resource-limit recommendations.
 The 20 MiB file is mostly trailing padding, the 50-page PDF uses simple vector
 text, and concurrency and adversarial inputs were not measured. The

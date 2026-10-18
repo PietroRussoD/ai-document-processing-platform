@@ -1,7 +1,7 @@
 # PDF Parser Isolation Design
 
-Status: design recorded; v1.3.0 scope proposed; no application parser isolation
-is implemented.
+Status: local v1.3.0 runtime selected and network-tested; application parser
+isolation is not implemented.
 
 ## Decision for the released v1.2.0
 
@@ -10,11 +10,64 @@ parser runtime to the Compose stack in this release. The current loopback-only
 boundary, synthetic documents and application-container limits remain the
 accepted scope; they do not make hostile PDFs safe to process.
 
-Parser isolation is a worthwhile separate learning project only if a runtime
-that can create and destroy a restricted job per document is selected first.
-A subprocess in the existing API or worker container can improve crash
-recovery, but it is not a security sandbox: it shares the container's user,
-environment, filesystem, network and aggregate resource limits.
+The v1.3.0 project now has a selected local runtime that can create and destroy
+restricted Jobs. A subprocess in the existing API or worker container can
+improve crash recovery, but it is not a security sandbox: it shares the
+container's user, environment, filesystem, network and aggregate resource
+limits.
+
+## Decision for v1.3.0 development
+
+Use a separately named local Kind cluster with Calico as the parser Job
+runtime. Keep the API, database, dispatcher, Temporal and trusted worker in
+Compose. The worker connects to the Kind API through
+`host.docker.internal:<published-port>` with TLS verification, a pinned CA and
+a short-lived namespace-scoped controller credential. Bind the API server to
+host loopback and include `host.docker.internal` in its certificate SAN. The
+existing worker service already maps `host.docker.internal` to the host
+gateway. Do not mount the Docker socket or an administrator kubeconfig.
+
+Run parser Jobs in a dedicated namespace with Pod Security `restricted`, a
+default-deny ingress and egress policy, no service-account token, no
+application credentials and no application or host data mounts. Calico on
+Kind is the selected local portfolio topology; it is not a claim about a
+production Kubernetes deployment. The parser runs with `runc` and shares the
+node kernel, so describe the result as per-Job containment.
+
+The topology was exercised on 2026-10-18 in a fresh one-node Kind v1.37.0
+cluster with Calico 3.33.0. The Kind node used containerd 2.3.4 on Docker
+Desktop ARM64. Kind's default CNI was disabled, with pod CIDR
+`192.168.0.0/16`. Calico was installed before waiting for the node to become
+Ready. The API server bound `127.0.0.1` on port `63354` for this run and its
+certificate included `host.docker.internal`.
+
+Before applying the parser namespace's default-deny policy, a restricted
+UID-10001 probe Pod successfully completed TLS 1.3 to `1.1.1.1:443`, resolved
+an external DNS name, reached a service in the worker probe namespace, and
+accepted an HTTP request from that namespace. After applying the policy with
+both ingress and egress and no allow rules, the same IPv4 TLS connection was
+blocked, DNS timed out, egress to the worker service ClusterIP was blocked,
+and ingress from the worker probe Pod was blocked. The project API image ran a
+Python HTTP server for these network checks; this was not a PDF parser Job.
+
+A worker-shaped container connected from a temporary Compose project network
+to `host.docker.internal:63354` with TLS hostname and CA verification enabled.
+It ran as UID 10001 with a read-only root, dropped capabilities, no privilege
+escalation, CPU/memory/PID limits and no Docker socket. A short-lived token for
+the namespace-scoped controller ServiceAccount listed Pods in the parser
+namespace (HTTP 200); reading Secrets and listing Pods in another namespace
+were denied (HTTP 403). The token was passed through stdin for the probe. The
+parser Pod had no mounted ServiceAccount token, database URL or Temporal
+configuration. This validated the worker-to-control-plane path and selected
+RBAC denials in a disposable network; it did not run the Temporal worker or
+the Compose services.
+
+The Pod had no IPv6 route (`Network is unreachable` before policy), so the
+internet-egress result covers the available IPv4 path only. Repeat the check
+for IPv6 if the selected runtime or deployment gains IPv6 connectivity. These
+checks prove the tested routes and protocols; they do not prove denial over
+every possible protocol or host route. Repeat them against the final Job
+manifest and runtime configuration before parser integration.
 
 ## Current parsing boundary
 
@@ -84,10 +137,10 @@ Docker Compose/Docker Desktop setup does not provide this per-document job
 boundary on its own. Do not assume that a generic Compose sidecar or a Python
 subprocess provides equivalent isolation.
 
-## Runtime candidate for a future prototype
+## Selected runtime for the local prototype
 
-For a portfolio prototype on this Mac, use a separately named `kind` cluster
-with Calico and run one Kubernetes Job per parsing request. Kubernetes Jobs
+The selected local prototype uses a separately named `kind` cluster with
+Calico and one Kubernetes Job per parsing request. Kubernetes Jobs
 provide a one-off Pod lifecycle, a deadline and a retry limit. Calico can
 enforce the default-deny ingress and egress policy required for parser Pods.
 Apply a restricted Pod security context as well: non-root UID, no privilege
@@ -97,7 +150,7 @@ default seccomp profile, bounded resources and no service-account token. See
 [Kubernetes security contexts](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/)
 and [Calico on kind](https://docs.tigera.io/calico/latest/getting-started/kubernetes/kind).
 
-This candidate is a job-containment exercise, not a claim of stronger
+This design is a job-containment exercise, not a claim of stronger
 kernel-level sandboxing: the default container runtime still shares the Linux
 kernel. For a stronger parser boundary, gVisor `runsc` would need to be
 configured on the Linux node and selected through a Kubernetes RuntimeClass.
@@ -139,20 +192,22 @@ available. See [Docker Desktop Kubernetes](https://docs.docker.com/desktop/use-d
 and [Kubernetes RuntimeClass](https://kubernetes.io/docs/concepts/containers/runtime-class/).
 
 This option was excluded from the released v1.2.0. The separate
-[v1.3.0 development scope](../releases/v1.3.0.md) now proposes this portfolio
-exercise. The infrastructure spike confirms feasibility on this machine;
-final-topology network enforcement and application integration remain gates.
+[v1.3.0 development scope](../releases/v1.3.0.md) now tracks this portfolio
+exercise. The selected local topology has passed the network and worker
+connection probes recorded above. Final Job-template enforcement and
+application integration remain open.
 
 The proposed application integration, including asynchronous page-count
 validation, Job data transfer, controller permissions and acceptance criteria,
 is documented in [PDF Parser Isolation Integration Proposal](pdf-parser-integration-proposal.md).
 
-## Required changes if the work is resumed
+## Gates before parser integration
 
-Before implementation, validate the proposed runtime, scoped controller
-credential and data-transfer channel on the target development environment.
-The end-to-end integration proposal defines the vertical slice and its
-acceptance criteria. The implementation must:
+The selected local topology has been validated with synthetic probes. Before
+integrating the parser, rerun network and permission checks against the final
+cluster bootstrap, namespace policy and Job template. The end-to-end proposal
+defines the vertical slice and its acceptance criteria. The implementation
+must:
 
 - remove native PDF inspection from the API request path, or route it
   through the same isolated job boundary;
@@ -195,9 +250,10 @@ budget. See the [integration proposal](pdf-parser-integration-proposal.md).
 
 ## Scope and stop condition
 
-Do not implement this design as part of v1.2.0. Reopen it if the project takes
-untrusted PDFs, runs on a shared host, or has a concrete portfolio objective
-that justifies operating a separate job runtime. If the isolated Kind/Calico
-spike is not reproducible, or if its controller requires broad host-control
-credentials in the API or worker, stop at the existing local-only boundary and
-keep parser isolation documented as a limitation.
+This is a local portfolio exercise for synthetic documents. Do not use it to
+approve hostile PDFs, confidential data, shared-host execution or public
+hosting. Stop integration if the network deny, scoped credential, bounded
+transfer or cleanup behavior cannot be reproduced, or if operating the
+controller requires Docker daemon access or broad administrator credentials
+inside the API or worker. Keep the existing local-only boundary and document
+parser limitations if any of these conditions fail.
