@@ -170,9 +170,14 @@ acceptance criteria. The implementation must:
 - records a safe, bounded failure outcome while keeping the existing document
   and processing history consistent.
 
-The numeric resource budgets must be measured against the supported synthetic
-fixtures and the selected runtime. Do not infer a safe memory budget only from
-the compressed PDF size or page count.
+Single-run, network-disabled container baselines now cover representative
+fixtures and combined synthetic 50-page/20-million-pixel OCR input; the latter
+completed in 35.2 seconds with a 253.9 MiB memory peak under a 512 MiB limit.
+These measurements are recorded in the [integration proposal](pdf-parser-integration-proposal.md).
+They are not resource-limit recommendations: timing excludes container and
+Python startup, scratch use and concurrency were not measured, and the selected
+Kubernetes runtime still needs measurement. Do not infer a safe memory budget
+only from compressed PDF size or page count.
 
 ## Scope and stop condition
 
