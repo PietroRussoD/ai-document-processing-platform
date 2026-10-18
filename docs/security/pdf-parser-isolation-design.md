@@ -187,6 +187,11 @@ initial local baselines, not capacity guarantees or resource-limit
 recommendations. Measure pulls from the intended deployment registry and
 repeat under the selected deployment runtime before setting numeric limits.
 Do not infer a safe memory budget only from compressed PDF size or page count.
+A 50-page PDF made by repeating the repository's scanned-invoice fixture
+completed at a 288 MiB memory cap with a 135.5 MiB peak, while a deliberately
+pathological random-pixel page caused a child-process OOM at both 512 MiB and
+768 MiB. These results describe different workloads; neither is a final Job
+budget. See the [integration proposal](pdf-parser-integration-proposal.md).
 
 ## Scope and stop condition
 
