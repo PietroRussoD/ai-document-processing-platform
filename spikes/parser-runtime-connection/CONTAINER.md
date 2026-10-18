@@ -3,27 +3,24 @@
 This extends the [host-side connection spike](README.md). It runs the probe in
 a temporary derivative of `document-platform-api:dev`, as UID/GID 10001, on the
 existing `ai-document-processing-platform_default` Docker network. It does not
-start the Temporal worker or change the application's Kubernetes integration.
+start the Temporal worker. The Compose credential path now uses the same
+worker-owned named-volume contract through a separate sync service.
 
 ## Credential provisioning contract
 
-Use a dedicated Docker volume mounted at `/run/parser-controller`. Provision
-its directory with owner `10001:10001` and mode `0700`; provision `ca.pem` and
-`token` with that owner and mode `0600`. Mount the volume read-only into the
-controller. Provisioning happens outside that container. No application data,
-administrator kubeconfig or Docker socket is mounted into the probe.
+Use the Compose named volume `parser-runtime-credentials`. The
+`parser-credential-sync` service copies the host issuer's private `ca.pem` and
+`token` files into this volume with owner `10001:10001`, directory mode `0700`
+and file mode `0600`. The worker mounts it read-only. No application data,
+administrator kubeconfig or Docker socket is mounted into the sync service; no
+administrator kubeconfig or Docker socket is mounted into the worker.
 
-Use an initial provisioning helper with access only to the credential volume.
-Creating root-owned files and transferring their ownership needs `CAP_CHOWN`;
-finish by transferring the directory ownership. Subsequent token replacements
-can run as UID 10001 without added capabilities. Write a new file in the same
-volume, set mode `0600`, then use `os.replace` to replace `token` atomically.
-The mounted directory makes that new file visible to the running controller.
-
-This validates a Docker-managed volume, not a bind mount of a Mac user's
-`0600` file. Such a host file must not be made world-readable to accommodate
-the container UID. A real deployment still needs a provisioner and a token
-renewal policy. Replacing a token file does not revoke previously issued JWTs.
+The sync helper runs separately from the worker, with no network and access
+only to a read-only host staging directory and the credential volume. It needs
+limited DAC-read, DAC-override and CHOWN capabilities to bridge the Mac host
+UID and worker UID. The worker has none of these capabilities. Such a host file
+must not be made world-readable to accommodate the container UID. Replacing a
+token file does not revoke previously issued JWTs.
 
 ## Build and run the companion
 

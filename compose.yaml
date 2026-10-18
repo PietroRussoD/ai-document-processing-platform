@@ -199,6 +199,41 @@ services:
     ports:
       - "127.0.0.1:${TEMPORAL_UI_PORT:-8233}:8080"
 
+  parser-credential-sync:
+    <<: *application-security
+    user: "0:0"
+    cpus: 0.1
+    mem_limit: 64m
+    memswap_limit: 64m
+    pids_limit: 32
+    profiles: ["processing"]
+    image: document-platform-api:dev
+    command:
+      - python
+      - -m
+      - document_platform.credential_volume_sync
+      - --watch
+    cap_add: ["CHOWN", "DAC_OVERRIDE", "DAC_READ_SEARCH"]
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=4m
+    restart: unless-stopped
+    volumes:
+      - ${DOCUMENT_PLATFORM_PARSER_CREDENTIALS_DIR:?Provision private parser CA and token files}:/run/parser-source:ro
+      - parser-runtime-credentials:/run/parser-runtime
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -m
+        - document_platform.credential_volume_sync
+        - --check-target
+      interval: 2s
+      timeout: 1s
+      retries: 30
+      start_period: 2s
+
   worker:
     <<: *application-security
     cpus: 2.0
@@ -212,6 +247,8 @@ services:
       migrate:
         condition: service_completed_successfully
       temporal:
+        condition: service_healthy
+      parser-credential-sync:
         condition: service_healthy
     environment:
       DOCUMENT_PLATFORM_DATABASE_URL: postgresql+asyncpg://document_platform:local-development-only@postgres:5432/document_platform
@@ -232,7 +269,7 @@ services:
     restart: unless-stopped
     volumes:
       - document-platform-data:/app/data
-      - ${DOCUMENT_PLATFORM_PARSER_CREDENTIALS_DIR:?Provision the parser CA and scoped token before starting processing}:/run/parser-runtime:ro
+      - parser-runtime-credentials:/run/parser-runtime:ro
 
 volumes:
   document-platform-data:
@@ -240,3 +277,4 @@ volumes:
   document-platform-postgres:
   document-platform-prometheus:
   document-platform-temporal-postgres:
+  parser-runtime-credentials:

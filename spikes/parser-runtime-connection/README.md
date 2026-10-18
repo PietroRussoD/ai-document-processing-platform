@@ -2,43 +2,42 @@
 
 This standalone prototype validates the connection contract proposed in the
 [integration plan](../../docs/security/pdf-parser-integration-proposal.md).
-It is separate from the v1.2.0 application: the Temporal worker still uses its
-local extractors. The application has no Kubernetes SDK dependency or active
-Kubernetes settings.
+The v1.3.0 development application now uses the Kubernetes SDK from its
+Temporal worker to create isolated parser Jobs. This spike remains a standalone
+connection and RBAC probe; the application integration and its live evidence
+are documented in the integration plan.
 
 ## Connection contract
 
 The command requires four explicit inputs. It does not load a kubeconfig,
 in-cluster credentials, client certificates or the current kubectl context.
 
-| CLI input | Candidate future worker setting | Requirement |
+| CLI input | Worker setting | Requirement |
 | --- | --- | --- |
 | `--endpoint` | `DOCUMENT_PLATFORM_PARSER_KUBERNETES_ENDPOINT` | HTTPS with an explicit port. Only `127.0.0.1`, `localhost`, `::1` and `host.docker.internal` are allowed in this local spike. No credentials, API path, query or fragment. |
 | `--namespace` | `DOCUMENT_PLATFORM_PARSER_KUBERNETES_NAMESPACE` | A dedicated namespace; `default` and Kubernetes system namespaces are rejected. |
 | `--ca-file` | `DOCUMENT_PLATFORM_PARSER_KUBERNETES_CA_FILE` | A readable CA PEM file. Certificate and hostname verification stay enabled. |
 | `--token-file` | `DOCUMENT_PLATFORM_PARSER_KUBERNETES_TOKEN_FILE` | A readable file containing one bounded bearer token, read again before each request. |
 
-The proposed environment variable names above are not consumed by the current
-application. The CLI uses only its arguments. Its SDK configuration starts
-fresh, without ambient administrator credentials or proxy settings. Requests
-have a 3-second connect timeout, 5-second read timeout and no automatic retries.
+The CLI uses only its arguments. The worker consumes the environment settings
+shown above. Both SDK configurations start fresh, without ambient administrator
+credentials or proxy settings. Requests have a 3-second connect timeout,
+5-second read timeout and no automatic retries.
 
 Rereading a token does not renew it. Provision a short-lived token outside the
 worker and replace it before expiry. An absent, invalid or refused token fails
 the operation. CA replacement requires a new client. Error output contains no
 raw SDK response bodies or credentials.
 
-For a later Compose integration, mount the credentials directory read-only only
-into the worker, outside its document volume. Provision ownership and
-permissions for UID 10001. A directory mount allows atomic token file
-replacement to become visible. Neither the API nor parser Pods should receive
-this credential. A worker container needs a reachable endpoint, not its own
-loopback address; `host.docker.internal` must also appear in the server's
-certificate SAN. The [container companion](CONTAINER.md) verified a read-only
-Docker credential volume, UID 10001 access, atomic token replacement and
-denied access by UID 10002 on 2026-10-18. It uses the worker image without
-running the actual Temporal worker. Bind-mounted host file ownership remains
-a separate deployment concern.
+Compose mounts the host credential directory read-only into a separate sync
+service. That service publishes owner-10001 files into a named volume, which
+the worker mounts read-only outside its document volume. Atomic replacement
+becomes visible to the SDK refresh hook. Neither the API nor parser Jobs
+receive the controller credential. A worker container needs a reachable
+endpoint, not its own loopback address; `host.docker.internal` must also appear
+in the server's certificate SAN. The [container companion](CONTAINER.md)
+verified the target volume and UID-10001 read-only access separately from the
+Temporal worker.
 
 ## Permission checks
 
@@ -144,14 +143,15 @@ and configuration only. A separate Calico check verified that a restricted
 Pod using `document-platform-api:dev` could establish TLS 1.3 to `1.1.1.1:443`
 before an egress-only NetworkPolicy and timed out afterward; the host-side
 baseline succeeded. This does not verify the final parser runtime topology or
-all possible routes and protocols. The connection CLI is not wired into
-`document_platform.worker` and does not validate worker-driven Job
-cancellation or resource limits. The separate
+all possible routes and protocols. This standalone connection CLI does not
+validate worker-driven Job cancellation or resource limits. The separate
 [lifecycle companion](LIFECYCLE.md) verifies standalone controller cleanup
 after success, parser failure and SIGINT, plus deadline/TTL fallback after
-SIGKILL. Temporal worker integration remains unimplemented.
+SIGKILL. Temporal integration and its current live results are tracked in the
+integration plan.
 
 The [credential lifecycle companion](CREDENTIALS.md) adds a host provisioner
 with automatic atomic token renewal, expiry handling and a UID-pinned binding
-for server-side session revocation. Its live checks remain separate from the
-application and Docker-volume delivery.
+for server-side session revocation. Compose now mirrors renewed credentials into
+its worker volume; the companion's live delivery checks remain separate from
+the actual Temporal worker.

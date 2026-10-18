@@ -2,8 +2,9 @@
 
 This standalone host provisioner extends the [connection spike](README.md).
 It requests short-lived, object-bound tokens and publishes the same plaintext
-`token` file consumed by the existing client refresh hook. The application
-worker is still unintegrated.
+`token` file consumed by the existing client refresh hook. Compose mirrors the
+private host directory into a worker-owned named volume through a dedicated
+credential-sync service; the worker receives that volume read-only.
 
 ## Provisioning and renewal policy
 
@@ -49,10 +50,14 @@ revocation remain necessary.
 
 ## Revocation and recovery
 
-Token replacement and local file removal do not revoke a copied JWT. To revoke
-the session, stop its provisioner, remove any remaining local token, then
-delete its anchor with the dedicated bootstrap kubeconfig. Kubernetes checks
-the bound object's existence and UID when authenticating these tokens. See
+Token replacement and local file removal do not revoke a copied JWT. Let active
+parser work settle, then stop the Compose worker and sync service. Stop the
+issuer and remove the host token; remove the project-prefixed
+`parser-runtime-credentials` Docker volume to delete its copy as well. Delete
+the anchor with the dedicated bootstrap kubeconfig. Do not use
+`docker compose down -v`, which also removes application data volumes.
+Kubernetes checks the bound object's existence and UID when authenticating
+these tokens. See
 [bound ServiceAccount tokens](https://kubernetes.io/docs/reference/access-authn-authz/service-accounts-admin/#bound-service-account-tokens).
 Do not assume immediate invalidation or use successful deletion as the only
 verification; poll a retained token until the API refuses it.
@@ -71,6 +76,12 @@ directory separate from that administrator file:
 
 ```sh
 mkdir -m 700 "$probe_dir/credentials"
+kubectl --kubeconfig "$probe_dir/admin.kubeconfig" \
+  --context kind-ai-doc-parser-credential-probe config view --raw --minify \
+  -o 'jsonpath={.clusters[0].cluster.certificate-authority-data}' \
+  | "$probe_python" -c 'import base64,sys; sys.stdout.buffer.write(base64.b64decode(sys.stdin.buffer.read()))' \
+  > "$probe_dir/credentials/ca.pem"
+chmod 600 "$probe_dir/credentials/ca.pem"
 kubectl --kubeconfig "$probe_dir/admin.kubeconfig" \
   --context kind-ai-doc-parser-credential-probe apply \
   -f spikes/parser-runtime-connection/credential-anchor.yaml
@@ -124,12 +135,64 @@ and the scoped controller Role. No existing cluster or remote context was used.
 
 The temporary cluster and credentials were removed after validation.
 
-## Remaining integration work
+## Compose delivery
 
-This implements the host-side renewal prototype. It does not supervise the
-provisioner or coordinate concurrent provisioners. Run only one per directory.
-Automatic delivery into the UID-10001 Docker credential volume is still to be
-connected; the [container companion](CONTAINER.md) separately verified its
-ownership, read-only consumer mount and atomic replacement behavior. Do not
-make host files world-readable to bridge those identities. Application startup,
-worker integration and recovery from sustained API outages remain future work.
+Keep the host directory at mode 0700 and `ca.pem` and `token` at mode 0600.
+The issuer owns and renews those files. Set
+`DOCUMENT_PLATFORM_PARSER_CREDENTIALS_DIR` to that absolute directory in the
+Compose environment, start the issuer in watch mode, then start the processing
+profile:
+
+```sh
+uv run --no-sync python spikes/parser-runtime-connection/credential_issuer.py \
+  --kubeconfig "$probe_dir/admin.kubeconfig" \
+  --credential-dir "$probe_dir/credentials" --bound-uid "$anchor_uid" --watch
+```
+
+In another terminal, after setting the endpoint, namespace and parser image in
+the Compose environment, rebuild the application image so it contains the sync
+module:
+
+```sh
+docker build -t document-platform-api:dev .
+docker compose --profile processing up
+```
+
+When Compose stops, stop the issuer in its terminal as well.
+
+The `parser-credential-sync` service waits until both source files are valid,
+then copies them atomically into the named `parser-runtime-credentials` volume
+with owner 10001:10001 and mode 0600. A changed token is mirrored within one
+poll interval. Invalid or missing source credentials remove the target files,
+so the worker fails closed. The worker waits for the sync service's healthcheck
+and mounts the volume read-only. The sync service has no network, kubeconfig,
+database settings, document data or Docker socket. It runs from the existing
+application image with only the capabilities needed to read its single
+read-only staging mount and assign volume file ownership.
+
+Unit tests cover host-to-volume validation and atomic publication. This does
+not automate Kind/Calico creation or start/stop the host issuer; those remain
+bootstrap and operator steps. Run only one issuer for a credential directory.
+SIGKILL can leave a copied token in the named volume until its server-side
+expiry. Do not make host files world-readable to bridge the host and container
+identities.
+
+## Recorded Docker delivery check — 2026-10-18
+
+A temporary helper container on Docker Desktop for macOS ran the current sync
+module from a read-only bind mount. It used the same dropped-capability,
+network-disabled configuration as Compose, with synthetic credentials and a
+temporary named volume.
+
+| Check | Observed result |
+| --- | --- |
+| Host directory access | Mode-0700 staging directory and mode-0600 files were read without broadening host permissions. |
+| Initial publication | Named volume received UID/GID 10001 and mode-0700 directory / mode-0600 files. |
+| Renewal | Atomic host token replacement appeared in the named volume within two seconds. |
+| Missing token | Removing the source token removed both target files; restoring it repopulated the volume. |
+| Worker identity | A separate UID-10001 container read the renewed token and received `EROFS` when attempting a write. |
+
+This was a direct helper-container check, not a Compose worker or Kubernetes
+API run. The synthetic CA was used to test delivery metadata; TLS validity and
+token acceptance remain covered by the separate connection and container
+probes. Compose configuration validation and the focused unit tests also pass.

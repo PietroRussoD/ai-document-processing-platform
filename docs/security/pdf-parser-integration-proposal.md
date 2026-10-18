@@ -55,9 +55,11 @@ the processing profile, a later bootstrap command must:
    Ready, then apply the restricted namespace, narrow Role and default-deny
    policy. Run positive baseline checks followed by deny checks.
 4. Build and load the parser image, provision the scoped credential through
-   the external issuer, and provide the worker a read-only credential mount.
-   Verify TLS, endpoint access and required RBAC before declaring the worker
-   ready. Keep renewal outside the worker's controller permissions.
+   the external issuer, and provide the worker a read-only credential volume.
+   Compose now waits for a credential-sync service to validate and populate
+   that volume; the host issuer remains outside Compose and renews the source
+   files. Verify TLS, endpoint access and required RBAC before declaring the
+   worker ready. Keep renewal outside the worker's controller permissions.
 5. Start Compose only after these checks pass. If the cluster or credential is
    unavailable, fail worker startup/readiness; never fall back to local PDF
    parsing. A single local command should run this preflight before
