@@ -112,3 +112,7 @@ These checks validate the container credential boundary and client-side token
 reload, not expiry-driven renewal, the actual Temporal worker, parser Job
 lifecycle or network isolation. The credentials and temporary infrastructure
 were removed after the probe.
+
+The subsequent [credential lifecycle companion](CREDENTIALS.md) verifies
+automatic host-side renewal and bound-token revocation. Connecting that
+provisioner to this Docker volume remains an application-integration task.

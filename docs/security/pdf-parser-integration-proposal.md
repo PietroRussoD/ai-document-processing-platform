@@ -146,10 +146,12 @@ client picked up atomic token replacements and refused a missing token. A
 different UID could not read the token.
 
 This runs the standalone prototype in a derivative of the worker image, not
-the actual Temporal worker. Host bind-mount ownership and deployment token
-renewal still need a concrete provisioner. Neither the connection checks nor
-the Role enforce parser Job templates or network isolation; keep those gates
-open.
+the actual Temporal worker. The subsequent
+[credential lifecycle companion](../../spikes/parser-runtime-connection/CREDENTIALS.md)
+implements host-side token renewal and session revocation. Delivery into the
+Docker volume and deployment supervision remain unimplemented. Neither the
+connection checks nor the Role enforce parser Job templates or network
+isolation; keep those gates open.
 
 ## Result contract
 
@@ -226,6 +228,7 @@ limit correction are recorded below.
 | Explicit controller connection configuration | Pass for the standalone host prototype | The standalone spike constructs a fresh Python SDK configuration from a local HTTPS endpoint, namespace, CA file and short-lived token file; a bogus `KUBECONFIG` had no effect. Live checks passed with the scoped Role and rejected an untrusted CA, invalid token (401), insufficient permissions (403) and a temporary extra Secret API grant. Unit checks cover token replacement and loss; the following row records the container credential check. |
 | Worker-image credential mount | Pass for the standalone container prototype, 2026-10-18 | A disposable derivative of `document-platform-api:dev` ran as `10001:10001` on the Compose network, with a read-only credential volume (directory 0700, CA/token 0600), no administrator kubeconfig and TLS hostname verification enabled. Writes failed with `EROFS`; UID 10002 could not read the token. The same SDK client refused an invalid replacement token (401), accepted a newly issued token, refused a removed file and resumed after restoration. This verifies Docker-volume ownership and client token reload, not the Temporal worker's integration or an automated renewal mechanism. |
 | Controller cleanup and interruption | Pass for the standalone lifecycle prototype, 2026-10-18 | With the scoped Role, synthetic success and parser exit 7 both reached the expected Job terminal state before foreground deletion removed Job and Pod. Deletion used the captured Job UID as a precondition and a fresh REST client after exec. SIGINT during a running synthetic parser removed Job and Pod in 3.69 s; repeated cleanup succeeded. After controller SIGKILL, Kubernetes reported `DeadlineExceeded` and TTL removed both resources, observed 66.54 s after the signal. No Job or Pod remained. See the [lifecycle companion](../../spikes/parser-runtime-connection/LIFECYCLE.md) for commands, offline failure checks and limits. This does not verify Temporal cancellation or real parser execution. |
+| Credential provisioning and renewal | Pass for the standalone host prototype, 2026-10-18 | An external provisioner requested short-lived tokens bound to an empty Secret's pinned UID and atomically renewed its private token file. The same SDK client accepted the replacement; the controller could not mint its own tokens. Stopping the provisioner removed the file but did not revoke retained tokens. Deleting the binding made both issued tokens receive HTTP 401, observed after 9.99 s. Recreating its name did not restore the old UID; explicit reprovisioning did restore access. Expiry removal is covered with a controlled clock, not a live wait for server JWT expiry. See the [credential lifecycle companion](../../spikes/parser-runtime-connection/CREDENTIALS.md). Automated delivery into the Docker volume and actual worker integration remain unimplemented. |
 | Worker Kubernetes configuration | Not implemented | `worker.py` still constructs local PyMuPDF and Tesseract extractors. `Settings`, `compose.yaml` and `pyproject.toml` define no Kubernetes endpoint, CA, controller token or Kubernetes client dependency. This is expected before the proposed integration; the network smoke test did not run the worker process. |
 
 The transport is promising enough to continue without designing an artifact
@@ -237,9 +240,12 @@ extracted-text character-limit defect is corrected in the working source and
 verified at the exact 1,000,000-character boundary.
 The standalone connection, worker-image credential mount and synchronous
 controller cleanup contracts are validated. The actual Temporal worker remains
-unintegrated. Before application integration, verify Internet egress denial,
-define credential provisioning and renewal, and extend resource measurements
-across representative and worst-case synthetic documents. Later implementation
+unintegrated. A host-side credential provisioner now validates renewal and
+session revocation, with clock-controlled expiry checks. Before application
+integration, verify Internet egress denial and extend resource measurements
+across representative and worst-case synthetic documents. Connect credential
+delivery to the UID-10001 Docker volume as part of worker integration.
+Later implementation
 must connect Temporal cancellation to confirmed Job removal and retain the
 deadline/TTL fallback when cleanup cannot run. Preserve the explicit stdin
 half-close and bounded streaming behavior in the implementation.

@@ -145,6 +145,13 @@ def verify_connection(settings: ConnectionSettings) -> dict[str, str]:
                 check("", "secrets", verb, namespace=settings.namespace, expected_allowed=False)
             check("", "pods", "create", namespace=settings.namespace, expected_allowed=False)
             check(
+                "",
+                "serviceaccounts/token",
+                "create",
+                namespace=settings.namespace,
+                expected_allowed=False,
+            )
+            check(
                 "rbac.authorization.k8s.io",
                 "rolebindings",
                 "create",

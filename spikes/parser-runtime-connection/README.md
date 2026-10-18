@@ -52,6 +52,7 @@ check this declared matrix:
 | Dedicated namespace, `pods` | Allow `get`, `list`, `watch`; deny `create` |
 | Dedicated namespace, `pods/exec` | Allow `get`, `create` |
 | Dedicated namespace, `secrets` | Deny `get`, `list` |
+| Dedicated namespace, `serviceaccounts/token` | Deny `create` |
 | Dedicated namespace, `rolebindings` | Deny `create` |
 | `default` namespace, `pods` | Deny `list` |
 | `default` namespace, `batch/jobs` | Deny `create` |
@@ -145,3 +146,8 @@ validate worker-driven Job cancellation or resource limits. The separate
 [lifecycle companion](LIFECYCLE.md) verifies standalone controller cleanup
 after success, parser failure and SIGINT, plus deadline/TTL fallback after
 SIGKILL. Temporal worker integration remains unimplemented.
+
+The [credential lifecycle companion](CREDENTIALS.md) adds a host provisioner
+with automatic atomic token renewal, expiry handling and a UID-pinned binding
+for server-side session revocation. Its live checks remain separate from the
+application and Docker-volume delivery.

@@ -118,6 +118,8 @@ def mock_permissions(monkeypatch: pytest.MonkeyPatch, override: str | None = Non
             allowed = False
         if override == "other-namespace" and attributes.namespace == "default":
             allowed = True
+        if override == "self-renewal" and attributes.resource == "serviceaccounts":
+            allowed = True
         return client.V1SelfSubjectAccessReview(
             spec=body.spec,
             status=client.V1SubjectAccessReviewStatus(
@@ -142,7 +144,7 @@ def test_accepts_the_expected_scoped_permissions(
     }
 
 
-@pytest.mark.parametrize("override", ["secrets", "missing-exec", "other-namespace"])
+@pytest.mark.parametrize("override", ["secrets", "missing-exec", "other-namespace", "self-renewal"])
 def test_rejects_missing_or_excess_permissions(
     settings: ConnectionSettings, monkeypatch: pytest.MonkeyPatch, override: str
 ) -> None:
