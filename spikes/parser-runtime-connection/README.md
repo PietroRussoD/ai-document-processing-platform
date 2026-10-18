@@ -140,5 +140,8 @@ access. Removing that grant restored success. No Secret data was read.
 
 This cluster used Kind's default CNI because this spike checks authentication
 and configuration only. Calico Internet-egress denial remains unverified. The
-prototype is not wired into `document_platform.worker` and does not validate
-worker-driven Job cancellation or resource limits.
+connection CLI is not wired into `document_platform.worker` and does not
+validate worker-driven Job cancellation or resource limits. The separate
+[lifecycle companion](LIFECYCLE.md) verifies standalone controller cleanup
+after success, parser failure and SIGINT, plus deadline/TTL fallback after
+SIGKILL. Temporal worker integration remains unimplemented.

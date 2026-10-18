@@ -1,5 +1,5 @@
 {
-  "include": ["connection_probe.py", "container_probe.py"],
+  "include": ["connection_probe.py", "container_probe.py", "lifecycle_probe.py"],
   "typeCheckingMode": "strict",
   "pythonVersion": "3.13"
 }

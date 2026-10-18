@@ -225,6 +225,7 @@ limit correction are recorded below.
 | Compose-network reachability | Pass for network and credential smoke test | A disposable container using `document-platform-api:dev` on `ai-document-processing-platform_default`, with `host.docker.internal` mapped to the host gateway, reached the temporary Kind API with TLS verification enabled. The scoped token received `200` for listing Pods, `403` for listing Secrets, and SelfSubjectAccessReview allowed `get/create pods/exec` plus `create jobs` while denying `get secrets`. This did not exercise the `document_platform.worker` configuration or Kubernetes client integration. |
 | Explicit controller connection configuration | Pass for the standalone host prototype | The standalone spike constructs a fresh Python SDK configuration from a local HTTPS endpoint, namespace, CA file and short-lived token file; a bogus `KUBECONFIG` had no effect. Live checks passed with the scoped Role and rejected an untrusted CA, invalid token (401), insufficient permissions (403) and a temporary extra Secret API grant. Unit checks cover token replacement and loss; the following row records the container credential check. |
 | Worker-image credential mount | Pass for the standalone container prototype, 2026-10-18 | A disposable derivative of `document-platform-api:dev` ran as `10001:10001` on the Compose network, with a read-only credential volume (directory 0700, CA/token 0600), no administrator kubeconfig and TLS hostname verification enabled. Writes failed with `EROFS`; UID 10002 could not read the token. The same SDK client refused an invalid replacement token (401), accepted a newly issued token, refused a removed file and resumed after restoration. This verifies Docker-volume ownership and client token reload, not the Temporal worker's integration or an automated renewal mechanism. |
+| Controller cleanup and interruption | Pass for the standalone lifecycle prototype, 2026-10-18 | With the scoped Role, synthetic success and parser exit 7 both reached the expected Job terminal state before foreground deletion removed Job and Pod. Deletion used the captured Job UID as a precondition and a fresh REST client after exec. SIGINT during a running synthetic parser removed Job and Pod in 3.69 s; repeated cleanup succeeded. After controller SIGKILL, Kubernetes reported `DeadlineExceeded` and TTL removed both resources, observed 66.54 s after the signal. No Job or Pod remained. See the [lifecycle companion](../../spikes/parser-runtime-connection/LIFECYCLE.md) for commands, offline failure checks and limits. This does not verify Temporal cancellation or real parser execution. |
 | Worker Kubernetes configuration | Not implemented | `worker.py` still constructs local PyMuPDF and Tesseract extractors. `Settings`, `compose.yaml` and `pyproject.toml` define no Kubernetes endpoint, CA, controller token or Kubernetes client dependency. This is expected before the proposed integration; the network smoke test did not run the worker process. |
 
 The transport is promising enough to continue without designing an artifact
@@ -234,13 +235,14 @@ The 20 MiB file is mostly trailing padding, the 50-page PDF uses simple vector
 text, and concurrency and adversarial inputs were not measured. The
 extracted-text character-limit defect is corrected in the working source and
 verified at the exact 1,000,000-character boundary.
-The standalone connection and worker-image credential mount contracts are
-validated. The actual Temporal worker remains unintegrated. Before application
-integration, verify Internet egress denial and controller-driven cleanup after
-parser errors or cancellation, define credential provisioning and renewal, and
-extend resource measurements across representative and worst-case synthetic
-documents. Preserve the explicit stdin half-close and bounded streaming behavior
-in the implementation.
+The standalone connection, worker-image credential mount and synchronous
+controller cleanup contracts are validated. The actual Temporal worker remains
+unintegrated. Before application integration, verify Internet egress denial,
+define credential provisioning and renewal, and extend resource measurements
+across representative and worst-case synthetic documents. Later implementation
+must connect Temporal cancellation to confirmed Job removal and retain the
+deadline/TTL fallback when cleanup cannot run. Preserve the explicit stdin
+half-close and bounded streaming behavior in the implementation.
 
 ## Acceptance criteria for a later implementation
 
