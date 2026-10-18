@@ -201,6 +201,16 @@ The proposed application integration, including asynchronous page-count
 validation, Job data transfer, controller permissions and acceptance criteria,
 is documented in [PDF Parser Isolation Integration Proposal](pdf-parser-integration-proposal.md).
 
+On 2026-10-18, the current application Job controller and parser CLI were run
+in a fresh Kind v1.37.0/Calico 3.33.0 cluster. Synthetic embedded-text and OCR
+Jobs succeeded under the final restricted Job template. External DNS and IPv4
+TLS to `1.1.1.1:443` worked before a namespace-wide default-deny policy and
+failed after it was applied. The scoped token created Jobs and used `pods/exec`,
+but could not create Pods or read Secrets; the controller deleted both Job and
+Pod after each run. The host-side probe did not run inside Compose or Temporal.
+See the [integration evidence table](pdf-parser-integration-proposal.md) for
+the limits of this check.
+
 ## Gates before parser integration
 
 The selected local topology has been validated with synthetic probes. Before
