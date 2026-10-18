@@ -177,14 +177,16 @@ measured two sequential and two concurrent restricted Jobs: OCR took about
 about one second after container start, and a sampler polling every 10 ms
 observed no `/tmp` writes. The image was preloaded, and Kind's default CNI did
 not enforce NetworkPolicy. A four-Job run completed in 58.4 seconds; each OCR
-took 53.0–53.9 seconds and peaked at 252.8–259.7 MiB. An image pull for a
-local-registry harness failed at Docker Hub's CDN, so cold image-pull time is
-not measured. Full results and limits are recorded in the [integration
-proposal](pdf-parser-integration-proposal.md). These are initial local
-baselines, not capacity guarantees or resource-limit recommendations. Measure
-cold pulls against the target registry and repeat under the selected deployment
-runtime before setting numeric limits. Do not infer a safe memory budget only
-from compressed PDF size or page count.
+took 53.0–53.9 seconds and peaked at 252.8–259.7 MiB. A separate cold pull of
+the probe image from a localhost-only registry took 2.294 seconds for the
+154,543,722-byte image; a cached-image Job completed in 4.668 seconds versus
+7.736 seconds for the cold pull Job. This local bridge measurement does not
+represent a remote deployment registry. Full results and limits are recorded
+in the [integration proposal](pdf-parser-integration-proposal.md). These are
+initial local baselines, not capacity guarantees or resource-limit
+recommendations. Measure pulls from the intended deployment registry and
+repeat under the selected deployment runtime before setting numeric limits.
+Do not infer a safe memory budget only from compressed PDF size or page count.
 
 ## Scope and stop condition
 
