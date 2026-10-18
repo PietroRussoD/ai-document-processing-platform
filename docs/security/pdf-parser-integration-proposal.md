@@ -191,6 +191,14 @@ the Job; it must not resubmit the same expensive OCR operation merely because
 the parser child returned a non-zero status. Test child-process OOM separately
 from a Job container OOM and from an ordinary OCR timeout.
 
+Source inspection and the focused OCR-adapter/workflow tests confirm the
+current error path: a non-zero Tesseract exit becomes `OcrExtractionFailed`,
+the activity lets it propagate, and the shared three-attempt policy applies.
+The 27 focused tests pass, but none asserts the number of Temporal OCR attempts
+for this failure. Add that workflow-level regression when implementing the
+failure classification; do not change the current workflow as part of this
+proposal review.
+
 Keep the existing upload-size, page-count, extracted-character, OCR-pixel and
 per-page timeout limits. Measure Job CPU, memory, scratch space, startup time
 and total deadlines against the synthetic fixtures before choosing numeric
