@@ -10,6 +10,7 @@ from document_platform.application.ports import (
     OcrEngineUnavailable,
     OcrExtractionFailed,
     OcrTextLimitExceeded,
+    ParserRuntimeRejected,
     ParserRuntimeUnavailable,
 )
 from document_platform.application.temporal_contracts import EXTRACT_OCR_TEXT_ACTIVITY
@@ -33,6 +34,12 @@ class ExtractOcrTextActivity:
             raise ApplicationError(
                 "PDF parser runtime is temporarily unavailable",
                 type="PARSER_RUNTIME_UNAVAILABLE",
+            ) from error
+        except ParserRuntimeRejected as error:
+            raise ApplicationError(
+                "PDF parser runtime rejected the controller request",
+                type="PARSER_RUNTIME_REJECTED",
+                non_retryable=True,
             ) from error
         except _NON_RETRYABLE_OCR_FAILURES as error:
             raise ApplicationError(

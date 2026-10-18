@@ -195,6 +195,21 @@ administrator credentials. TLS verification stays enabled, the token is read
 again before each request, and errors omit credentials and raw response bodies.
 Its separate dependency environment keeps the Kubernetes SDK outside v1.2.0.
 
+The v1.3.0 application now includes a first outbound connection adapter using
+the spike's verified Kubernetes Python client version. It accepts only an
+explicit local HTTPS endpoint, dedicated namespace, CA file and token file;
+constructs a fresh client without ambient kubeconfig, certificate, proxy or
+administrator settings; and rereads the token before each request. A bounded
+Pod-list request checks controller connectivity. Network and server overload
+errors become `ParserRuntimeUnavailable`; TLS, configuration, authentication
+and authorization rejections become `ParserRuntimeRejected`. The Temporal
+activities preserve that distinction for retry handling.
+
+This adapter is not yet configured or used by the worker. It does not create
+Jobs, transfer PDFs, validate parser output, or enforce the final Job template.
+The worker still uses local PDF extractors until all three parser entry points
+are moved behind the isolated runtime.
+
 The prototype passed host-side live checks with a namespace-scoped controller
 identity, and rejected an untrusted CA, invalid token, insufficient permissions
 and a temporary extra Secret API grant. A subsequent

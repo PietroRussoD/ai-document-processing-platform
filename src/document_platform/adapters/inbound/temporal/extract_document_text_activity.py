@@ -9,6 +9,7 @@ from document_platform.application.commands import ExtractDocumentText, ExtractD
 from document_platform.application.ports import (
     EncryptedPdf,
     InvalidPdf,
+    ParserRuntimeRejected,
     ParserRuntimeUnavailable,
     PdfPageLimitExceeded,
     PdfTextLimitExceeded,
@@ -30,6 +31,12 @@ class ExtractDocumentTextActivity:
             raise ApplicationError(
                 "PDF parser runtime is temporarily unavailable",
                 type="PARSER_RUNTIME_UNAVAILABLE",
+            ) from error
+        except ParserRuntimeRejected as error:
+            raise ApplicationError(
+                "PDF parser runtime rejected the controller request",
+                type="PARSER_RUNTIME_REJECTED",
+                non_retryable=True,
             ) from error
         except _NON_RETRYABLE_PDF_FAILURES as error:
             raise ApplicationError(
