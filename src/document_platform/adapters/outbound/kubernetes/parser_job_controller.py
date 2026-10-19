@@ -424,9 +424,12 @@ class KubernetesParserJobController:
                     websocket.close_channel(0)
                 while websocket.is_open():
                     _raise_if_cancelled(cancel_event)
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise ParserRuntimeUnavailable("Parser command exceeded its deadline")
+                    websocket.update(timeout=min(1.0, remaining))
                     if time.monotonic() >= deadline:
                         raise ParserRuntimeUnavailable("Parser command exceeded its deadline")
-                    websocket.update(timeout=1)
                     output = websocket.read_stdout()
                     stderr_size += len(websocket.read_stderr())
                     if len(stdout) + len(output) > output_limit:
@@ -434,9 +437,15 @@ class KubernetesParserJobController:
                     if stderr_size > _MAX_STDERR_BYTES:
                         raise ParserOutputExceeded("Parser stderr exceeded its byte limit")
                     stdout.extend(output)
-                if not isinstance(websocket.returncode, int):
+                try:
+                    exit_code = websocket.returncode
+                except (KeyError, TypeError, ValueError):
+                    raise ParserExecutionFailed(
+                        "Isolated parser exec terminated without a usable exit status"
+                    ) from None
+                if not isinstance(exit_code, int):
                     raise ParserRuntimeUnavailable("Parser exec returned no exit status")
-                return bytes(stdout), websocket.returncode
+                return bytes(stdout), exit_code
             finally:
                 websocket.close()
 

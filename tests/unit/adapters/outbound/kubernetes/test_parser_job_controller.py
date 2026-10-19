@@ -22,6 +22,7 @@ from document_platform.application.ports import (
     ParserExecutionFailed,
     ParserOutputExceeded,
     ParserRuntimeRejected,
+    ParserRuntimeUnavailable,
 )
 
 
@@ -229,6 +230,28 @@ def test_exec_checks_cancellation_before_opening_websocket(
     stream_call.assert_not_called()
 
 
+def test_exec_enforces_deadline_after_websocket_update(
+    controller: KubernetesParserJobController, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    socket = FakeExecSocket()
+    connection = cast(Any, controller)._connection
+    monkeypatch.setattr(connection, "new_api_client", lambda: nullcontext(object()))
+
+    class FakeCoreApi:
+        def connect_get_namespaced_pod_exec(self, *args: object, **kwargs: object) -> None:
+            return None
+
+    monkeypatch.setattr(controller_module.client, "CoreV1Api", lambda _api: FakeCoreApi())
+    monkeypatch.setattr(controller_module.streaming, "stream", lambda *args, **kwargs: socket)
+    monotonic = Mock(side_effect=[0.0, 0.0, 121.0])
+    monkeypatch.setattr(controller_module.time, "monotonic", monotonic)
+
+    with pytest.raises(ParserRuntimeUnavailable, match="command exceeded its deadline"):
+        cast(Any, controller)._exec("pod", ["python"], stdin=None, output_limit=100)
+
+    assert socket.closed
+
+
 def test_refuses_binary_transfer_without_stdin_half_close_support(
     controller: KubernetesParserJobController, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -278,6 +301,39 @@ def test_exec_stops_when_stdout_exceeds_its_byte_limit(
 
     with pytest.raises(ParserOutputExceeded, match="result exceeded"):
         cast(Any, controller)._exec("pod", ["python"], stdin=b"pdf", output_limit=10)
+    assert socket.closed
+
+
+def test_exec_maps_malformed_runtime_exit_status_to_bounded_parser_failure(
+    controller: KubernetesParserJobController, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class InvalidReturnCodeSocket(FakeExecSocket):
+        def __init__(self) -> None:
+            self.subprotocol = "v5.channel.k8s.io"
+            self.stdout = b""
+            self.input = bytearray()
+            self.closed_channels = []
+            self.closed = False
+
+        @property
+        def returncode(self) -> int:
+            raise ValueError("raw runtime detail")
+
+    socket = InvalidReturnCodeSocket()
+    connection = cast(Any, controller)._connection
+    monkeypatch.setattr(connection, "new_api_client", lambda: nullcontext(object()))
+
+    class FakeCoreApi:
+        def connect_get_namespaced_pod_exec(self, *args: object, **kwargs: object) -> None:
+            return None
+
+    monkeypatch.setattr(controller_module.client, "CoreV1Api", lambda _api: FakeCoreApi())
+    monkeypatch.setattr(controller_module.streaming, "stream", lambda *args, **kwargs: socket)
+
+    with pytest.raises(ParserExecutionFailed, match="without a usable exit status") as raised:
+        cast(Any, controller)._exec("pod", ["python"], stdin=None, output_limit=100)
+
+    assert "raw runtime detail" not in str(raised.value)
     assert socket.closed
 
 
