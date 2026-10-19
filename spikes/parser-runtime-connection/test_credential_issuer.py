@@ -124,6 +124,27 @@ def test_kubectl_uses_explicit_credentials_without_secret_arguments(monkeypatch)
     assert "synthetic-secret" not in str(error.value)
 
 
+def test_issuer_accepts_only_explicit_bootstrap_context(issuer) -> None:
+    instance, command = issuer
+    instance = TokenIssuer(
+        instance.kubeconfig,
+        "synthetic-binding-uid",
+        context="kind-ai-doc-parser-runtime-cafefeed0",
+    )
+    assert command.call_args.kwargs["context"] == "kind-ai-doc-parser-runtime-cafefeed0"
+    command.reset_mock()
+    command.return_value = json.dumps(
+        {
+            "status": {
+                "token": "synthetic-token",
+                "expirationTimestamp": (NOW + timedelta(hours=1)).isoformat(),
+            }
+        }
+    )
+    instance.issue()
+    assert command.call_args.kwargs["context"] == "kind-ai-doc-parser-runtime-cafefeed0"
+
+
 def test_atomic_private_publication_preserves_previous_on_failure(directory, monkeypatch) -> None:
     publish_token(directory, "synthetic-old")
     with (directory / "token").open() as old:

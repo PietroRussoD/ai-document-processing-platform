@@ -129,6 +129,52 @@ kind delete cluster --name ai-doc-parser-connection-probe
 rm -rf "$probe_dir"
 ```
 
+## Automated Kind/Calico session
+
+The repository command automates the dedicated local runtime and its cleanup.
+It creates a uniquely named Kind cluster with the default CNI disabled, installs
+the pinned Calico 3.33.0 operator, and waits for Calico and the node. A
+restricted Pod using the parser image must first establish verified TLS to
+`1.1.1.1:443`; after applying the namespace-wide default-deny policy, the same
+connection must fail. The command then checks the host-side controller TLS and
+RBAC contract and exercises automatic token renewal and SIGTERM cleanup. The
+Calico manifests follow its [official quickstart](https://docs.tigera.io/calico/latest/getting-started/kubernetes/quickstart),
+using the CRDs, operator and custom resources pinned to v3.33.0.
+
+Run the disposable verification without starting or changing Compose:
+
+```sh
+uv run --no-sync python scripts/parser_runtime.py verify
+```
+
+To supervise the full local processing session, stop any running services in
+the Compose project first and configure `DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN`
+in `.env`, then run:
+
+```sh
+uv run --no-sync python scripts/parser_runtime.py up
+```
+
+`up` builds the current API/worker and console images, tags the API image for
+parser Jobs, and loads it into the new Kind node. It checks the external egress
+baseline and its denial before creating the controller credential. It starts
+the host issuer in renewal mode and then starts the processing Compose profile
+with the loopback Kind endpoint, verified CA, scoped token and private host
+credential directory. Press Ctrl-C to stop the Compose services, stop the
+issuer so the sync service removes its copied token, delete the bound Secret to
+revoke outstanding tokens, clean parser Jobs and remove only that session's
+Kind cluster and temporary directory. Compose data volumes are retained.
+Shutdown stops the API, console, Temporal UI and dispatcher first, then the
+worker while Temporal is still available, then Temporal and the databases. The
+Python worker and dispatcher receive SIGINT so their entrypoints can close
+cleanly; the worker has three minutes to cancel active parser work.
+
+Every Kubernetes call uses the session's explicit kubeconfig and context. The
+cluster name is random; `hub` and the default kubeconfig are never selected.
+The parser NetworkPolicy test covers direct IPv4 TLS egress to the tested
+endpoint. It does not prove every protocol, IPv6 path or every possible route.
+The runtime remains per-Job containment on `runc`, not a kernel sandbox.
+
 ## Recorded validation
 
 On 2026-10-17, the host-side CLI passed with Kubernetes 1.37 and Python client

@@ -31,10 +31,15 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-def kubectl(kubeconfig: Path, *arguments: str, body: str | None = None) -> str:
+def kubectl(
+    kubeconfig: Path,
+    *arguments: str,
+    context: str = CONTEXT,
+    body: str | None = None,
+) -> str:
     try:
         result = subprocess.run(
-            ["kubectl", "--kubeconfig", str(kubeconfig), "--context", CONTEXT, *arguments],
+            ["kubectl", "--kubeconfig", str(kubeconfig), "--context", context, *arguments],
             input=body,
             capture_output=True,
             text=True,
@@ -49,7 +54,13 @@ def kubectl(kubeconfig: Path, *arguments: str, body: str | None = None) -> str:
 
 
 class TokenIssuer:
-    def __init__(self, kubeconfig: Path, bound_uid: str, ttl: int = 3600) -> None:
+    def __init__(
+        self,
+        kubeconfig: Path,
+        bound_uid: str,
+        ttl: int = 3600,
+        context: str = CONTEXT,
+    ) -> None:
         if not kubeconfig.is_absolute() or not kubeconfig.is_file():
             raise ProbeError("Use an explicit absolute bootstrap kubeconfig file")
         if not bound_uid or not 600 <= ttl <= 3600:
@@ -59,9 +70,20 @@ class TokenIssuer:
         self.kubeconfig = kubeconfig
         self.bound_uid = bound_uid
         self.ttl = ttl
+        if not context or any(character.isspace() for character in context):
+            raise ProbeError("Use an explicit non-empty bootstrap context")
+        self.context = context
         try:
             configuration = json.loads(
-                kubectl(kubeconfig, "config", "view", "--minify", "-o", "json")
+                kubectl(
+                    kubeconfig,
+                    "config",
+                    "view",
+                    "--minify",
+                    "-o",
+                    "json",
+                    context=context,
+                )
             )
             cluster = configuration["clusters"][0]["cluster"]
             if cluster.get("insecure-skip-tls-verify") or cluster.get("proxy-url"):
@@ -94,6 +116,7 @@ class TokenIssuer:
             "-f",
             "-",
             body=json.dumps(body),
+            context=self.context,
         )
         try:
             status = json.loads(response)["status"]
@@ -188,6 +211,7 @@ class TokenRenewer:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--kubeconfig", required=True, type=Path)
+    parser.add_argument("--context", default=CONTEXT)
     parser.add_argument("--credential-dir", required=True, type=Path)
     parser.add_argument("--bound-uid", required=True)
     parser.add_argument("--ttl", type=int, default=3600)
@@ -200,7 +224,7 @@ def main() -> int:
                 "Renewal margin must be positive and shorter than the requested lifetime"
             )
         check_directory(args.credential_dir)
-        issuer = TokenIssuer(args.kubeconfig, args.bound_uid, args.ttl)
+        issuer = TokenIssuer(args.kubeconfig, args.bound_uid, args.ttl, args.context)
         renewer = TokenRenewer(issuer.issue, args.credential_dir, args.renew_before)
 
         def stop(signum: int, frame: object) -> None:

@@ -9,10 +9,11 @@ credential-sync service; the worker receives that volume read-only.
 ## Provisioning and renewal policy
 
 Run one trusted provisioner per credential directory outside the worker.
-The provisioner uses an explicit absolute bootstrap kubeconfig and the fixed
-`kind-ai-doc-parser-credential-probe` context. It checks the configured endpoint
-locally before issuance, rejecting remote endpoints, disabled TLS verification
-and an explicit proxy. This prototype uses the disposable cluster's
+The provisioner uses an explicit absolute bootstrap kubeconfig and context. The
+standalone recipe uses the fixed `kind-ai-doc-parser-credential-probe` context;
+the automated session passes the generated context for its random Kind cluster.
+It checks the configured endpoint locally before issuance, rejecting remote
+endpoints, disabled TLS verification and an explicit proxy. This prototype uses the disposable cluster's
 administrator identity on the host only. That identity must not enter worker
 or parser containers.
 
@@ -170,12 +171,14 @@ database settings, document data or Docker socket. It runs from the existing
 application image with only the capabilities needed to read its single
 read-only staging mount and assign volume file ownership.
 
-Unit tests cover host-to-volume validation and atomic publication. This does
-not automate Kind/Calico creation or start/stop the host issuer; those remain
-bootstrap and operator steps. Run only one issuer for a credential directory.
-SIGKILL can leave a copied token in the named volume until its server-side
-expiry. Do not make host files world-readable to bridge the host and container
-identities.
+Unit tests cover host-to-volume validation and atomic publication. The
+[`parser_runtime.py` session command](README.md#automated-kindcalico-session)
+now creates the disposable Kind/Calico runtime, starts and supervises the host
+issuer, and scrubs the copied token on normal shutdown. Run only one issuer for
+a credential directory. SIGKILL can leave a copied token in the named volume
+until the next sync or server-side expiry; deleting the bound anchor revokes
+tokens issued for that session. Do not make host files world-readable to bridge
+the host and container identities.
 
 ## Recorded Docker delivery check — 2026-10-18
 

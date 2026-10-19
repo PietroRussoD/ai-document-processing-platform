@@ -1,9 +1,12 @@
 # PDF Parser Isolation Integration Proposal
 
 Status: embedded-text/OCR worker flow and Temporal cancellation/restart have
-live evidence on a disposable Compose + Kind/Calico stack. Upload inspection,
-automated Compose bootstrap, the base host bind-mount credential path and some
-Temporal recovery cases remain open.
+live evidence on a disposable Compose + Kind/Calico stack. A repeatable local
+Kind/Calico bootstrap and issuer supervisor are implemented with a disposable
+egress baseline/deny check. The supervised Compose command passed service
+startup and orderly shutdown; the run did not upload a document through that
+command. Upload inspection, the direct base host bind-mount credential path
+and some Temporal recovery cases remain open.
 
 This proposal refines the parser-isolation work described in the
 [isolation design](pdf-parser-isolation-design.md). The local single-operator
@@ -42,8 +45,9 @@ provides per-Job containment, not a strong sandbox.
 
 ### Local startup and shutdown contract
 
-Compose cannot express readiness for an external Kind cluster. Before starting
-the processing profile, a later bootstrap command must:
+Compose cannot express readiness for an external Kind cluster. The repository
+command `uv run --no-sync python scripts/parser_runtime.py up` now performs this
+preflight before starting the processing profile:
 
 1. Use an explicit kubeconfig under a private temporary directory and a unique
    cluster name. It must refuse to use `hub` or any remote context.
@@ -53,7 +57,8 @@ the processing profile, a later bootstrap command must:
    node is expected to stay `NotReady`.
 3. Install pinned Calico 3.33 manifests, wait for Calico and the node to become
    Ready, then apply the restricted namespace, narrow Role and default-deny
-   policy. Run positive baseline checks followed by deny checks.
+   policy. Run positive baseline checks followed by deny checks. The `verify`
+   subcommand also runs this stage alone and removes its disposable cluster.
 4. Build and load the parser image, provision the scoped credential through
    the external issuer, and provide the worker a read-only credential volume.
    Compose now waits for a credential-sync service to validate and populate
@@ -62,8 +67,9 @@ the processing profile, a later bootstrap command must:
    worker ready. Keep renewal outside the worker's controller permissions.
 5. Start Compose only after these checks pass. If the cluster or credential is
    unavailable, fail worker startup/readiness; never fall back to local PDF
-   parsing. A single local command should run this preflight before
-   `docker compose --profile processing up`.
+   parsing. The `up` command supervises Compose and retains its named data
+   volumes during shutdown. Its full Compose lifecycle still needs a recorded
+   live run.
 
 For shutdown, stop accepting parser work and stop the worker with enough grace
 to cancel active Jobs and confirm their deletion. Stop the credential issuer,
@@ -395,9 +401,10 @@ limit correction are recorded below.
 | Explicit controller connection configuration | Pass for the standalone host prototype | The standalone spike constructs a fresh Python SDK configuration from a local HTTPS endpoint, namespace, CA file and short-lived token file; a bogus `KUBECONFIG` had no effect. Live checks passed with the scoped Role and rejected an untrusted CA, invalid token (401), insufficient permissions (403) and a temporary extra Secret API grant. Unit checks cover token replacement and loss; the following row records the container credential check. |
 | Worker-image credential mount | Pass for the standalone container prototype, 2026-10-18 | A disposable derivative of `document-platform-api:dev` ran as `10001:10001` on the Compose network, with a read-only credential volume (directory 0700, CA/token 0600), no administrator kubeconfig and TLS hostname verification enabled. Writes failed with `EROFS`; UID 10002 could not read the token. The same SDK client refused an invalid replacement token (401), accepted a newly issued token, refused a removed file and resumed after restoration. This verifies Docker-volume ownership and client token reload, not the Temporal worker's integration or an automated renewal mechanism. |
 | Controller cleanup and interruption | Pass for the standalone lifecycle prototype, 2026-10-18 | With the scoped Role, synthetic success and parser exit 7 both reached the expected Job terminal state before foreground deletion removed Job and Pod. Deletion used the captured Job UID as a precondition and a fresh REST client after exec. SIGINT during a running synthetic parser removed Job and Pod in 3.69 s; repeated cleanup succeeded. After controller SIGKILL, Kubernetes reported `DeadlineExceeded` and TTL removed both resources, observed 66.54 s after the signal. No Job or Pod remained. See the [lifecycle companion](../../spikes/parser-runtime-connection/LIFECYCLE.md) for commands, offline failure checks and limits. This does not verify Temporal cancellation or real parser execution. |
-| Credential provisioning and renewal | Pass for the standalone host prototype, 2026-10-18 | An external provisioner requested short-lived tokens bound to an empty Secret's pinned UID and atomically renewed its private token file. The same SDK client accepted the replacement; the controller could not mint its own tokens. Stopping the provisioner removed the file but did not revoke retained tokens. Deleting the binding made both issued tokens receive HTTP 401, observed after 9.99 s. Recreating its name did not restore the old UID; explicit reprovisioning did restore access. Expiry removal is covered with a controlled clock, not a live wait for server JWT expiry. See the [credential lifecycle companion](../../spikes/parser-runtime-connection/CREDENTIALS.md). Automated delivery and renewal into the Compose worker volume remain unimplemented. |
+| Credential provisioning and renewal | Pass for the standalone host prototype, 2026-10-18 | An external provisioner requested short-lived tokens bound to an empty Secret's pinned UID and atomically renewed its private token file. The same SDK client accepted the replacement; the controller could not mint its own tokens. Stopping the provisioner removed the file but did not revoke retained tokens. Deleting the binding made both issued tokens receive HTTP 401, observed after 9.99 s. Recreating its name did not restore the old UID; explicit reprovisioning did restore access. Expiry removal is covered with a controlled clock, not a live wait for server JWT expiry. See the [credential lifecycle companion](../../spikes/parser-runtime-connection/CREDENTIALS.md). Automated session supervision is tracked separately below. |
+| Automated Kind/Calico bootstrap and issuer supervision | Pass, 2026-10-18 and 2026-10-19 | `scripts/parser_runtime.py verify` created a random Kind v1.37.0 cluster with the default CNI disabled, installed Calico 3.33.0, loaded the parser image and waited for Calico and node readiness. A restricted parser-image Pod completed TLS 1.3 to `1.1.1.1:443`; after applying the namespace-wide default-deny policy, the same connection was blocked. The host-side scoped controller probe verified TLS/RBAC, and the supervised issuer completed two short-interval renewals before SIGTERM removed its local token. Cleanup removed the temporary cluster and directory; `kind get clusters` showed only the pre-existing `hub`. A second `up` run rebuilt the images, reached API readiness with all processing services running and started the worker with the verified credentials. Ctrl-C stopped the dispatcher and worker with exit code 0; the sync service removed the token and CA from its volume, the anchor and Kind cluster were deleted, and Compose data volumes remained. The documented demo review token was passed only in the command environment because `.env` had no value; `.env` was not changed. The Temporal UI container returned exit code 2 on stop, although Compose completed shutdown and no processing service remained running. The run did not upload a new document. IPv6 and other egress paths are not covered. |
 | Temporal worker with parser Jobs in Compose + Kind | Pass for embedded-text, OCR, cancellation and retry after worker restart, 2026-10-18 | A fresh Kind v1.37.0/Calico 3.33.0 cluster used the scoped Role and default-deny ingress/egress. The actual Compose API, dispatcher, Temporal and worker started with explicit endpoint/CA/token settings. A synthetic image-only invoice produced zero embedded characters, 380 OCR characters, selected OCR text, and completed its workflow. Text markers were absent from Temporal history and API/worker logs. Canceling a second workflow during a 40-page OCR Job removed the Job in 4.8 s. Stopping the worker during another 40-page OCR Job left it for `activeDeadlineSeconds`/TTL cleanup within 185 s; after the five-minute activity timeout, Temporal retried on the restarted worker, persisted one OCR row and ended `REVIEW_REQUIRED`. This does not cover the crash window after persistence but before activity completion or historical workflow replay. |
-| Compose credential bind mount | Not verified on this macOS host | With the host-owned private directory at mode 0700 and CA/token at 0600, UID 10001 in the worker could not read the CA and startup failed closed. `chown` to UID 10001 was unavailable to the unprivileged host user. The live worker tests used a disposable named Docker volume populated by a temporary host-side helper, with the CA/token owned by UID 10001 and the volume mounted read-only. Automated token renewal into that volume and the repository's base bind-mount path remain open. |
+| Compose credential bind mount | Direct host-to-worker bind remains unusable on this macOS host | With the host-owned private directory at mode 0700 and CA/token at 0600, UID 10001 in the worker could not read the CA and startup failed closed. `chown` to UID 10001 was unavailable to the unprivileged host user. The selected implementation copies those files through a network-disabled sync service into a UID-10001-owned named volume mounted read-only by the worker. The helper's live delivery check passed, as did credential availability in the supervised worker startup; orderly shutdown removed both files from the named volume. |
 
 The transport is promising enough to continue without designing an artifact
 broker yet. The selected local network and worker-to-control-plane gates now
@@ -410,10 +417,13 @@ verified at the exact 1,000,000-character boundary.
 The standalone connection, worker-image credential mount and synchronous
 controller cleanup contracts are validated. The Temporal worker runs both
 parser activities in Compose against Kind; workflow cancellation and restart
-retry also have live evidence. The base Compose credential bind mount still
-needs host-UID provisioning or a supported private volume-delivery mechanism.
-The preflight/bootstrap command, automated token renewal and crash window after
-result persistence remain open. A host-side credential provisioner validates
+retry also have live evidence. The direct host-to-worker bind remains
+unusable; the sync-service-to-named-volume path is implemented and its helper
+has live evidence. The isolated bootstrap and host-side renewal supervisor are
+implemented, `verify` passed, and supervised Compose startup and shutdown passed.
+Record a document upload through that wrapper before claiming its full
+processing path complete. The crash window after result persistence remains
+open. A host-side credential provisioner validates
 renewal and session revocation, with clock-controlled expiry checks. Current-source,
 single-run resource baselines now include representative fixtures and combined
 page/pixel-limit synthetic OCR. A separate high-entropy image stress case
@@ -430,11 +440,11 @@ A one-node Kind run also measured Job startup,
 localhost-only registry. Treat these as initial observations only; measure
 pulls from the intended deployment registry and repeat under the selected
 deployment runtime before choosing numeric Job budgets.
-Automate credential delivery and renewal to the UID-10001 worker volume, add a
-Compose preflight/bootstrap command, and exercise the crash window after result
-persistence but before activity completion. Keep deadline/TTL as the fallback
-when worker-driven cleanup cannot run. Preserve the explicit stdin half-close
-and bounded streaming behavior in the implementation.
+Run the supervised `up` path and record credential delivery and renewal in the
+actual Compose worker, then exercise the crash window after result persistence
+but before activity completion. Keep deadline/TTL as the fallback when
+worker-driven cleanup cannot run. Preserve the explicit stdin half-close and
+bounded streaming behavior in the implementation.
 
 ## Acceptance criteria for a later implementation
 
