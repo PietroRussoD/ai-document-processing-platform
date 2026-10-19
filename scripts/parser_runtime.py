@@ -552,6 +552,30 @@ def stop_issuer(process: subprocess.Popen[str] | None, credential_dir: Path) -> 
         raise ParserRuntimeError("Credential issuer did not remove its local token on shutdown")
 
 
+def delete_owned_cluster(cluster_name: str) -> None:
+    known_clusters = cleanup_command(["kind", "get", "clusters"], timeout=30)
+    if known_clusters is None or known_clusters.returncode:
+        raise ParserRuntimeError("Could not inspect Kind before cleanup")
+    if cluster_name not in known_clusters.stdout.splitlines():
+        return
+    result = cleanup_command(
+        ["kind", "delete", "cluster", "--name", cluster_name],
+        timeout=120,
+    )
+    if result is None or result.returncode:
+        raise ParserRuntimeError("The dedicated Kind cluster could not be removed")
+
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        known_clusters = cleanup_command(["kind", "get", "clusters"], timeout=30)
+        if known_clusters is None or known_clusters.returncode:
+            raise ParserRuntimeError("Could not verify removal of the dedicated Kind cluster")
+        if cluster_name not in known_clusters.stdout.splitlines():
+            return
+        time.sleep(0.5)
+    raise ParserRuntimeError("The dedicated Kind cluster remained after deletion")
+
+
 def clean_runtime(
     *,
     kubeconfig: Path | None,
@@ -672,12 +696,10 @@ def clean_runtime(
                 )
             except ParserRuntimeError:
                 cleanup_errors.append("Kubernetes cleanup could not be fully confirmed")
-            result = cleanup_command(
-                ["kind", "delete", "cluster", "--name", cluster_name],
-                timeout=120,
-            )
-            if result is None or result.returncode:
-                cleanup_errors.append("The dedicated Kind cluster could not be removed")
+            try:
+                delete_owned_cluster(cluster_name)
+            except ParserRuntimeError as error:
+                cleanup_errors.append(str(error))
     if directory.exists() and directory.parent in {
         Path("/private/tmp"),
         Path(tempfile.gettempdir()),
@@ -805,6 +827,8 @@ def bootstrap(parser_image: str, *, with_compose: bool) -> int:
                     except subprocess.TimeoutExpired:
                         compose_process.kill()
                         compose_process.wait(timeout=5)
+            if created_cluster:
+                delete_owned_cluster(cluster_name)
 
 
 def main() -> int:
