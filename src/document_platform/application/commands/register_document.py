@@ -1,4 +1,4 @@
-"""Register an already validated and durably stored PDF."""
+"""Register a durably stored PDF for asynchronous validation and processing."""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -25,7 +25,7 @@ class RegisterDocument:
     idempotency_key: str
     original_filename: str
     size_bytes: int
-    page_count: int
+    page_count: int | None
     content_sha256: str
     storage_key: str
 

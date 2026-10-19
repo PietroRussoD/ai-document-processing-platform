@@ -55,6 +55,7 @@ class SqlAlchemyDocumentRepository:
                 .values(
                     status=document.status.value,
                     status_changed_at=document.status_changed_at,
+                    page_count=document.page_count,
                     version=document.version,
                 )
             ),

@@ -4,9 +4,13 @@ Status: embedded-text/OCR worker flow and Temporal cancellation/restart have
 live evidence on a disposable Compose + Kind/Calico stack. A repeatable local
 Kind/Calico bootstrap and issuer supervisor are implemented with a disposable
 egress baseline/deny check. The supervised Compose command passed service
-startup and orderly shutdown; the run did not upload a document through that
-command. Upload inspection, the direct base host bind-mount credential path
-and some Temporal recovery cases remain open.
+startup, orderly shutdown and a synthetic scanned-invoice workflow. The direct
+base host bind-mount credential path remains unusable; the sync-service volume
+path is implemented. In the current working tree, upload inspection no longer
+opens PDFs in the API and page count is recorded with the first isolated text
+extraction. The migration still needs to be applied and this new path needs
+live verification. Some
+Temporal recovery cases remain open.
 
 This proposal refines the parser-isolation work described in the
 [isolation design](pdf-parser-isolation-design.md). The local single-operator
@@ -68,8 +72,8 @@ preflight before starting the processing profile:
 5. Start Compose only after these checks pass. If the cluster or credential is
    unavailable, fail worker startup/readiness; never fall back to local PDF
    parsing. The `up` command supervises Compose and retains its named data
-   volumes during shutdown. Its full Compose lifecycle still needs a recorded
-   live run.
+   volumes during shutdown. Startup, a synthetic upload workflow, orderly
+   shutdown and interrupted-run cleanup passed live checks on 2026-10-19.
 
 For shutdown, stop accepting parser work and stop the worker with enough grace
 to cancel active Jobs and confirm their deletion. Stop the credential issuer,
@@ -113,16 +117,17 @@ small metadata to Temporal; extracted text must not become workflow input,
 output or history.
 
 The API accepts and stores a file after checking its declared media type,
-non-empty body and byte limit. It no longer opens the PDF. Structural,
-encrypted-file and page-limit errors therefore become asynchronous processing
-failures after the API returns `202 Accepted`. The document status and failure
-stage must make that outcome clear in the console.
+non-empty body and byte limit. The current implementation no longer opens the
+PDF there. Structural, encrypted-file and page-limit errors therefore become
+asynchronous processing failures after the API returns `202 Accepted`. The
+document status and failure stage must make that outcome clear in the console.
 
-## Data model change required by asynchronous inspection
+## Data model for asynchronous inspection
 
-The current upload path requires a page count before it registers a document.
+The previous upload path required a page count before registering a document.
 The parser cannot provide that value until the worker starts the first Job.
-Represent the count as unknown while the document is queued:
+The current working tree now represents the count as unknown while the
+document is queued:
 
 - Change `Document.page_count`, `RegisterDocument` and the status API field to
   allow `null` until embedded-text extraction succeeds.
@@ -174,8 +179,9 @@ and OCR. It requires an explicit local API endpoint, namespace, CA file, scoped
 token file and parser image, verifies the API before opening the database, and
 fails startup when this configuration is missing or refused. Compose requires
 the same settings and mounts the private credentials directory read-only only
-in the worker. The upload-time PDF inspection path still runs locally; the
-milestone is incomplete until that inspection moves behind the same boundary.
+in the worker. The API no longer performs upload-time PDF inspection in the
+current working tree; the first embedded-text Job now provides that structural
+check. This changed upload flow and migration still need live verification.
 
 The Job container runs a small supervisor as PID 1. After it has validated
 and persisted the result, the controller invokes a fixed job-control command
@@ -257,7 +263,9 @@ controller removed each Job and Pod. The probe ran from the host using the
 namespace token, not from the Compose worker or Temporal. The embedded-text and
 OCR results were then wired into the Temporal worker. The current Job settings
 use 512 MiB memory request and 1 GiB limit; this smoke run is not a resource
-stress test or a final budget. Upload-time inspection remains local.
+stress test or a final budget. At the time of this smoke check, upload-time
+inspection still ran locally; the current source has since removed that API
+call, but the replacement flow has not been live-verified.
 
 The prototype passed host-side live checks with a namespace-scoped controller
 identity, and rejected an untrusted CA, invalid token, insufficient permissions
@@ -408,7 +416,7 @@ limit correction are recorded below.
 | Credential provisioning and renewal | Pass for the standalone host prototype, 2026-10-18 | An external provisioner requested short-lived tokens bound to an empty Secret's pinned UID and atomically renewed its private token file. The same SDK client accepted the replacement; the controller could not mint its own tokens. Stopping the provisioner removed the file but did not revoke retained tokens. Deleting the binding made both issued tokens receive HTTP 401, observed after 9.99 s. Recreating its name did not restore the old UID; explicit reprovisioning did restore access. Expiry removal is covered with a controlled clock, not a live wait for server JWT expiry. See the [credential lifecycle companion](../../spikes/parser-runtime-connection/CREDENTIALS.md). Automated session supervision is tracked separately below. |
 | Automated Kind/Calico bootstrap and issuer supervision | Pass, 2026-10-18 and 2026-10-19 | `scripts/parser_runtime.py verify` created a random Kind v1.37.0 cluster with the default CNI disabled, installed Calico 3.33.0, loaded the parser image and waited for Calico and node readiness. A restricted parser-image Pod completed TLS 1.3 to `1.1.1.1:443`; after applying the namespace-wide default-deny policy, the same connection was blocked. The host-side scoped controller probe verified TLS/RBAC, and the supervised issuer completed two short-interval renewals before SIGTERM removed its local token. Cleanup removed the temporary cluster and directory; `kind get clusters` showed only the pre-existing `hub`. A second `up` run rebuilt the images, reached API readiness with all processing services running and started the worker with the verified credentials. Ctrl-C stopped the dispatcher and worker with exit code 0; the sync service removed the token and CA from its volume, the anchor and Kind cluster were deleted, and Compose data volumes remained. The documented demo review token was passed only in the command environment because `.env` had no value; `.env` was not changed. The Temporal UI container returned exit code 2 on stop, although Compose completed shutdown and no processing service remained running. The run did not upload a new document. IPv6 and other egress paths are not covered. |
 | Temporal worker with parser Jobs in Compose + Kind | Pass for embedded-text, OCR, cancellation and retry after worker restart, 2026-10-18 | A fresh Kind v1.37.0/Calico 3.33.0 cluster used the scoped Role and default-deny ingress/egress. The actual Compose API, dispatcher, Temporal and worker started with explicit endpoint/CA/token settings. A synthetic image-only invoice produced zero embedded characters, 380 OCR characters, selected OCR text, and completed its workflow. Text markers were absent from Temporal history and API/worker logs. Canceling a second workflow during a 40-page OCR Job removed the Job in 4.8 s. Stopping the worker during another 40-page OCR Job left it for `activeDeadlineSeconds`/TTL cleanup within 185 s; after the five-minute activity timeout, Temporal retried on the restarted worker, persisted one OCR row and ended `REVIEW_REQUIRED`. This does not cover the crash window after persistence but before activity completion or historical workflow replay. |
-| Supervised Compose upload and parser workflow | Pass for one synthetic scanned invoice, 2026-10-19 | With `scripts/parser_runtime.py up`, the API returned HTTP 202 for `examples/documents/invoice-scanned.pdf`. The real dispatcher and Temporal worker used the isolated embedded-text Job (zero characters) and OCR Job (243 characters), then classified the invoice and ended `REVIEW_REQUIRED` for `MISSING_ISSUE_DATE`. The API exposed that terminal workflow result; no Job or Pod remained in the parser namespace. The documented demo operator token was passed through the command environment only; `.env` was unchanged. The first interrupted run stopped Compose and scrubbed the worker credential volume but left its temporary Kind cluster behind. Cleanup now rechecks and retries deletion after the Compose client exits. A repeated interrupted run stopped all processing services, scrubbed token and CA from the volume, removed its Kind cluster automatically, and left only the pre-existing `hub`. This demonstrates the processing path for one fixture, not isolation of synchronous upload inspection. |
+| Supervised Compose upload and parser workflow | Pass for one synthetic scanned invoice, 2026-10-19 | With `scripts/parser_runtime.py up`, the API returned HTTP 202 for `examples/documents/invoice-scanned.pdf`. The real dispatcher and Temporal worker used the isolated embedded-text Job (zero characters) and OCR Job (243 characters), then classified the invoice and ended `REVIEW_REQUIRED` for `MISSING_ISSUE_DATE`. The API exposed that terminal workflow result; no Job or Pod remained in the parser namespace. The documented demo operator token was passed through the command environment only; `.env` was unchanged. The first interrupted run stopped Compose and scrubbed the worker credential volume but left its temporary Kind cluster behind. Cleanup now rechecks and retries deletion after the Compose client exits. A repeated interrupted run stopped all processing services, scrubbed token and CA from the volume, removed its Kind cluster automatically, and left only the pre-existing `hub`. This live run predates the current asynchronous upload change, which still needs a repeated end-to-end check. |
 | Temporal crash after OCR persistence | Pass, one synthetic scanned invoice, 2026-10-19 | Enabled the local-only `DOCUMENT_PLATFORM_FAULT_INJECTION_CRASH_AFTER_OCR_PERSISTENCE` failpoint. It exits the worker with code 86 after `ExtractOcrTextHandler` commits its OCR row, before the activity returns. Docker restarted the worker (restart count 1); Temporal retried `extract-ocr-text` as attempt 2 about five minutes after scheduling and completed the workflow. The OCR row count and character total remained `1` and `243` before and after retry. Kind events show exactly one embedded-text Job and one OCR Job, so the retry reused the persisted extraction. Temporal history contains no OCR text payload. The workflow ended `REVIEW_REQUIRED` for the fixture's missing issue date. Historical workflow replay remains open. |
 | Compose credential bind mount | Direct host-to-worker bind remains unusable on this macOS host | With the host-owned private directory at mode 0700 and CA/token at 0600, UID 10001 in the worker could not read the CA and startup failed closed. `chown` to UID 10001 was unavailable to the unprivileged host user. The selected implementation copies those files through a network-disabled sync service into a UID-10001-owned named volume mounted read-only by the worker. The helper's live delivery check passed, as did credential availability in the supervised worker startup; orderly shutdown removed both files from the named volume. |
 
@@ -428,8 +436,10 @@ unusable; the sync-service-to-named-volume path is implemented and its helper
 has live evidence. The isolated bootstrap and host-side renewal supervisor are
 implemented, `verify` passed, and supervised Compose startup and shutdown passed.
 One scanned invoice completed the upload-to-OCR workflow through the supervised
-wrapper, but upload-time structural inspection still runs in the API. Its first
-interrupted run exposed a cleanup defect that left the Kind cluster behind.
+wrapper before upload-time inspection was removed from the API. The current
+working tree stores the upload with an unknown page count and fills it from
+the first isolated extraction in the same transaction as that extraction. Its
+first interrupted run exposed a cleanup defect that left the Kind cluster behind.
 After adding a post-Compose cleanup recheck, a repeated interrupted run removed
 the cluster automatically, scrubbed the worker credential volume and left the
 pre-existing `hub` untouched. A controlled post-persistence worker crash has
@@ -465,7 +475,7 @@ bounded streaming behavior in the implementation.
 - The current Temporal stage sequence and small activity return contracts
   remain compatible with recorded histories.
 - Upload still returns promptly with `202`; parser errors appear as bounded
-  asynchronous failures, and the console handles an unknown page count.
+  asynchronous failures, and the console shows when page count is unavailable.
 - The parser receives one PDF at a time, has no application credentials or
   network access, and cannot read the Compose data volume.
 - Results are size-checked, validated and persisted by the trusted worker;

@@ -313,7 +313,7 @@ export interface components {
             /** Original Filename */
             original_filename: string;
             /** Page Count */
-            page_count: number;
+            page_count: number | null;
             /** Size Bytes */
             size_bytes: number;
             status: components["schemas"]["DocumentStatus"];

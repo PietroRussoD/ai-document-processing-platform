@@ -1,4 +1,4 @@
-"""Validate, store and register a staged PDF upload."""
+"""Validate upload metadata and size, then store and register the PDF."""
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -12,7 +12,6 @@ from document_platform.application.ports import (
     BlobStore,
     BlobTooLarge,
     EmptyBlob,
-    PdfInspector,
 )
 from document_platform.application.upload_idempotency import IdempotencyKey
 from document_platform.domain.documents import PDF_MEDIA_TYPE, validate_original_filename
@@ -41,14 +40,12 @@ class AcceptDocumentUploadHandler:
     def __init__(
         self,
         *,
-        pdf_inspector: PdfInspector,
         blob_store: BlobStore,
         register_document: DocumentRegistrar,
         max_bytes: int,
     ) -> None:
         if max_bytes <= 0:
             raise ValueError("max_bytes must be positive")
-        self._pdf_inspector = pdf_inspector
         self._blob_store = blob_store
         self._register_document = register_document
         self._max_bytes = max_bytes
@@ -61,7 +58,6 @@ class AcceptDocumentUploadHandler:
         )
 
         size_bytes = self._validated_size(command.staged_path)
-        inspection = await self._pdf_inspector.inspect(command.staged_path)
         stored_blob = await self._blob_store.store(command.staged_path)
 
         if stored_blob.size_bytes != size_bytes:
@@ -72,7 +68,7 @@ class AcceptDocumentUploadHandler:
                 idempotency_key=command.idempotency_key,
                 original_filename=command.original_filename,
                 size_bytes=stored_blob.size_bytes,
-                page_count=inspection.page_count,
+                page_count=None,
                 content_sha256=stored_blob.content_sha256,
                 storage_key=stored_blob.key,
             )

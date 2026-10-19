@@ -26,7 +26,6 @@ from document_platform.adapters.inbound.http.review_authentication import (
     authenticate_document_api_request,
 )
 from document_platform.adapters.outbound.filesystem import LocalBlobStore
-from document_platform.adapters.outbound.pdf import PyMuPdfInspector
 from document_platform.adapters.outbound.postgresql import SqlAlchemyUnitOfWork
 from document_platform.adapters.outbound.postgresql.database import create_database
 from document_platform.adapters.outbound.postgresql.queries import (
@@ -69,7 +68,6 @@ def create_app(
         max_bytes=active_settings.max_document_bytes,
     )
     accept_document_upload = AcceptDocumentUploadHandler(
-        pdf_inspector=PyMuPdfInspector(active_settings.max_document_pages),
         blob_store=blob_store,
         register_document=register_document,
         max_bytes=active_settings.max_document_bytes,

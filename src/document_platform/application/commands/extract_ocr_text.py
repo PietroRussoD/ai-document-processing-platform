@@ -7,6 +7,7 @@ from document_platform.application.ports import (
     BlobStore,
     Clock,
     DocumentOcrExtractionAlreadyExists,
+    ParserExecutionFailed,
     PdfOcrExtractor,
     UnitOfWorkFactory,
 )
@@ -117,6 +118,17 @@ class ExtractOcrTextHandler:
                         performed=True,
                         replayed=True,
                     )
+                stored_document = await unit_of_work.documents.get_for_update(document.id)
+                if stored_document is None:
+                    raise OcrExtractionDocumentNotFound(document.id)
+                try:
+                    updated_document = stored_document.record_page_count(extracted.page_count)
+                except ValueError:
+                    raise ParserExecutionFailed(
+                        "Parser page count did not match the stored document"
+                    ) from None
+                if updated_document is not stored_document:
+                    await unit_of_work.documents.update(updated_document)
                 await unit_of_work.document_ocr_extractions.add(extraction)
                 await unit_of_work.commit()
         except DocumentOcrExtractionAlreadyExists:

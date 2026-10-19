@@ -30,9 +30,6 @@ from document_platform.application.ports import (
     ActiveProcessingRunAlreadyExists,
     BlobTooLarge,
     EmptyBlob,
-    EncryptedPdf,
-    InvalidPdf,
-    PdfPageLimitExceeded,
     ReprocessingOperationAlreadyExists,
     ReviewResolutionAlreadyExists,
 )
@@ -193,18 +190,6 @@ PROBLEM_DEFINITIONS: tuple[tuple[type[Exception], ProblemDefinition], ...] = (
     (
         EmptyBlob,
         ProblemDefinition("urn:problem:empty-document", "Empty document", 400),
-    ),
-    (
-        EncryptedPdf,
-        ProblemDefinition("urn:problem:encrypted-pdf", "Encrypted PDF", 422),
-    ),
-    (
-        PdfPageLimitExceeded,
-        ProblemDefinition("urn:problem:pdf-page-limit", "PDF page limit exceeded", 422),
-    ),
-    (
-        InvalidPdf,
-        ProblemDefinition("urn:problem:invalid-pdf", "Invalid PDF", 422),
     ),
     (
         InvalidStagedUpload,

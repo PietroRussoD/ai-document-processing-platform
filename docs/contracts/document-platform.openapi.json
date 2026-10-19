@@ -424,8 +424,15 @@
             "type": "string"
           },
           "page_count": {
-            "title": "Page Count",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Count"
           },
           "size_bytes": {
             "title": "Size Bytes",

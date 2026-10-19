@@ -16,7 +16,7 @@ class DocumentRecord(Base):
         CheckConstraint("length(btrim(original_filename)) > 0", name="filename_not_blank"),
         CheckConstraint("media_type = 'application/pdf'", name="media_type_pdf"),
         CheckConstraint("size_bytes > 0", name="size_bytes_positive"),
-        CheckConstraint("page_count > 0", name="page_count_positive"),
+        CheckConstraint("page_count IS NULL OR page_count > 0", name="page_count_positive"),
         CheckConstraint("content_sha256 ~ '^[0-9a-f]{64}$'", name="content_sha256_format"),
         CheckConstraint("length(btrim(storage_key)) > 0", name="storage_key_not_blank"),
         CheckConstraint(
@@ -35,7 +35,7 @@ class DocumentRecord(Base):
     original_filename: Mapped[str] = mapped_column(Text)
     media_type: Mapped[str] = mapped_column(String(100))
     size_bytes: Mapped[int] = mapped_column(BigInteger)
-    page_count: Mapped[int] = mapped_column(Integer)
+    page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     content_sha256: Mapped[str] = mapped_column(String(64))
     storage_key: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(32))

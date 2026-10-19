@@ -54,7 +54,7 @@ class Document:
     original_filename: str
     media_type: str
     size_bytes: int
-    page_count: int
+    page_count: int | None
     content_sha256: str
     storage_key: str
     status: DocumentStatus
@@ -70,7 +70,7 @@ class Document:
             raise InvalidDocument(f"unsupported media_type: {self.media_type}")
         if self.size_bytes <= 0:
             raise InvalidDocument("size_bytes must be positive")
-        if self.page_count <= 0:
+        if self.page_count is not None and self.page_count <= 0:
             raise InvalidDocument("page_count must be positive")
         if SHA256_PATTERN.fullmatch(self.content_sha256) is None:
             raise InvalidDocument("content_sha256 must be a lowercase SHA-256 digest")
@@ -92,7 +92,7 @@ class Document:
         document_id: UUID,
         original_filename: str,
         size_bytes: int,
-        page_count: int,
+        page_count: int | None,
         content_sha256: str,
         storage_key: str,
         accepted_at: datetime,
@@ -110,6 +110,15 @@ class Document:
             status_changed_at=accepted_at,
             version=0,
         )
+
+    def record_page_count(self, page_count: int) -> Self:
+        if page_count <= 0:
+            raise InvalidDocument("page_count must be positive")
+        if self.page_count is not None:
+            if self.page_count != page_count:
+                raise InvalidDocument("parser page count does not match the stored document")
+            return self
+        return replace(self, page_count=page_count, version=self.version + 1)
 
     def start_processing(self, *, at: datetime) -> Self:
         return self._transition_to(DocumentStatus.PROCESSING, at=at)

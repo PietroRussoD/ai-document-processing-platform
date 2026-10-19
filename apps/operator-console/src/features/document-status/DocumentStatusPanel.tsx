@@ -179,7 +179,14 @@ export function DocumentStatusPanel({
                     Technical details
                 </summary>
                 <dl className="grid gap-x-6 gap-y-4 border-t border-app-border p-3 text-sm sm:grid-cols-2">
-                    <Value label="Pages" value={String(document.page_count)} />
+                    <Value
+                        label="Pages"
+                        value={
+                            document.page_count === null
+                                ? "Unavailable"
+                                : String(document.page_count)
+                        }
+                    />
                     <Value
                         label="Attempts"
                         value={String(document.current_run.attempt_count)}

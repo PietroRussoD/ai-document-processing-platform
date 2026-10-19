@@ -1,7 +1,9 @@
 # PDF Parser Isolation Design
 
-Status: local v1.3.0 runtime selected and network-tested; application parser
-isolation is not implemented.
+Status: the local v1.3.0 runtime is selected and network-tested. Embedded-text
+and OCR parser Jobs have live application evidence. The current working tree
+also removes upload-time PDF parsing from the API and defers page count until
+the first isolated extraction; that change still needs live verification.
 
 ## Decision for the released v1.2.0
 
@@ -69,7 +71,7 @@ checks prove the tested routes and protocols; they do not prove denial over
 every possible protocol or host route. Repeat them against the final Job
 manifest and runtime configuration before parser integration.
 
-## Current parsing boundary
+## Parsing boundary in the released v1.2.0 baseline
 
 PDF parsing happens in more than one service:
 
@@ -81,9 +83,10 @@ PDF parsing happens in more than one service:
 3. When OCR is needed, `TesseractPdfOcrExtractor` opens the PDF with PyMuPDF,
    rasterizes each page and starts Tesseract with the generated PNG bytes.
 
-Moving only OCR to a sidecar would leave both upload-time inspection and
-embedded-text extraction in the API/worker trust boundary. Any complete design
-must account for all three paths.
+This was the v1.2.0 boundary that motivated the v1.3.0 design. In the current
+v1.3.0 working tree, upload-time inspection is folded into the existing
+embedded-text Job; the API stores the PDF without opening it. The change must
+still pass migration and live end-to-end verification.
 
 The present size, page-count, raster-pixel and page-time limits reduce routine
 resource use. Compose CPU, memory, swap and PID limits constrain each
@@ -194,8 +197,8 @@ and [Kubernetes RuntimeClass](https://kubernetes.io/docs/concepts/containers/run
 This option was excluded from the released v1.2.0. The separate
 [v1.3.0 development scope](../releases/v1.3.0.md) now tracks this portfolio
 exercise. The selected local topology has passed the network and worker
-connection probes recorded above. Final Job-template enforcement and
-application integration remain open.
+connection probes recorded above. Final Job-template enforcement, upload-path
+verification and some recovery cases remain open.
 
 The proposed application integration, including asynchronous page-count
 validation, Job data transfer, controller permissions and acceptance criteria,

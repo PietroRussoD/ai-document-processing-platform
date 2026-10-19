@@ -175,7 +175,7 @@ class DocumentStatusView:
     original_filename: str
     media_type: str
     size_bytes: int
-    page_count: int
+    page_count: int | None
     content_sha256: str
     status: DocumentStatus
     accepted_at: datetime
