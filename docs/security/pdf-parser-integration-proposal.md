@@ -86,10 +86,14 @@ test stopped the worker during a 40-page OCR Job. The parser Job remained until
 its active deadline and TTL removed it within 185 seconds. After the OCR
 activity's five-minute start-to-close timeout, Temporal retried on the
 restarted worker and persisted one OCR extraction row. This recovered the
-workflow but repeated OCR work; the crash window after result persistence and
-before activity completion remains untested. Keep the activity names and order,
-persist only small activity summaries, and keep PDF bytes and extracted text
-out of Temporal history. The cancellation test added lightweight activity
+workflow but repeated OCR work. A separate live test now crashes the worker
+immediately after OCR persistence but before activity completion. Temporal
+retries the activity as attempt 2 after the five-minute start-to-close timeout;
+the handler reuses the persisted row, does not create another parser Job, and
+the workflow completes with one OCR row. Historical workflow replay remains
+untested. Keep the activity names and order, persist only small activity
+summaries, and keep PDF bytes and extracted text out of Temporal history. The
+cancellation test added lightweight activity
 heartbeats and confirmed that explicit workflow cancellation removed an active
 parser Job in 4.8 seconds.
 
@@ -322,8 +326,8 @@ non-retryable without exposing exception details. Workflow regressions check
 the bounded parser retry policy and that a terminal non-retryable OCR failure
 is recorded once with the OCR stage and bounded failure code, then stops
 processing. They verify policy configuration and terminal handling; Compose +
-Kind now provides a live retry and cancellation baseline. Historical workflow
-replay and the crash window after result persistence remain to be verified.
+Kind now provides a live retry, cancellation and post-persistence crash
+recovery baseline. Historical workflow replay remains to be verified.
 
 Keep the existing upload-size, page-count, extracted-character, OCR-pixel and
 per-page timeout limits. Measure Job CPU, memory, scratch space, startup time
@@ -358,10 +362,10 @@ Cancellation and worker restart were tested against active OCR Jobs. A workflow
 cancel removed its Job in 4.8 seconds after activity heartbeats were added. A
 worker stop left the Job for deadline/TTL cleanup (observed within 185 seconds);
 the five-minute activity timeout then caused Temporal to retry on the restarted
-worker and persist one OCR row. This does not cover a crash after result
-persistence but before activity completion. Do not use `hub` or a remote
-context. Do not weaken network policy or mount the Docker socket to make the
-integration appear to work.
+worker and persist one OCR row. A separate controlled crash after OCR persistence
+now confirms activity retry reuses that row and does not create another parser
+Job. Do not use `hub` or a remote context. Do not weaken network policy or mount
+the Docker socket to make the integration appear to work.
 
 ### Initial spike results — 2026-10-17
 
@@ -404,7 +408,8 @@ limit correction are recorded below.
 | Credential provisioning and renewal | Pass for the standalone host prototype, 2026-10-18 | An external provisioner requested short-lived tokens bound to an empty Secret's pinned UID and atomically renewed its private token file. The same SDK client accepted the replacement; the controller could not mint its own tokens. Stopping the provisioner removed the file but did not revoke retained tokens. Deleting the binding made both issued tokens receive HTTP 401, observed after 9.99 s. Recreating its name did not restore the old UID; explicit reprovisioning did restore access. Expiry removal is covered with a controlled clock, not a live wait for server JWT expiry. See the [credential lifecycle companion](../../spikes/parser-runtime-connection/CREDENTIALS.md). Automated session supervision is tracked separately below. |
 | Automated Kind/Calico bootstrap and issuer supervision | Pass, 2026-10-18 and 2026-10-19 | `scripts/parser_runtime.py verify` created a random Kind v1.37.0 cluster with the default CNI disabled, installed Calico 3.33.0, loaded the parser image and waited for Calico and node readiness. A restricted parser-image Pod completed TLS 1.3 to `1.1.1.1:443`; after applying the namespace-wide default-deny policy, the same connection was blocked. The host-side scoped controller probe verified TLS/RBAC, and the supervised issuer completed two short-interval renewals before SIGTERM removed its local token. Cleanup removed the temporary cluster and directory; `kind get clusters` showed only the pre-existing `hub`. A second `up` run rebuilt the images, reached API readiness with all processing services running and started the worker with the verified credentials. Ctrl-C stopped the dispatcher and worker with exit code 0; the sync service removed the token and CA from its volume, the anchor and Kind cluster were deleted, and Compose data volumes remained. The documented demo review token was passed only in the command environment because `.env` had no value; `.env` was not changed. The Temporal UI container returned exit code 2 on stop, although Compose completed shutdown and no processing service remained running. The run did not upload a new document. IPv6 and other egress paths are not covered. |
 | Temporal worker with parser Jobs in Compose + Kind | Pass for embedded-text, OCR, cancellation and retry after worker restart, 2026-10-18 | A fresh Kind v1.37.0/Calico 3.33.0 cluster used the scoped Role and default-deny ingress/egress. The actual Compose API, dispatcher, Temporal and worker started with explicit endpoint/CA/token settings. A synthetic image-only invoice produced zero embedded characters, 380 OCR characters, selected OCR text, and completed its workflow. Text markers were absent from Temporal history and API/worker logs. Canceling a second workflow during a 40-page OCR Job removed the Job in 4.8 s. Stopping the worker during another 40-page OCR Job left it for `activeDeadlineSeconds`/TTL cleanup within 185 s; after the five-minute activity timeout, Temporal retried on the restarted worker, persisted one OCR row and ended `REVIEW_REQUIRED`. This does not cover the crash window after persistence but before activity completion or historical workflow replay. |
-| Supervised Compose upload and parser workflow | Pass for one synthetic scanned invoice, 2026-10-19 | With `scripts/parser_runtime.py up`, the API returned HTTP 202 for `examples/documents/invoice-scanned.pdf`. The real dispatcher and Temporal worker used the isolated embedded-text Job (zero characters) and OCR Job (243 characters), then classified the invoice and ended `REVIEW_REQUIRED` for `MISSING_ISSUE_DATE`. The API exposed that terminal workflow result; no Job or Pod remained in the parser namespace. The documented demo operator token was passed through the command environment only; `.env` was unchanged. The first interrupted run stopped Compose and scrubbed the worker credential volume but left its temporary Kind cluster behind. Cleanup now rechecks and retries deletion after the Compose client exits. A repeated interrupted run stopped all processing services, scrubbed token and CA from the volume, removed its Kind cluster automatically, and left only the pre-existing `hub`. This demonstrates the processing path for one fixture, not isolation of synchronous upload inspection or the Temporal persistence/completion crash window. |
+| Supervised Compose upload and parser workflow | Pass for one synthetic scanned invoice, 2026-10-19 | With `scripts/parser_runtime.py up`, the API returned HTTP 202 for `examples/documents/invoice-scanned.pdf`. The real dispatcher and Temporal worker used the isolated embedded-text Job (zero characters) and OCR Job (243 characters), then classified the invoice and ended `REVIEW_REQUIRED` for `MISSING_ISSUE_DATE`. The API exposed that terminal workflow result; no Job or Pod remained in the parser namespace. The documented demo operator token was passed through the command environment only; `.env` was unchanged. The first interrupted run stopped Compose and scrubbed the worker credential volume but left its temporary Kind cluster behind. Cleanup now rechecks and retries deletion after the Compose client exits. A repeated interrupted run stopped all processing services, scrubbed token and CA from the volume, removed its Kind cluster automatically, and left only the pre-existing `hub`. This demonstrates the processing path for one fixture, not isolation of synchronous upload inspection. |
+| Temporal crash after OCR persistence | Pass, one synthetic scanned invoice, 2026-10-19 | Enabled the local-only `DOCUMENT_PLATFORM_FAULT_INJECTION_CRASH_AFTER_OCR_PERSISTENCE` failpoint. It exits the worker with code 86 after `ExtractOcrTextHandler` commits its OCR row, before the activity returns. Docker restarted the worker (restart count 1); Temporal retried `extract-ocr-text` as attempt 2 about five minutes after scheduling and completed the workflow. The OCR row count and character total remained `1` and `243` before and after retry. Kind events show exactly one embedded-text Job and one OCR Job, so the retry reused the persisted extraction. Temporal history contains no OCR text payload. The workflow ended `REVIEW_REQUIRED` for the fixture's missing issue date. Historical workflow replay remains open. |
 | Compose credential bind mount | Direct host-to-worker bind remains unusable on this macOS host | With the host-owned private directory at mode 0700 and CA/token at 0600, UID 10001 in the worker could not read the CA and startup failed closed. `chown` to UID 10001 was unavailable to the unprivileged host user. The selected implementation copies those files through a network-disabled sync service into a UID-10001-owned named volume mounted read-only by the worker. The helper's live delivery check passed, as did credential availability in the supervised worker startup; orderly shutdown removed both files from the named volume. |
 
 The transport is promising enough to continue without designing an artifact
@@ -427,8 +432,9 @@ wrapper, but upload-time structural inspection still runs in the API. Its first
 interrupted run exposed a cleanup defect that left the Kind cluster behind.
 After adding a post-Compose cleanup recheck, a repeated interrupted run removed
 the cluster automatically, scrubbed the worker credential volume and left the
-pre-existing `hub` untouched. The crash window after result persistence
-remains open. A host-side credential provisioner validates
+pre-existing `hub` untouched. A controlled post-persistence worker crash has
+now shown Temporal retrying OCR without another parser Job or duplicate row.
+Historical workflow replay remains open. A host-side credential provisioner validates
 renewal and session revocation, with clock-controlled expiry checks. Current-source,
 single-run resource baselines now include representative fixtures and combined
 page/pixel-limit synthetic OCR. A separate high-entropy image stress case
@@ -446,8 +452,8 @@ localhost-only registry. Treat these as initial observations only; measure
 pulls from the intended deployment registry and repeat under the selected
 deployment runtime before choosing numeric Job budgets.
 Run the supervised `up` path and record credential delivery and renewal in the
-actual Compose worker, then exercise the crash window after result persistence
-but before activity completion. Keep deadline/TTL as the fallback when
+actual Compose worker, then verify historical workflow replay. The
+post-persistence crash window now has a live baseline. Keep deadline/TTL as the fallback when
 worker-driven cleanup cannot run. Preserve the explicit stdin half-close and
 bounded streaming behavior in the implementation.
 

@@ -17,6 +17,9 @@ def test_uses_safe_local_defaults(
     monkeypatch.delenv("DOCUMENT_PLATFORM_ENVIRONMENT", raising=False)
     monkeypatch.delenv("DOCUMENT_PLATFORM_LOG_LEVEL", raising=False)
     monkeypatch.delenv("DOCUMENT_PLATFORM_FAULT_INJECTION_STAGE", raising=False)
+    monkeypatch.delenv(
+        "DOCUMENT_PLATFORM_FAULT_INJECTION_CRASH_AFTER_OCR_PERSISTENCE", raising=False
+    )
 
     settings = Settings()
 
@@ -51,6 +54,7 @@ def test_uses_safe_local_defaults(
     assert settings.review_operator_token is None
     assert settings.review_operator_id == "local-reviewer"
     assert settings.fault_injection_stage is None
+    assert settings.fault_injection_crash_after_ocr_persistence is False
 
 
 def test_allows_the_documented_fault_injection_only_in_local_environment() -> None:
@@ -70,6 +74,20 @@ def test_rejects_fault_injection_outside_the_local_environment() -> None:
 def test_rejects_an_unsupported_fault_injection_stage() -> None:
     with pytest.raises(ValidationError, match="supports only"):
         Settings(fault_injection_stage=ProcessingStage.CLASSIFICATION)
+
+
+def test_allows_post_persistence_crash_injection_only_locally() -> None:
+    settings = Settings(fault_injection_crash_after_ocr_persistence=True)
+
+    assert settings.fault_injection_crash_after_ocr_persistence is True
+
+
+def test_rejects_post_persistence_crash_injection_outside_local_environment() -> None:
+    with pytest.raises(ValidationError, match="only in the local environment"):
+        Settings(
+            environment="production",
+            fault_injection_crash_after_ocr_persistence=True,
+        )
 
 
 def test_rejects_an_unknown_environment(monkeypatch: pytest.MonkeyPatch) -> None:

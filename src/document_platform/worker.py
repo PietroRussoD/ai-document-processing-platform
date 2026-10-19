@@ -119,7 +119,10 @@ async def run_worker(settings: Settings) -> None:
                     max_characters=settings.max_extracted_text_characters,
                 ),
                 clock=lambda: datetime.now(UTC),
-            )
+            ),
+            crash_after_persist_on_first_attempt=(
+                settings.fault_injection_crash_after_ocr_persistence
+            ),
         )
         selection_activity = SelectProcessingTextActivity(
             SelectProcessingTextHandler(

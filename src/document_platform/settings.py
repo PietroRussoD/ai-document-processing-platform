@@ -58,14 +58,21 @@ class Settings(BaseSettings):
     review_operator_token: SecretStr | None = None
     review_operator_id: Annotated[str, Field(min_length=1, max_length=200)] = "local-reviewer"
     fault_injection_stage: ProcessingStage | None = None
+    fault_injection_crash_after_ocr_persistence: bool = False
 
     @model_validator(mode="after")
     def validate_fault_injection(self) -> Self:
-        if self.fault_injection_stage is None:
+        if (
+            self.fault_injection_stage is None
+            and not self.fault_injection_crash_after_ocr_persistence
+        ):
             return self
         if self.environment != "local":
-            raise ValueError("fault_injection_stage is supported only in the local environment")
-        if self.fault_injection_stage is not ProcessingStage.EMBEDDED_TEXT_EXTRACTION:
+            raise ValueError("fault injection is supported only in the local environment")
+        if (
+            self.fault_injection_stage is not None
+            and self.fault_injection_stage is not ProcessingStage.EMBEDDED_TEXT_EXTRACTION
+        ):
             raise ValueError("fault_injection_stage supports only EMBEDDED_TEXT_EXTRACTION")
         return self
 

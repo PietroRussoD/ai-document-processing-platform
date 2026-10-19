@@ -1,5 +1,7 @@
 """Temporal activity for the conditional OCR fallback."""
 
+import logging
+import os
 from uuid import UUID
 
 from temporalio import activity
@@ -27,17 +29,27 @@ _NON_RETRYABLE_OCR_FAILURES = (
     ParserOutputExceeded,
     OcrTextLimitExceeded,
 )
+_logger = logging.getLogger(__name__)
 
 
 class ExtractOcrTextActivity:
-    def __init__(self, extract_ocr_text: ExtractOcrTextHandler) -> None:
+    def __init__(
+        self,
+        extract_ocr_text: ExtractOcrTextHandler,
+        *,
+        crash_after_persist_on_first_attempt: bool = False,
+    ) -> None:
         self._extract_ocr_text = extract_ocr_text
+        self._crash_after_persist_on_first_attempt = crash_after_persist_on_first_attempt
 
     @activity.defn(name=EXTRACT_OCR_TEXT_ACTIVITY)
     async def extract_ocr_text(self, processing_run_id: str) -> None:
         try:
             async with parser_activity_heartbeat():
                 await self._extract_ocr_text(ExtractOcrText(UUID(processing_run_id)))
+                if self._crash_after_persist_on_first_attempt and activity.info().attempt == 1:
+                    _logger.warning("Fault injection: crashing after OCR result persistence")
+                    os._exit(86)
         except ParserRuntimeUnavailable as error:
             raise ApplicationError(
                 "PDF parser runtime is temporarily unavailable",
