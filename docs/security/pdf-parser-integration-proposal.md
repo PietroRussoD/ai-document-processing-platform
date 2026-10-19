@@ -15,8 +15,8 @@ Temporal recovery cases remain open.
 This proposal refines the parser-isolation work described in the
 [isolation design](pdf-parser-isolation-design.md). The local single-operator
 v1.2.0 release is closed. The separate [v1.3.0 scope](../releases/v1.3.0.md)
-tracks the selected local runtime for the portfolio exercise; acceptance gates
-remain open.
+tracks the selected local runtime for the portfolio exercise; remaining
+acceptance gates are listed there.
 
 ## Goal and scope
 
@@ -181,7 +181,14 @@ fails startup when this configuration is missing or refused. Compose requires
 the same settings and mounts the private credentials directory read-only only
 in the worker. The API no longer performs upload-time PDF inspection in the
 current working tree; the first embedded-text Job now provides that structural
-check. This changed upload flow and migration still need live verification.
+check. The nullable page-count migration and upload flow passed a live run with
+a fresh isolated Compose database: a valid synthetic PDF was accepted with
+`202`, first observed without a page count, then persisted with one page; a
+malformed PDF was accepted with `202` and failed asynchronously while its page
+count remained unknown. The host runtime could not resolve the pinned Calico
+manifest host, so the same pinned manifests were supplied from a temporary
+local cache for this run. Historical workflow replay and other fault cases
+remain open.
 
 The Job container runs a small supervisor as PID 1. After it has validated
 and persisted the result, the controller invokes a fixed job-control command
