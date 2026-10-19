@@ -13,6 +13,7 @@ from kubernetes import client
 from kubernetes import stream as streaming
 from kubernetes.client.exceptions import ApiException
 from urllib3.exceptions import HTTPError, SSLError
+from websocket import WebSocketException
 
 from document_platform.adapters.outbound.kubernetes.parser_runtime_connection import (
     KubernetesParserRuntimeConnection,
@@ -200,7 +201,7 @@ class KubernetesParserJobController:
             raise self._api_error(error) from None
         except SSLError:
             raise ParserRuntimeRejected("Kubernetes API TLS verification failed") from None
-        except (HTTPError, OSError):
+        except (HTTPError, OSError, WebSocketException):
             raise ParserRuntimeUnavailable(
                 "Kubernetes API connection is temporarily unavailable"
             ) from None

@@ -9,6 +9,7 @@ from unittest.mock import Mock
 import pytest
 from kubernetes import client
 from kubernetes.client.exceptions import ApiException
+from websocket import WebSocketConnectionClosedException
 
 import document_platform.adapters.outbound.kubernetes.parser_job_controller as controller_module
 from document_platform.adapters.outbound.kubernetes import (
@@ -386,6 +387,33 @@ def test_nonzero_parser_exit_marks_job_failed_then_cleans(
     assert "complete" in execute.call_args_list[1].args[1]
     assert execute.call_args_list[1].kwargs["stdin"] is None
     assert terminal.call_args.args[1] == "Failed"
+    assert cleanup.call_args.args[0].uid == "owned-uid"
+
+
+def test_api_websocket_loss_maps_to_temporary_unavailability_and_cleans(
+    controller: KubernetesParserJobController, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        controller,
+        "_create_job",
+        Mock(return_value=client.V1Job(metadata=client.V1ObjectMeta(uid="owned-uid"))),
+    )
+    monkeypatch.setattr(controller, "_wait_for_pod", Mock(return_value="owned-pod"))
+    monkeypatch.setattr(
+        controller,
+        "_exec",
+        Mock(side_effect=WebSocketConnectionClosedException("private socket detail")),
+    )
+    cleanup = Mock()
+    monkeypatch.setattr(controller, "_cleanup", cleanup)
+
+    with pytest.raises(
+        ParserRuntimeUnavailable,
+        match="connection is temporarily unavailable",
+    ) as raised:
+        controller.execute(ParserOperation.OCR, b"synthetic-pdf")
+
+    assert "private socket detail" not in str(raised.value)
     assert cleanup.call_args.args[0].uid == "owned-uid"
 
 
