@@ -17,20 +17,24 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.drop_constraint("ck_documents_page_count_positive", "documents", type_="check")
+    op.drop_constraint(
+        op.f("ck_documents_ck_documents_page_count_positive"),
+        "documents",
+        type_="check",
+    )
     op.alter_column("documents", "page_count", existing_type=sa.Integer(), nullable=True)
     op.create_check_constraint(
-        "ck_documents_page_count_positive",
+        op.f("ck_documents_page_count_positive"),
         "documents",
         "page_count IS NULL OR page_count > 0",
     )
 
 
 def downgrade() -> None:
-    op.drop_constraint("ck_documents_page_count_positive", "documents", type_="check")
+    op.drop_constraint(op.f("ck_documents_page_count_positive"), "documents", type_="check")
     op.alter_column("documents", "page_count", existing_type=sa.Integer(), nullable=False)
     op.create_check_constraint(
-        "ck_documents_page_count_positive",
+        op.f("ck_documents_ck_documents_page_count_positive"),
         "documents",
         "page_count > 0",
     )

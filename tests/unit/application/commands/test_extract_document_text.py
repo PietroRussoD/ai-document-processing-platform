@@ -12,7 +12,12 @@ from document_platform.application.commands import (
     ExtractDocumentText,
     ExtractDocumentTextHandler,
 )
-from document_platform.application.ports import ExtractedPdfText, StoredBlob, UnitOfWork
+from document_platform.application.ports import (
+    ExtractedPdfText,
+    ParserExecutionFailed,
+    StoredBlob,
+    UnitOfWork,
+)
 from document_platform.domain.documents import Document
 from document_platform.domain.processing import (
     DocumentTextExtraction,
@@ -34,6 +39,12 @@ class RecordingDocumentRepository:
 
     async def get(self, document_id: UUID) -> Document | None:
         return self.document if document_id == self.document.id else None
+
+    async def get_for_update(self, document_id: UUID) -> Document | None:
+        return await self.get(document_id)
+
+    async def update(self, document: Document) -> None:
+        self.document = document
 
 
 class RecordingProcessingRunRepository:
@@ -65,7 +76,7 @@ class RecordingUnitOfWork:
             document_id=DOCUMENT_ID,
             original_filename="supplier-invoice.pdf",
             size_bytes=42,
-            page_count=1,
+            page_count=None,
             content_sha256="a" * 64,
             storage_key="blobs/sha256/aa/" + "a" * 64,
             accepted_at=QUEUED_AT,
@@ -146,6 +157,8 @@ async def test_extracts_and_persists_embedded_text_once() -> None:
     assert unit_of_work.commit_count == 1
     assert unit_of_work.document_text_extractions.added[0].method is TextExtractionMethod.PYMUPDF
     assert unit_of_work.document_text_extractions.added[0].text == "Invoice 42"
+    assert unit_of_work.documents.document.page_count == 1
+    assert unit_of_work.documents.document.version == 2
     assert (
         unit_of_work.document_text_extractions.added[0].quality
         is EmbeddedTextQuality.OCR_RECOMMENDED
@@ -166,3 +179,17 @@ async def test_replay_reuses_persisted_text_without_loading_the_document() -> No
     assert len(blob_store.load_calls) == 1
     assert len(extractor.contents) == 1
     assert unit_of_work.commit_count == 1
+
+
+@pytest.mark.anyio
+async def test_rejects_a_page_count_that_disagrees_with_the_stored_document() -> None:
+    unit_of_work = RecordingUnitOfWork()
+    unit_of_work.documents.document = unit_of_work.documents.document.record_page_count(2)
+    blob_store = RecordingBlobStore()
+    extractor = RecordingExtractor()
+
+    with pytest.raises(ParserExecutionFailed, match="page count"):
+        await handler(unit_of_work, blob_store, extractor)(ExtractDocumentText(RUN_ID))
+
+    assert unit_of_work.document_text_extractions.added == []
+    assert unit_of_work.commit_count == 0

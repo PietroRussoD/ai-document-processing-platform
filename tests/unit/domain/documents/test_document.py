@@ -40,6 +40,29 @@ def test_accepts_a_valid_pdf() -> None:
     assert document.version == 0
 
 
+def test_accepts_a_pdf_with_unknown_page_count() -> None:
+    document = accepted_document(page_count=None)
+
+    assert document.page_count is None
+
+
+def test_records_page_count_without_changing_document_status_time() -> None:
+    document = accepted_document(page_count=None)
+
+    updated = document.record_page_count(2)
+
+    assert updated.page_count == 2
+    assert updated.version == document.version + 1
+    assert updated.status_changed_at == document.status_changed_at
+
+
+def test_rejects_a_page_count_that_changes_after_it_is_known() -> None:
+    document = accepted_document(page_count=2)
+
+    with pytest.raises(InvalidDocument, match="does not match"):
+        document.record_page_count(3)
+
+
 @pytest.mark.parametrize(
     ("field", "invalid_value"),
     [

@@ -40,6 +40,12 @@ class DocumentRepository:
     async def get(self, document_id: UUID) -> Document | None:
         return self.document if document_id == self.document.id else None
 
+    async def get_for_update(self, document_id: UUID) -> Document | None:
+        return await self.get(document_id)
+
+    async def update(self, document: Document) -> None:
+        self.document = document
+
 
 class ProcessingRunRepository:
     def __init__(self, run: ProcessingRun) -> None:

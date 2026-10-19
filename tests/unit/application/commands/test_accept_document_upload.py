@@ -17,24 +17,10 @@ from document_platform.application.commands import (
 from document_platform.application.ports import (
     BlobTooLarge,
     EmptyBlob,
-    InvalidPdf,
-    PdfInspection,
     StoredBlob,
 )
 
 ACCEPTED_AT = datetime(2026, 9, 14, 15, 0, tzinfo=UTC)
-
-
-class RecordingPdfInspector:
-    def __init__(self, events: list[str], *, error: Exception | None = None) -> None:
-        self._events = events
-        self._error = error
-
-    async def inspect(self, path: Path) -> PdfInspection:
-        self._events.append(f"inspect:{path.name}")
-        if self._error is not None:
-            raise self._error
-        return PdfInspection(page_count=2)
 
 
 class RecordingBlobStore:
@@ -69,7 +55,6 @@ def handler(
     events: list[str],
     *,
     source_size: int,
-    inspector_error: Exception | None = None,
 ) -> tuple[AcceptDocumentUploadHandler, list[RegisterDocument]]:
     registrations: list[RegisterDocument] = []
 
@@ -85,7 +70,6 @@ def handler(
 
     return (
         AcceptDocumentUploadHandler(
-            pdf_inspector=RecordingPdfInspector(events, error=inspector_error),
             blob_store=RecordingBlobStore(events, size_bytes=source_size),
             register_document=register,
             max_bytes=1024,
@@ -104,13 +88,13 @@ async def test_validates_stores_and_registers_a_staged_pdf(tmp_path: Path) -> No
     result = await accept(staged_upload(source))
 
     assert result.replayed is False
-    assert events == ["inspect:staged-upload", "store:staged-upload", "register"]
+    assert events == ["store:staged-upload", "register"]
     assert registrations == [
         RegisterDocument(
             idempotency_key="request-42",
             original_filename="supplier-invoice.pdf",
             size_bytes=len(b"valid staged bytes"),
-            page_count=2,
+            page_count=None,
             content_sha256="a" * 64,
             storage_key="blobs/sha256/aa/" + "a" * 64,
         )
@@ -126,7 +110,7 @@ async def test_validates_stores_and_registers_a_staged_pdf(tmp_path: Path) -> No
         ({"idempotency_key": " "}, ValueError),
     ],
 )
-async def test_rejects_invalid_metadata_before_inspection(
+async def test_rejects_invalid_metadata_before_storage(
     tmp_path: Path,
     overrides: dict[str, object],
     error: type[Exception],
@@ -147,7 +131,7 @@ async def test_rejects_invalid_metadata_before_inspection(
     ("content", "error"),
     [(b"", EmptyBlob), (b"a" * 1025, BlobTooLarge)],
 )
-async def test_rejects_an_invalid_size_before_parsing(
+async def test_rejects_an_invalid_size_before_storage(
     tmp_path: Path,
     content: bytes,
     error: type[Exception],
@@ -164,20 +148,16 @@ async def test_rejects_an_invalid_size_before_parsing(
 
 
 @pytest.mark.anyio
-async def test_does_not_store_a_pdf_rejected_by_the_inspector(tmp_path: Path) -> None:
+async def test_registers_pdf_bytes_for_asynchronous_structural_validation(tmp_path: Path) -> None:
     source = tmp_path / "staged-upload"
     source.write_bytes(b"invalid PDF")
     events: list[str] = []
-    accept, _ = handler(
-        events,
-        source_size=source.stat().st_size,
-        inspector_error=InvalidPdf("invalid PDF"),
-    )
+    accept, registrations = handler(events, source_size=source.stat().st_size)
 
-    with pytest.raises(InvalidPdf):
-        await accept(staged_upload(source))
+    await accept(staged_upload(source))
 
-    assert events == ["inspect:staged-upload"]
+    assert events == ["store:staged-upload", "register"]
+    assert registrations[0].page_count is None
 
 
 @pytest.mark.anyio
@@ -190,13 +170,12 @@ async def test_rejects_a_source_that_changes_during_acceptance(tmp_path: Path) -
     with pytest.raises(InvalidStagedUpload, match="changed"):
         await accept(staged_upload(source))
 
-    assert events == ["inspect:staged-upload", "store:staged-upload"]
+    assert events == ["store:staged-upload"]
 
 
 def test_rejects_a_non_positive_size_limit() -> None:
     with pytest.raises(ValueError, match="max_bytes must be positive"):
         AcceptDocumentUploadHandler(
-            pdf_inspector=RecordingPdfInspector([]),
             blob_store=RecordingBlobStore([], size_bytes=1),
             register_document=lambda command: pytest.fail(str(command)),
             max_bytes=0,
