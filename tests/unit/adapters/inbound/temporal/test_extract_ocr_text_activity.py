@@ -11,6 +11,8 @@ from document_platform.application.ports import (
     OcrEngineUnavailable,
     OcrExtractionFailed,
     OcrTextLimitExceeded,
+    ParserExecutionFailed,
+    ParserOutputExceeded,
     ParserRuntimeRejected,
     ParserRuntimeUnavailable,
 )
@@ -44,6 +46,8 @@ async def test_maps_the_temporal_argument_to_the_application_command() -> None:
         OcrEngineUnavailable("local detail"),
         OcrExtractionFailed("document detail"),
         OcrTextLimitExceeded(100),
+        ParserExecutionFailed("parser returned a failure status"),
+        ParserOutputExceeded("parser output exceeded its configured limit"),
     ],
 )
 async def test_marks_known_ocr_failures_non_retryable(failure: Exception) -> None:
