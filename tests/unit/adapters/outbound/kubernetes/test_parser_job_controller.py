@@ -1,6 +1,8 @@
 """Restricted Kubernetes Job controller tests."""
 
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
+from dataclasses import replace
 from pathlib import Path
 from threading import Event
 from typing import Any, cast
@@ -366,6 +368,51 @@ def test_successful_operation_signals_completion_and_cleans_owned_job(
     assert wait_terminal.call_args.args[0].uid == "owned-uid"
     assert wait_terminal.call_args.args[1] == "Complete"
     assert cleanup.call_args.args[0].uid == "owned-uid"
+
+
+def test_rejects_parser_job_when_local_concurrency_limit_is_reached(
+    controller: KubernetesParserJobController, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    limited = KubernetesParserJobController(
+        connection=cast(Any, controller)._connection,
+        settings=replace(
+            cast(Any, controller)._settings,
+            max_concurrent_jobs=1,
+            startup_timeout_seconds=0.05,
+        ),
+    )
+    create_started = Event()
+    allow_create_to_finish = Event()
+
+    def create_job(_name: str) -> client.V1Job:
+        create_started.set()
+        if not allow_create_to_finish.wait(timeout=2):
+            raise TimeoutError("test did not release the first parser Job")
+        return client.V1Job(metadata=client.V1ObjectMeta(uid="owned-uid"))
+
+    create = Mock(side_effect=create_job)
+    monkeypatch.setattr(limited, "_create_job", create)
+    monkeypatch.setattr(limited, "_wait_for_pod", Mock(return_value="owned-pod"))
+    monkeypatch.setattr(
+        limited,
+        "_exec",
+        Mock(side_effect=[(b"0\n", 0), (b'{"valid":true}', 0), (b"", 0)]),
+    )
+    monkeypatch.setattr(limited, "_wait_for_terminal", Mock())
+    monkeypatch.setattr(limited, "_cleanup", Mock())
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        first = executor.submit(limited.execute, ParserOperation.EMBEDDED_TEXT, b"first-pdf")
+        try:
+            assert create_started.wait(timeout=1)
+            with pytest.raises(ParserRuntimeUnavailable, match="concurrency limit"):
+                limited.execute(ParserOperation.OCR, b"second-pdf")
+        finally:
+            allow_create_to_finish.set()
+
+        assert first.result(timeout=2) == b'{"valid":true}'
+
+    create.assert_called_once()
 
 
 def test_nonzero_parser_exit_marks_job_failed_then_cleans(
