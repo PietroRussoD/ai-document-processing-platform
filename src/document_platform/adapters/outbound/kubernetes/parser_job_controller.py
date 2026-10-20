@@ -1,5 +1,6 @@
 """Create, run and clean up one isolated Kubernetes parser Job."""
 
+import json
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -651,12 +652,25 @@ class KubernetesParserJobController:
     @staticmethod
     def _api_error(error: ApiException) -> ParserRuntimeRejected | ParserRuntimeUnavailable:
         status = getattr(error, "status", None)
+        if status == 403 and KubernetesParserJobController._is_quota_exceeded(error):
+            return ParserRuntimeUnavailable("Parser namespace resource quota is exhausted")
         if status == 429 or status is None or status <= 0 or status >= 500:
             return ParserRuntimeUnavailable("Kubernetes API is temporarily unavailable")
         status_code = str(status) if isinstance(status, int) else "unknown"
         return ParserRuntimeRejected(
             f"Kubernetes API refused the parser request (HTTP {status_code})"
         )
+
+    @staticmethod
+    def _is_quota_exceeded(error: ApiException) -> bool:
+        try:
+            payload = json.loads(error.body or "")
+        except (TypeError, json.JSONDecodeError):
+            return False
+        if not isinstance(payload, dict) or payload.get("reason") != "Forbidden":
+            return False
+        message = payload.get("message")
+        return isinstance(message, str) and "exceeded quota:" in message.lower()
 
 
 def _raise_if_cancelled(cancel_event: Event | None) -> None:

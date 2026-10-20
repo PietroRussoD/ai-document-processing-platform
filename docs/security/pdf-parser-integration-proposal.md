@@ -226,10 +226,15 @@ Every Job should use:
   `ttlSecondsAfterFinished`;
 - measured CPU, memory and ephemeral-storage requests and limits, plus a
   namespace quota and a cap on concurrent parser activities. The controller
-  currently enforces two Jobs per process with a bounded semaphore; the unit
-  test confirms excess work is rejected before another Job is created. No
-  namespace `ResourceQuota` exists yet, so multiple worker processes could
-  exceed that aggregate cap.
+  enforces two Jobs per process with a bounded semaphore. The disposable
+  runtime bootstrap now applies a namespace `ResourceQuota` that allows the
+  combined requests and limits of two Jobs at the current settings, so multiple
+  worker processes share the same aggregate compute and ephemeral-storage
+  budget. A quota rejection is classified as temporary runtime unavailability
+  for Temporal retry. The bootstrap checks the installed quota values; a live
+  saturation/rejection check is still required before treating enforcement as
+  verified. Keep the quota values aligned with the per-Job settings when those
+  budgets change.
 
 Kubernetes configures the per-Pod process limit at the kubelet level through
 `podPidsLimit`; it is not a Pod resource limit. Configure and verify it on

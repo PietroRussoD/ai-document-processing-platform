@@ -412,6 +412,35 @@ def verify_network_policy(kubeconfig: Path, context: str, parser_image: str) -> 
     )
 
 
+def apply_parser_resource_quota(kubeconfig: Path, context: str) -> None:
+    kubectl(kubeconfig, context, "apply", "-f", str(SPIKE / "parser-resource-quota.yaml"))
+    quota = json.loads(
+        kubectl(
+            kubeconfig,
+            context,
+            "get",
+            "resourcequota",
+            "parser-job-budget",
+            f"--namespace={NAMESPACE}",
+            "-o",
+            "json",
+        )
+    )
+    expected = {
+        "requests.cpu": "500m",
+        "requests.memory": "1Gi",
+        "limits.cpu": "2",
+        "limits.memory": "2Gi",
+        "requests.ephemeral-storage": "128Mi",
+        "limits.ephemeral-storage": "256Mi",
+    }
+    if quota.get("spec", {}).get("hard") != expected:
+        raise ParserRuntimeError(
+            "Parser namespace resource quota does not match the configured job budget"
+        )
+    print("Applied the aggregate parser Job resource quota.", flush=True)
+
+
 def cluster_endpoint_and_ca(
     kubeconfig: Path, context: str, credential_dir: Path
 ) -> tuple[str, str]:
@@ -755,6 +784,7 @@ def bootstrap(parser_image: str, *, with_compose: bool) -> int:
         install_calico(kubeconfig, context)
         run(["kind", "load", "docker-image", parser_image, "--name", cluster_name], timeout=180)
         verify_network_policy(kubeconfig, context, parser_image)
+        apply_parser_resource_quota(kubeconfig, context)
 
         host_endpoint, compose_endpoint = cluster_endpoint_and_ca(
             kubeconfig, context, credential_dir
