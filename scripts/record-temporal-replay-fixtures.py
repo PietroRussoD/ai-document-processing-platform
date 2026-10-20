@@ -105,7 +105,7 @@ def remove_worker_identity(value: object) -> object:
     return value
 
 
-async def main(fixture_set: str) -> None:
+async def main(fixture_set: str, dev_server_path: Path | None) -> None:
     run_ids = ("synthetic-invoice", "synthetic-other")
     fixture_paths = [FIXTURE_DIR / f"{fixture_set}-{run_id}.json" for run_id in run_ids]
     existing_paths = [path for path in fixture_paths if path.exists()]
@@ -113,7 +113,9 @@ async def main(fixture_set: str) -> None:
         paths = ", ".join(str(path) for path in existing_paths)
         raise FileExistsError(f"Refusing to overwrite existing replay fixtures: {paths}")
 
-    async with await WorkflowEnvironment.start_local() as environment:  # pyright: ignore[reportUnknownMemberType]
+    async with await WorkflowEnvironment.start_local(
+        dev_server_existing_path=str(dev_server_path) if dev_server_path else None,
+    ) as environment:  # pyright: ignore[reportUnknownMemberType]
         task_queue = f"replay-fixtures-{uuid4()}"
         async with Worker(
             environment.client,
@@ -144,6 +146,11 @@ def parse_args() -> argparse.Namespace:
         default="current",
         help="prefix for generated fixture files (for example, v1.2.0)",
     )
+    parser.add_argument(
+        "--dev-server-path",
+        type=Path,
+        help="path to an installed Temporal CLI binary; avoids downloading it",
+    )
     args = parser.parse_args()
     if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.-]*", args.fixture_set) is None:
         parser.error("--fixture-set may contain only letters, digits, dots, and hyphens")
@@ -151,4 +158,5 @@ def parse_args() -> argparse.Namespace:
 
 
 if __name__ == "__main__":
-    asyncio.run(main(parse_args().fixture_set))
+    args = parse_args()
+    asyncio.run(main(args.fixture_set, args.dev_server_path))

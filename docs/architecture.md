@@ -114,10 +114,11 @@ checks saved, synthetic histories for the invoice and other-document branches
 against the current workflow. Fixture filenames identify the workflow version
 that recorded them. It detects incompatible changes to the recorded command
 sequence without starting Temporal in CI. Fixture generation is isolated in
-`scripts/record-temporal-replay-fixtures.py`; pass `--fixture-set` when
-establishing a new compatibility baseline, and never use production histories.
-Replay does not prove that activity implementations or external integrations
-remain backward compatible.
+`scripts/record-temporal-replay-fixtures.py`; run it from the workflow revision
+being recorded, pass `--fixture-set` to name the baseline, and pass
+`--dev-server-path` when using an installed Temporal CLI. Never use production
+histories. Replay does not prove that activity implementations or external
+integrations remain backward compatible.
 
 ## Transaction Ownership
 
