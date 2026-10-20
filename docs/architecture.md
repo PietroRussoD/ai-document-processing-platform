@@ -112,8 +112,10 @@ clock and model calls happen in Activities, never directly inside workflow code.
 The replay test in `tests/unit/workflows/test_process_business_document_replay.py`
 checks saved, synthetic histories for the invoice and other-document branches
 against the current workflow. Fixture filenames identify the workflow version
-that recorded them. It detects incompatible changes to the recorded command
-sequence without starting Temporal in CI. Fixture generation is isolated in
+that recorded them. Fixtures are representative workflow baselines; tags with
+identical workflow definitions do not need duplicate histories. The test
+detects incompatible changes to the recorded command sequence without starting
+Temporal in CI. Fixture generation is isolated in
 `scripts/record-temporal-replay-fixtures.py`; run it from the workflow revision
 being recorded, pass `--fixture-set` to name the baseline, and pass
 `--dev-server-path` when using an installed Temporal CLI. Never use production
