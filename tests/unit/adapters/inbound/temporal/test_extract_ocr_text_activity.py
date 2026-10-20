@@ -11,6 +11,7 @@ from document_platform.application.ports import (
     OcrEngineUnavailable,
     OcrExtractionFailed,
     OcrTextLimitExceeded,
+    ParserRuntimeRejected,
     ParserRuntimeUnavailable,
 )
 
@@ -74,3 +75,19 @@ async def test_keeps_parser_runtime_unavailability_retryable() -> None:
     assert raised.value.type == "PARSER_RUNTIME_UNAVAILABLE"
     assert raised.value.non_retryable is False
     assert "private connection detail" not in str(raised.value)
+
+
+@pytest.mark.anyio
+async def test_marks_parser_runtime_rejection_non_retryable() -> None:
+    class RejectedExtractOcrText:
+        async def __call__(self, command: ExtractOcrText) -> OcrTextExtractionResult:
+            raise ParserRuntimeRejected("private authorization detail")
+
+    activity = ExtractOcrTextActivity(RejectedExtractOcrText())  # type: ignore[arg-type]
+
+    with pytest.raises(ApplicationError) as raised:
+        await activity.extract_ocr_text(str(RUN_ID))
+
+    assert raised.value.type == "PARSER_RUNTIME_REJECTED"
+    assert raised.value.non_retryable is True
+    assert "private authorization detail" not in str(raised.value)

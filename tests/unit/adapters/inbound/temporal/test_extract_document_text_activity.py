@@ -10,6 +10,7 @@ from document_platform.application.commands import DocumentTextExtracted, Extrac
 from document_platform.application.ports import (
     EncryptedPdf,
     InvalidPdf,
+    ParserRuntimeRejected,
     ParserRuntimeUnavailable,
     PdfPageLimitExceeded,
     PdfTextLimitExceeded,
@@ -51,6 +52,22 @@ async def test_keeps_parser_runtime_unavailability_retryable() -> None:
     assert raised.value.type == "PARSER_RUNTIME_UNAVAILABLE"
     assert raised.value.non_retryable is False
     assert "private connection detail" not in str(raised.value)
+
+
+@pytest.mark.anyio
+async def test_marks_parser_runtime_rejection_non_retryable() -> None:
+    class RejectedExtractDocumentText:
+        async def __call__(self, command: ExtractDocumentText) -> DocumentTextExtracted:
+            raise ParserRuntimeRejected("private authorization detail")
+
+    activity = ExtractDocumentTextActivity(RejectedExtractDocumentText())  # type: ignore[arg-type]
+
+    with pytest.raises(ApplicationError) as raised:
+        await activity.extract_document_text(str(RUN_ID))
+
+    assert raised.value.type == "PARSER_RUNTIME_REJECTED"
+    assert raised.value.non_retryable is True
+    assert "private authorization detail" not in str(raised.value)
 
 
 @pytest.mark.anyio
