@@ -578,6 +578,35 @@ def test_api_websocket_loss_maps_to_temporary_unavailability_and_cleans(
     assert cleanup.call_args.args[0].uid == "owned-uid"
 
 
+def test_resource_quota_rejection_maps_to_temporary_unavailability() -> None:
+    error = ApiException(
+        status=403,
+        reason="Forbidden",
+        body=(
+            '{"reason":"Forbidden","message":"exceeded quota: parser-job-budget, '
+            'requested: requests.memory=512Mi, used: requests.memory=1Gi"}'
+        ),
+    )
+
+    mapped = KubernetesParserJobController._api_error(error)
+
+    assert isinstance(mapped, ParserRuntimeUnavailable)
+    assert str(mapped) == "Parser namespace resource quota is exhausted"
+
+
+def test_non_quota_forbidden_error_remains_a_runtime_rejection() -> None:
+    error = ApiException(
+        status=403,
+        reason="Forbidden",
+        body='{"reason":"Forbidden","message":"User cannot create jobs"}',
+    )
+
+    mapped = KubernetesParserJobController._api_error(error)
+
+    assert isinstance(mapped, ParserRuntimeRejected)
+    assert str(mapped) == "Kubernetes API refused the parser request (HTTP 403)"
+
+
 def test_cleanup_uses_foreground_uid_precondition_and_confirms_absence(
     controller: KubernetesParserJobController, monkeypatch: pytest.MonkeyPatch
 ) -> None:
