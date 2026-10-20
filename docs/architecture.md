@@ -110,13 +110,14 @@ advisory, outside the authoritative extraction and review result.
 Temporal workflows are deterministic orchestration. Database, filesystem, OCR,
 clock and model calls happen in Activities, never directly inside workflow code.
 The replay test in `tests/unit/workflows/test_process_business_document_replay.py`
-checks saved, synthetic `v0.9.0` histories for the invoice and other-document
-branches against the current workflow. It detects incompatible changes to the
-recorded command sequence without starting Temporal in CI. Fixture generation
-is isolated in `scripts/record-temporal-replay-fixtures.py`; regenerate only
-when intentionally establishing a new compatibility baseline, never from
-production histories. Replay does not prove that activity implementations or
-external integrations remain backward compatible.
+checks saved, synthetic histories for the invoice and other-document branches
+against the current workflow. Fixture filenames identify the workflow version
+that recorded them. It detects incompatible changes to the recorded command
+sequence without starting Temporal in CI. Fixture generation is isolated in
+`scripts/record-temporal-replay-fixtures.py`; pass `--fixture-set` when
+establishing a new compatibility baseline, and never use production histories.
+Replay does not prove that activity implementations or external integrations
+remain backward compatible.
 
 ## Transaction Ownership
 

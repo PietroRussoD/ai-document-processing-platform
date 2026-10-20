@@ -1,7 +1,9 @@
 """Record synthetic histories for the workflow replay compatibility tests."""
 
+import argparse
 import asyncio
 import json
+import re
 from pathlib import Path
 from typing import cast
 from uuid import uuid4
@@ -54,6 +56,16 @@ async def apply_invoice_validation(_run_id: str) -> None:
     pass
 
 
+@activity.defn(name=contracts.PROPOSE_INVOICE_FIELDS_ACTIVITY)
+async def propose_invoice_fields(_run_id: str) -> None:
+    pass
+
+
+@activity.defn(name=contracts.RECORD_INVOICE_PROPOSAL_FAILURE_ACTIVITY)
+async def record_invoice_proposal_failure(_run_id: str, _failure_code: str) -> None:
+    pass
+
+
 @activity.defn(name=contracts.COMPLETE_PROCESSING_RUN_ACTIVITY)
 async def complete_processing_run(_run_id: str) -> None:
     pass
@@ -68,6 +80,8 @@ ACTIVITIES = [
     extract_invoice,
     validate_invoice,
     apply_invoice_validation,
+    propose_invoice_fields,
+    record_invoice_proposal_failure,
     complete_processing_run,
 ]
 FIXTURE_DIR = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "temporal"
@@ -91,7 +105,14 @@ def remove_worker_identity(value: object) -> object:
     return value
 
 
-async def main() -> None:
+async def main(fixture_set: str) -> None:
+    run_ids = ("synthetic-invoice", "synthetic-other")
+    fixture_paths = [FIXTURE_DIR / f"{fixture_set}-{run_id}.json" for run_id in run_ids]
+    existing_paths = [path for path in fixture_paths if path.exists()]
+    if existing_paths:
+        paths = ", ".join(str(path) for path in existing_paths)
+        raise FileExistsError(f"Refusing to overwrite existing replay fixtures: {paths}")
+
     async with await WorkflowEnvironment.start_local() as environment:  # pyright: ignore[reportUnknownMemberType]
         task_queue = f"replay-fixtures-{uuid4()}"
         async with Worker(
@@ -101,7 +122,7 @@ async def main() -> None:
             activities=ACTIVITIES,
         ):
             FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
-            for run_id in ("synthetic-invoice", "synthetic-other"):
+            for run_id in run_ids:
                 handle = await environment.client.start_workflow(
                     ProcessBusinessDocumentWorkflow.run,
                     run_id,
@@ -111,8 +132,23 @@ async def main() -> None:
                 await handle.result()
                 history = await handle.fetch_history()
                 sanitized = remove_worker_identity(json.loads(history.to_json()))
-                (FIXTURE_DIR / f"{run_id}.json").write_text(json.dumps(sanitized) + "\n")
+                (FIXTURE_DIR / f"{fixture_set}-{run_id}.json").write_text(
+                    json.dumps(sanitized) + "\n"
+                )
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--fixture-set",
+        default="current",
+        help="prefix for generated fixture files (for example, v1.2.0)",
+    )
+    args = parser.parse_args()
+    if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.-]*", args.fixture_set) is None:
+        parser.error("--fixture-set may contain only letters, digits, dots, and hyphens")
+    return args
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main(parse_args().fixture_set))
