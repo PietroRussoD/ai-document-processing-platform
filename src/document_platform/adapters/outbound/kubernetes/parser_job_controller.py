@@ -19,8 +19,11 @@ from document_platform.adapters.outbound.kubernetes.parser_runtime_connection im
     KubernetesParserRuntimeConnection,
 )
 from document_platform.application.ports import (
+    ParserContainerMemoryLimitExceeded,
     ParserExecutionFailed,
+    ParserMemoryLimitExceeded,
     ParserOutputExceeded,
+    ParserProcessMemoryLimitExceeded,
     ParserRuntimeRejected,
     ParserRuntimeUnavailable,
 )
@@ -30,8 +33,13 @@ _POLL_INTERVAL_SECONDS = 0.2
 _STDIN_CHUNK_BYTES = 64 * 1024
 _MAX_STDERR_BYTES = 8 * 1024
 _MAX_OWNED_PODS = 100
+_OOM_COUNTER_OUTPUT_LIMIT = 16
 _RUN_LABEL = "parser.platform/run"
 _CONTAINER_NAME = "parser"
+
+
+class _ParserExecOutcomeUnknown(ParserExecutionFailed):
+    """Exec ended without a status, so inspect the container before classifying it."""
 
 
 class ParserOperation(StrEnum):
@@ -164,6 +172,7 @@ class KubernetesParserJobController:
 
         name = f"pdf-parser-{operation.value[:8]}-{uuid4().hex[:16]}"
         job: OwnedParserJob | None = None
+        pod: str | None = None
         create_attempted = False
         try:
             _raise_if_cancelled(cancel_event)
@@ -171,13 +180,26 @@ class KubernetesParserJobController:
             created = self._create_job(name)
             job = self._identity(name, created)
             pod = self._wait_for_pod(job, cancel_event=cancel_event)
-            output, exit_code = self._exec(
-                pod,
-                self._parser_command(operation),
-                stdin=pdf,
-                output_limit=self._settings.max_output_bytes,
-                cancel_event=cancel_event,
-            )
+            oom_kill_baseline = self._read_oom_kill_count(pod)
+            try:
+                output, exit_code = self._exec(
+                    pod,
+                    self._parser_command(operation),
+                    stdin=pdf,
+                    output_limit=self._settings.max_output_bytes,
+                    cancel_event=cancel_event,
+                )
+            except (ApiException, _ParserExecOutcomeUnknown, WebSocketException) as error:
+                memory_failure = self._memory_limit_failure(pod, oom_kill_baseline)
+                if memory_failure is not None:
+                    raise memory_failure from None
+                if isinstance(error, ApiException):
+                    raise self._api_error(error) from None
+                raise
+            if exit_code != 0:
+                memory_failure = self._memory_limit_failure(pod, oom_kill_baseline)
+                if memory_failure is not None:
+                    raise memory_failure from None
             _raise_if_cancelled(cancel_event)
             outcome = "success" if exit_code == 0 else "failure"
             _, completion_code = self._exec(
@@ -191,7 +213,7 @@ class KubernetesParserJobController:
                 raise ParserExecutionFailed("Parser Job completion command failed")
             self._wait_for_terminal(
                 job,
-                "Complete" if exit_code == 0 else "Failed",
+                "Complete" if outcome == "success" else "Failed",
                 cancel_event=cancel_event,
             )
             if exit_code != 0:
@@ -359,6 +381,12 @@ class KubernetesParserJobController:
             with self._connection.new_api_client() as api:
                 core = client.CoreV1Api(api)
                 for pod in self._owned_pods(core, job):
+                    for container in (pod.status.container_statuses or []) if pod.status else []:
+                        terminated = container.state.terminated if container.state else None
+                        if terminated and terminated.reason == "OOMKilled":
+                            raise ParserContainerMemoryLimitExceeded(
+                                "Isolated PDF parser container exceeded its memory limit"
+                            )
                     if (
                         pod.status
                         and pod.status.phase == "Running"
@@ -441,14 +469,113 @@ class KubernetesParserJobController:
                 try:
                     exit_code = websocket.returncode
                 except (KeyError, TypeError, ValueError):
-                    raise ParserExecutionFailed(
+                    raise _ParserExecOutcomeUnknown(
                         "Isolated parser exec terminated without a usable exit status"
                     ) from None
                 if not isinstance(exit_code, int):
-                    raise ParserRuntimeUnavailable("Parser exec returned no exit status")
+                    raise _ParserExecOutcomeUnknown("Parser exec returned no exit status")
                 return bytes(stdout), exit_code
             finally:
                 websocket.close()
+
+    def _read_oom_kill_count(self, pod: str) -> int | None:
+        output, exit_code = self._exec(
+            pod,
+            [*_SUPERVISOR_COMMAND, "oom-count"],
+            stdin=None,
+            output_limit=_OOM_COUNTER_OUTPUT_LIMIT,
+        )
+        if exit_code != 0:
+            return None
+        try:
+            count = int(output.decode("ascii").strip())
+        except (UnicodeDecodeError, ValueError):
+            return None
+        return count if count >= 0 else None
+
+    def _memory_limit_failure(
+        self, pod: str, baseline: int | None
+    ) -> ParserMemoryLimitExceeded | None:
+        counter_error: Exception | None = None
+        counter_increased = False
+        if baseline is not None:
+            try:
+                current = self._read_oom_kill_count(pod)
+            except ApiException as error:
+                if getattr(error, "status", None) in {400, 404}:
+                    counter_error = None
+                else:
+                    counter_error = self._api_error(error)
+            except (
+                _ParserExecOutcomeUnknown,
+                ParserRuntimeUnavailable,
+                WebSocketException,
+            ) as error:
+                counter_error = error
+            else:
+                counter_increased = current is not None and current > baseline
+        try:
+            container_oom_killed = self._pod_container_oom_killed(pod)
+        except (ParserRuntimeRejected, ParserRuntimeUnavailable) as error:
+            if counter_increased:
+                return ParserMemoryLimitExceeded("Isolated parser cgroup reported an OOM kill")
+            raise error
+        if container_oom_killed:
+            return ParserContainerMemoryLimitExceeded(
+                "Isolated PDF parser container exceeded its memory limit"
+            )
+        if counter_increased:
+            return ParserProcessMemoryLimitExceeded(
+                "An isolated PDF parser process exceeded its memory limit"
+            )
+        if counter_error is not None:
+            raise counter_error
+        return None
+
+    def _pod_container_oom_killed(self, pod_name: str) -> bool:
+        deadline = time.monotonic() + min(3.0, self._settings.cleanup_timeout_seconds)
+        last_api_error: ParserRuntimeUnavailable | None = None
+        while True:
+            try:
+                with self._connection.new_api_client() as api:
+                    pod = client.CoreV1Api(api).read_namespaced_pod(
+                        pod_name,
+                        self._connection.namespace,
+                        _request_timeout=_REQUEST_TIMEOUT,
+                    )
+            except ApiException as error:
+                if getattr(error, "status", None) == 404:
+                    return False
+                mapped_error = self._api_error(error)
+                if not isinstance(mapped_error, ParserRuntimeUnavailable):
+                    raise mapped_error from None
+                last_api_error = mapped_error
+            except SSLError:
+                raise ParserRuntimeRejected("Kubernetes API TLS verification failed") from None
+            except (HTTPError, OSError):
+                last_api_error = ParserRuntimeUnavailable(
+                    "Kubernetes API connection is temporarily unavailable"
+                )
+            else:
+                for status in pod.status.container_statuses or [] if pod.status else []:
+                    if status.name != _CONTAINER_NAME:
+                        continue
+                    states = (status.state, status.last_state)
+                    if any(
+                        state and state.terminated and state.terminated.reason == "OOMKilled"
+                        for state in states
+                    ):
+                        return True
+                    if any(state and state.terminated for state in states):
+                        return False
+                if pod.status and pod.status.phase in {"Failed", "Succeeded"}:
+                    return False
+
+            if time.monotonic() >= deadline:
+                if last_api_error is not None:
+                    raise last_api_error
+                return False
+            time.sleep(_POLL_INTERVAL_SECONDS)
 
     def _wait_for_terminal(
         self,
@@ -517,7 +644,7 @@ class KubernetesParserJobController:
     @staticmethod
     def _api_error(error: ApiException) -> ParserRuntimeRejected | ParserRuntimeUnavailable:
         status = getattr(error, "status", None)
-        if status == 429 or status is None or status >= 500:
+        if status == 429 or status is None or status <= 0 or status >= 500:
             return ParserRuntimeUnavailable("Kubernetes API is temporarily unavailable")
         status_code = str(status) if isinstance(status, int) else "unknown"
         return ParserRuntimeRejected(

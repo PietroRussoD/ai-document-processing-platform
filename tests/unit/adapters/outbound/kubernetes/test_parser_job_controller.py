@@ -20,8 +20,10 @@ from document_platform.adapters.outbound.kubernetes import (
     ParserOperation,
 )
 from document_platform.application.ports import (
+    ParserContainerMemoryLimitExceeded,
     ParserExecutionFailed,
     ParserOutputExceeded,
+    ParserProcessMemoryLimitExceeded,
     ParserRuntimeRejected,
     ParserRuntimeUnavailable,
 )
@@ -344,7 +346,7 @@ def test_successful_operation_signals_completion_and_cleans_owned_job(
     created = client.V1Job(metadata=client.V1ObjectMeta(uid="owned-uid"))
     create = Mock(return_value=created)
     wait_for_pod = Mock(return_value="owned-pod")
-    exec_command = Mock(side_effect=[(b'{"valid":true}', 0), (b"", 0)])
+    exec_command = Mock(side_effect=[(b"0\n", 0), (b'{"valid":true}', 0), (b"", 0)])
     wait_terminal = Mock()
     cleanup = Mock()
     monkeypatch.setattr(controller, "_create_job", create)
@@ -356,10 +358,11 @@ def test_successful_operation_signals_completion_and_cleans_owned_job(
     result = controller.execute(ParserOperation.EMBEDDED_TEXT, b"synthetic-pdf")
 
     assert result == b'{"valid":true}'
-    assert exec_command.call_args_list[0].args[1] == cast(Any, controller)._parser_command(
+    assert exec_command.call_args_list[0].args[1][-1] == "oom-count"
+    assert exec_command.call_args_list[1].args[1] == cast(Any, controller)._parser_command(
         ParserOperation.EMBEDDED_TEXT
     )
-    assert "complete" in exec_command.call_args_list[1].args[1]
+    assert "complete" in exec_command.call_args_list[2].args[1]
     assert wait_terminal.call_args.args[0].uid == "owned-uid"
     assert wait_terminal.call_args.args[1] == "Complete"
     assert cleanup.call_args.args[0].uid == "owned-uid"
@@ -374,20 +377,125 @@ def test_nonzero_parser_exit_marks_job_failed_then_cleans(
         Mock(return_value=client.V1Job(metadata=client.V1ObjectMeta(uid="owned-uid"))),
     )
     monkeypatch.setattr(controller, "_wait_for_pod", Mock(return_value="owned-pod"))
-    execute = Mock(side_effect=[(b"", 7), (b"", 0)])
+    execute = Mock(side_effect=[(b"0\n", 0), (b"", 7), (b"", 0)])
     terminal = Mock()
     cleanup = Mock()
     monkeypatch.setattr(controller, "_exec", execute)
+    monkeypatch.setattr(controller, "_memory_limit_failure", Mock(return_value=None))
     monkeypatch.setattr(controller, "_wait_for_terminal", terminal)
     monkeypatch.setattr(controller, "_cleanup", cleanup)
 
     with pytest.raises(ParserExecutionFailed, match="returned a failure status"):
         controller.execute(ParserOperation.OCR, b"synthetic-pdf")
 
-    assert "complete" in execute.call_args_list[1].args[1]
-    assert execute.call_args_list[1].kwargs["stdin"] is None
+    assert "complete" in execute.call_args_list[2].args[1]
+    assert execute.call_args_list[2].kwargs["stdin"] is None
     assert terminal.call_args.args[1] == "Failed"
     assert cleanup.call_args.args[0].uid == "owned-uid"
+
+
+def test_cgroup_oom_signal_maps_a_failed_parser_job_to_memory_limit(
+    controller: KubernetesParserJobController, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        controller,
+        "_create_job",
+        Mock(return_value=client.V1Job(metadata=client.V1ObjectMeta(uid="owned-uid"))),
+    )
+    monkeypatch.setattr(controller, "_wait_for_pod", Mock(return_value="owned-pod"))
+    execute = Mock(side_effect=[(b"0\n", 0), (b"", 7), (b"1\n", 0)])
+    terminal = Mock()
+    cleanup = Mock()
+    monkeypatch.setattr(controller, "_exec", execute)
+    monkeypatch.setattr(controller, "_pod_container_oom_killed", Mock(return_value=False))
+    monkeypatch.setattr(controller, "_wait_for_terminal", terminal)
+    monkeypatch.setattr(controller, "_cleanup", cleanup)
+
+    with pytest.raises(ParserProcessMemoryLimitExceeded, match="process exceeded its memory limit"):
+        controller.execute(ParserOperation.OCR, b"synthetic-pdf")
+
+    assert execute.call_args_list[0].args[1][-1] == "oom-count"
+    assert execute.call_args_list[2].args[1][-1] == "oom-count"
+    terminal.assert_not_called()
+    assert cleanup.call_args.args[0].uid == "owned-uid"
+
+
+def test_container_oom_status_maps_an_interrupted_exec_to_memory_limit(
+    controller: KubernetesParserJobController, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        controller,
+        "_create_job",
+        Mock(return_value=client.V1Job(metadata=client.V1ObjectMeta(uid="owned-uid"))),
+    )
+    monkeypatch.setattr(controller, "_wait_for_pod", Mock(return_value="owned-pod"))
+    execute = Mock(
+        side_effect=[
+            (b"0\n", 0),
+            ApiException(status=0, reason="container terminated"),
+            WebSocketConnectionClosedException("container is no longer running"),
+        ]
+    )
+    cleanup = Mock()
+    monkeypatch.setattr(controller, "_exec", execute)
+    monkeypatch.setattr(controller, "_pod_container_oom_killed", Mock(return_value=True))
+    monkeypatch.setattr(controller, "_cleanup", cleanup)
+
+    with pytest.raises(
+        ParserContainerMemoryLimitExceeded,
+        match="container exceeded its memory limit",
+    ):
+        controller.execute(ParserOperation.OCR, b"synthetic-pdf")
+
+    assert cleanup.call_args.args[0].uid == "owned-uid"
+
+
+def test_pod_oom_kill_reason_maps_to_memory_limit_before_supervisor_ready(
+    controller: KubernetesParserJobController, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pod = client.V1Pod(
+        metadata=client.V1ObjectMeta(
+            name="oom-pod",
+            owner_references=[
+                client.V1OwnerReference(
+                    api_version="batch/v1",
+                    kind="Job",
+                    name="owned-job",
+                    uid="owned-uid",
+                    controller=True,
+                )
+            ],
+        ),
+        status=client.V1PodStatus(
+            phase="Failed",
+            container_statuses=[
+                client.V1ContainerStatus(
+                    name="parser",
+                    image="parser:dev",
+                    image_id="parser@sha256:synthetic",
+                    ready=False,
+                    restart_count=0,
+                    state=client.V1ContainerState(
+                        terminated=client.V1ContainerStateTerminated(
+                            exit_code=137,
+                            reason="OOMKilled",
+                        )
+                    ),
+                )
+            ],
+        ),
+    )
+    core = Mock()
+    core.list_namespaced_pod.return_value = client.V1PodList(items=[pod])
+    connection = cast(Any, controller)._connection
+    monkeypatch.setattr(connection, "new_api_client", lambda: nullcontext(object()))
+    monkeypatch.setattr(controller_module.client, "CoreV1Api", lambda _api: core)
+
+    with pytest.raises(
+        ParserContainerMemoryLimitExceeded,
+        match="container exceeded its memory limit",
+    ):
+        cast(Any, controller)._wait_for_pod(controller_module.OwnedParserJob("job", "owned-uid"))
 
 
 def test_api_websocket_loss_maps_to_temporary_unavailability_and_cleans(
@@ -402,8 +510,14 @@ def test_api_websocket_loss_maps_to_temporary_unavailability_and_cleans(
     monkeypatch.setattr(
         controller,
         "_exec",
-        Mock(side_effect=WebSocketConnectionClosedException("private socket detail")),
+        Mock(
+            side_effect=[
+                (b"0\n", 0),
+                WebSocketConnectionClosedException("private socket detail"),
+            ]
+        ),
     )
+    monkeypatch.setattr(controller, "_memory_limit_failure", Mock(return_value=None))
     cleanup = Mock()
     monkeypatch.setattr(controller, "_cleanup", cleanup)
 

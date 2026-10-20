@@ -11,7 +11,8 @@ opens PDFs in the API and page count is recorded with the first isolated text
 extraction. The migration has been applied to a fresh database and the
 asynchronous upload path has live verification. Focused automated tests cover
 controller, worker, activity and workflow behavior and two checked-in
-historical workflow fixtures; several live parser fault cases and broader
+historical workflow fixtures. Live Kind checks now distinguish a container
+OOM from an ordinary OCR error; a child-specific OOM outcome and broader
 replay coverage remain open.
 
 This proposal refines the parser-isolation work described in the
@@ -312,15 +313,20 @@ codes; never persist raw parser exceptions as user-visible errors.
 
 ### OCR process failures and Temporal retries
 
-The high-entropy image probe exhausted the container cgroup while the parser
-process survived and returned the generic non-zero-exit error from Tesseract.
-The Kubernetes Job therefore cannot be assumed to report `OOMKilled` for every
-OCR memory exhaustion; that reason is available when the container process
-itself is killed. Use a reliable runtime signal, such as a change in the
-container's cgroup OOM counter when supported, before classifying a failure
-specifically as resource exhaustion. If no such signal is available, record a
-bounded OCR-engine failure rather than claiming an OOM. Do not include
-Tesseract stderr or document content in the result or logs.
+The network-disabled Docker probe observed the cgroup `oom_kill` counter rise
+while the parser returned Tesseract's generic non-zero result. In the live
+Kind/Calico run, the same high-entropy fixture at 512MiB ended with Pod
+`reason: OOMKilled`; at 768MiB, real Tesseract returned an ordinary OCR error
+and the OOM counter did not rise. A synthetic child allocator at 768MiB also
+ended with `OOMKilled`. The controller now uses the Pod termination reason to
+classify container OOM, and a counter delta as a best-effort process-level
+signal only when the container remains available. The cgroup counter is
+container-scoped and does not identify a PID. In Kubernetes' default cgroup v2
+configuration, `memory.oom.group` kills the container's tasks together, so
+these live tests cannot attribute the initiating OOM to Tesseract specifically.
+If the runtime exposes no reliable signal, preserve a bounded OCR-engine
+failure rather than claiming an OOM. Do not include Tesseract stderr or document
+content in the result or logs. See the [Kubernetes cgroup v2 behavior note](https://kubernetes.io/blog/2026/10/06/kubernetes-cgroups-v2-shift/) and the [Linux cgroup v2 memory controller documentation](https://www.kernel.org/doc/html/v6.5/admin-guide/cgroup-v2.html).
 
 The workflow uses a separate two-attempt policy for embedded-text and OCR
 activities, with a two-second initial interval and ten-second maximum
@@ -332,8 +338,10 @@ which must report temporary startup or connection failures using
 yet. A worker must inspect the Job/container outcome, persist a bounded failure
 once, and clean up the Job; it must not resubmit the same expensive OCR
 operation merely because the parser child returned a non-zero status. Test
-child-process OOM separately from a Job container OOM and from an ordinary OCR
-timeout.
+process-level OOM separately from a Job container OOM and an ordinary OCR
+error when the selected runtime exposes those as distinct outcomes. Under
+group-OOM behavior, report container OOM without attributing it to a specific
+child process.
 
 Before the first failure-policy change, source inspection showed that a
 non-zero Tesseract exit became `OcrExtractionFailed` and that all three OCR
@@ -426,11 +434,11 @@ limit correction are recorded below.
 | Automated Kind/Calico bootstrap and issuer supervision | Pass, 2026-10-18 and 2026-10-19 | `scripts/parser_runtime.py verify` created a random Kind v1.37.0 cluster with the default CNI disabled, installed Calico 3.33.0, loaded the parser image and waited for Calico and node readiness. A restricted parser-image Pod completed TLS 1.3 to `1.1.1.1:443`; after applying the namespace-wide default-deny policy, the same connection was blocked. The host-side scoped controller probe verified TLS/RBAC, and the supervised issuer completed two short-interval renewals before SIGTERM removed its local token. Cleanup removed the temporary cluster and directory; `kind get clusters` showed only the pre-existing `hub`. A second `up` run rebuilt the images, reached API readiness with all processing services running and started the worker with the verified credentials. Ctrl-C stopped the dispatcher and worker with exit code 0; the sync service removed the token and CA from its volume, the anchor and Kind cluster were deleted, and Compose data volumes remained. The documented demo review token was passed only in the command environment because `.env` had no value; `.env` was not changed. The Temporal UI container returned exit code 2 on stop, although Compose completed shutdown and no processing service remained running. The run did not upload a new document. IPv6 and other egress paths are not covered. |
 | Temporal worker with parser Jobs in Compose + Kind | Pass for embedded-text, OCR, cancellation and retry after worker restart, 2026-10-18 | A fresh Kind v1.37.0/Calico 3.33.0 cluster used the scoped Role and default-deny ingress/egress. The actual Compose API, dispatcher, Temporal and worker started with explicit endpoint/CA/token settings. A synthetic image-only invoice produced zero embedded characters, 380 OCR characters, selected OCR text, and completed its workflow. Text markers were absent from Temporal history and API/worker logs. Canceling a second workflow during a 40-page OCR Job removed the Job in 4.8 s. Stopping the worker during another 40-page OCR Job left it for `activeDeadlineSeconds`/TTL cleanup within 185 s; after the five-minute activity timeout, Temporal retried on the restarted worker, persisted one OCR row and ended `REVIEW_REQUIRED`. This does not cover the crash window after persistence but before activity completion or historical workflow replay. |
 | Supervised Compose upload and parser workflow | Pass for one synthetic scanned invoice, 2026-10-19 | With `scripts/parser_runtime.py up`, the API returned HTTP 202 for `examples/documents/invoice-scanned.pdf`. The real dispatcher and Temporal worker used the isolated embedded-text Job (zero characters) and OCR Job (243 characters), then classified the invoice and ended `REVIEW_REQUIRED` for `MISSING_ISSUE_DATE`. The API exposed that terminal workflow result; no Job or Pod remained in the parser namespace. The documented demo operator token was passed through the command environment only; `.env` was unchanged. The first interrupted run stopped Compose and scrubbed the worker credential volume but left its temporary Kind cluster behind. Cleanup now rechecks and retries deletion after the Compose client exits. A repeated interrupted run stopped all processing services, scrubbed token and CA from the volume, removed its Kind cluster automatically, and left only the pre-existing `hub`. A later separate-project run verified the asynchronous upload path and malformed-PDF failure; it used fresh volumes and preserved both those and the original data volumes. |
-| Focused automated parser and workflow checks | Pass, 44 tests, 2026-10-19 | The parser controller, worker, supervisor, OCR activity, process workflow and replay tests passed together. This includes the two checked-in v0.9 historical replay fixtures. These tests do not establish live child/container OOM classification or node-loss cleanup in a persistent cluster. |
+| Focused automated parser and workflow checks | Pass, 49 tests, 2026-10-19 | The parser controller, worker, supervisor, OCR activity, process workflow and replay tests passed together. This includes the two checked-in v0.9 historical replay fixtures. Unit tests cover cgroup-counter and `OOMKilled` mapping; they do not establish a child-specific live OOM outcome or node-loss cleanup in a persistent cluster. |
 | Tesseract PDF OCR integration suite | Pass, 13 tests, 2026-10-19 | `tests/integration/ocr/test_tesseract_pdf_ocr_extractor.py` passed with local Tesseract available. This exercises the OCR extractor integration, not the isolated Kubernetes Job controller or Temporal recovery. |
 | Isolated Job execution timeout and cleanup | Pass, 50-page synthetic OCR, 2026-10-19 | The real controller submitted a repeated scanned-invoice PDF to a fresh Kind/Calico cluster with a 2-second execution deadline. It returned bounded `ParserRuntimeUnavailable` and confirmed that no Job or Pod remained. The controller call took 27.3 seconds, including cold Job/Pod startup; this is not a measurement of parser execution time. The test exercises the controller timeout path and cleanup, not the Temporal workflow timeout. |
-| High-entropy OCR under a 512MiB Job limit | Bounded parser failure and cleanup, 2026-10-19 | A synthetic 4,471 × 4,471 high-entropy JPEG embedded in a 15,852,592-byte PDF was sent through the real controller under the selected default-deny policy. The Kubernetes exec client could not decode a usable exit status after the memory-limited parser failed. The controller now converts malformed/missing exec status into a bounded `ParserExecutionFailed`, and the Job and Pod were removed. No reliable OOM counter or container termination reason was captured, so this does not establish whether the child or container was OOM-killed and must not be described as a confirmed OOM classification. |
-| Controller output overflow and unavailable API | Pass, synthetic PDF, 2026-10-19 | With the real parser Job controller and a 1-byte exec output cap, a valid embedded-text result was rejected as `ParserOutputExceeded`; no Job or Pod remained. A TLS API connection check against a closed local endpoint returned bounded `ParserRuntimeUnavailable`. During a separate live OCR run, stopping only the disposable Kind kube-apiserver for five seconds closed the exec WebSocket; the controller returned bounded `ParserRuntimeUnavailable`, then removed the Job and Pod once the API recovered. Stopping the entire Kind node exceeded the 15-second controller cleanup deadline; the disposable cluster teardown removed its resources, but cleanup/TTL recovery after node loss in a persistent cluster remains unverified. |
+| OOM versus ordinary OCR failure in Kind | Pass for container classification, 2026-10-19 | The real controller sent a 15,852,592-byte high-entropy PDF through the selected default-deny policy. At 512MiB, the Pod terminated with `OOMKilled`; the controller returned `ParserContainerMemoryLimitExceeded` and removed the Job and Pod. At 768MiB, real Tesseract returned exit code 1, the cgroup OOM counter stayed at zero and the controller preserved `ParserExecutionFailed`. A synthetic child allocator at 768MiB also caused the Pod to be group-killed and classified as container OOM. Kubernetes' default cgroup v2 group behavior means this topology does not prove which process first triggered memory exhaustion. |
+| Controller output overflow and unavailable API | Pass, synthetic PDF, 2026-10-19; API-loss rerun 2026-10-20 | With the real parser Job controller and a 1-byte exec output cap, a valid embedded-text result was rejected as `ParserOutputExceeded`; no Job or Pod remained. A TLS API connection check against a closed local endpoint returned bounded `ParserRuntimeUnavailable`. During live OCR, stopping only the disposable Kind kube-apiserver for five seconds closed the exec WebSocket; the controller returned bounded `ParserRuntimeUnavailable`, then removed the Job and Pod once the API recovered. This was repeated after the OOM-classification change on 2026-10-20; the fault harness passed and the disposable cluster was removed, leaving only `hub`. Stopping the entire Kind node exceeded the 15-second controller cleanup deadline; the disposable cluster teardown removed its resources, but cleanup/TTL recovery after node loss in a persistent cluster remains unverified. |
 | Temporal crash after OCR persistence | Pass, one synthetic scanned invoice, 2026-10-19 | Enabled the local-only `DOCUMENT_PLATFORM_FAULT_INJECTION_CRASH_AFTER_OCR_PERSISTENCE` failpoint. It exits the worker with code 86 after `ExtractOcrTextHandler` commits its OCR row, before the activity returns. Docker restarted the worker (restart count 1); Temporal retried `extract-ocr-text` as attempt 2 about five minutes after scheduling and completed the workflow. The OCR row count and character total remained `1` and `243` before and after retry. Kind events show exactly one embedded-text Job and one OCR Job, so the retry reused the persisted extraction. Temporal history contains no OCR text payload. The workflow ended `REVIEW_REQUIRED` for the fixture's missing issue date. Broader historical workflow replay remains open. |
 | Compose credential bind mount | Direct host-to-worker bind remains unusable on this macOS host | With the host-owned private directory at mode 0700 and CA/token at 0600, UID 10001 in the worker could not read the CA and startup failed closed. `chown` to UID 10001 was unavailable to the unprivileged host user. The selected implementation copies those files through a network-disabled sync service into a UID-10001-owned named volume mounted read-only by the worker. The helper's live delivery check passed, as did credential availability in the supervised worker startup; orderly shutdown removed both files from the named volume. |
 
@@ -494,10 +502,13 @@ bounded streaming behavior in the implementation.
   network access, and cannot read the Compose data volume.
 - Results are size-checked, validated and persisted by the trusted worker;
   document text does not enter logs or Temporal history.
-- Timeouts, OCR child-process OOM, Job container OOM, ordinary OCR failures,
-  oversized results, cancellation, bounded retries and orphan cleanup have
-  focused tests using synthetic fixtures. Deterministic failures must not
-  trigger repeated OCR attempts for the same PDF.
+- Timeouts, container OOM, ordinary OCR failures, oversized results,
+  cancellation, bounded retries and orphan cleanup have focused tests using
+  synthetic fixtures. Where the runtime keeps the container alive and exposes
+  a cgroup counter delta, classify a process-level OOM without claiming a
+  specific PID. Under group-OOM behavior, classify the container outcome and
+  do not claim which child triggered it. Deterministic failures must not trigger
+  repeated OCR attempts for the same PDF.
 - Resource limits are based on measurements and the documentation describes
   this as per-Job containment on `runc`, not as a kernel sandbox.
 
@@ -509,3 +520,5 @@ bounded streaming behavior in the implementation.
 - [Kubernetes Network Policies](https://kubernetes.io/docs/concepts/services-networking/network-policies/)
 - [Kubernetes process ID limits](https://kubernetes.io/docs/concepts/policy/pid-limiting/)
 - [Kubernetes Python client](https://github.com/kubernetes-client/python)
+- [Kubernetes cgroup v2 OOM behavior](https://kubernetes.io/blog/2026/10/06/kubernetes-cgroups-v2-shift/)
+- [Linux cgroup v2 memory controller](https://www.kernel.org/doc/html/v6.5/admin-guide/cgroup-v2.html)

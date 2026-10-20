@@ -32,3 +32,27 @@ def test_complete_creates_one_bounded_marker(
     assert supervisor.main() == 0
     assert marker.read_text(encoding="ascii") == "success"
     assert supervisor.main() == 1
+
+
+def test_oom_count_reports_the_cgroup_v2_counter(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    events = tmp_path / "memory.events"
+    events.write_text("low 0\nhigh 0\nmax 0\noom 1\noom_kill 2\n", encoding="ascii")
+    monkeypatch.setattr(supervisor, "_CGROUP_MEMORY_EVENTS", events)
+    monkeypatch.setattr("sys.argv", ["parser_supervisor", "oom-count"])
+
+    assert supervisor.main() == 0
+    assert capsys.readouterr().out == "2\n"
+
+
+def test_oom_count_reports_unsupported_cgroup_counter(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    events = tmp_path / "memory.events"
+    events.write_text("low 0\nhigh 0\n", encoding="ascii")
+    monkeypatch.setattr(supervisor, "_CGROUP_MEMORY_EVENTS", events)
+    monkeypatch.setattr("sys.argv", ["parser_supervisor", "oom-count"])
+
+    assert supervisor.main() == 3
+    assert capsys.readouterr().out == ""
