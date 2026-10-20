@@ -12,6 +12,13 @@ type Environment = Literal["local", "test", "production"]
 type LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 
+def kubernetes_memory_quantity_from_mib(value: int) -> str:
+    """Format an integer MiB value as a stable Kubernetes memory quantity."""
+    if value % 1024 == 0:
+        return f"{value // 1024}Gi"
+    return f"{value}Mi"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -31,6 +38,7 @@ class Settings(BaseSettings):
     parser_kubernetes_ca_file: Path | None = None
     parser_kubernetes_token_file: Path | None = None
     parser_job_image: str | None = None
+    parser_job_memory_limit_mib: Annotated[int, Field(ge=512, le=2048)] = 1024
     tesseract_language: Annotated[str, Field(min_length=1)] = "eng"
     tesseract_raster_dpi: Annotated[int, Field(ge=72, le=600)] = 200
     tesseract_max_page_pixels: Annotated[int, Field(gt=0)] = 20_000_000

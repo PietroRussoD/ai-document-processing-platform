@@ -18,6 +18,11 @@ import time
 from pathlib import Path
 from types import FrameType
 
+from document_platform.settings import (
+    Settings,
+    kubernetes_memory_quantity_from_mib,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 SPIKE = ROOT / "spikes/parser-runtime-connection"
 CLUSTER_NODE_IMAGE = "kindest/node:v1.37.0"
@@ -412,8 +417,34 @@ def verify_network_policy(kubeconfig: Path, context: str, parser_image: str) -> 
     )
 
 
-def apply_parser_resource_quota(kubeconfig: Path, context: str) -> None:
-    kubectl(kubeconfig, context, "apply", "-f", str(SPIKE / "parser-resource-quota.yaml"))
+def apply_parser_resource_quota(
+    kubeconfig: Path,
+    context: str,
+    *,
+    memory_limit_mib: int,
+) -> None:
+    quota_hard = {
+        "requests.cpu": "500m",
+        "requests.memory": "1Gi",
+        "limits.cpu": "2",
+        "limits.memory": kubernetes_memory_quantity_from_mib(memory_limit_mib * 2),
+        "requests.ephemeral-storage": "128Mi",
+        "limits.ephemeral-storage": "256Mi",
+    }
+    quota = {
+        "apiVersion": "v1",
+        "kind": "ResourceQuota",
+        "metadata": {"name": "parser-job-budget", "namespace": NAMESPACE},
+        "spec": {"hard": quota_hard},
+    }
+    kubectl(
+        kubeconfig,
+        context,
+        "apply",
+        "-f",
+        "-",
+        input_text=json.dumps(quota),
+    )
     quota = json.loads(
         kubectl(
             kubeconfig,
@@ -426,15 +457,7 @@ def apply_parser_resource_quota(kubeconfig: Path, context: str) -> None:
             "json",
         )
     )
-    expected = {
-        "requests.cpu": "500m",
-        "requests.memory": "1Gi",
-        "limits.cpu": "2",
-        "limits.memory": "2Gi",
-        "requests.ephemeral-storage": "128Mi",
-        "limits.ephemeral-storage": "256Mi",
-    }
-    if quota.get("spec", {}).get("hard") != expected:
+    if quota.get("spec", {}).get("hard") != quota_hard:
         raise ParserRuntimeError(
             "Parser namespace resource quota does not match the configured job budget"
         )
@@ -476,7 +499,7 @@ def apply_parser_resource_quota(kubeconfig: Path, context: str) -> None:
                                 },
                                 "limits": {
                                     "cpu": "1",
-                                    "memory": "1Gi",
+                                    "memory": kubernetes_memory_quantity_from_mib(memory_limit_mib),
                                     "ephemeral-storage": "128Mi",
                                 },
                             },
@@ -874,7 +897,11 @@ def bootstrap(parser_image: str, *, with_compose: bool) -> int:
         install_calico(kubeconfig, context)
         run(["kind", "load", "docker-image", parser_image, "--name", cluster_name], timeout=180)
         verify_network_policy(kubeconfig, context, parser_image)
-        apply_parser_resource_quota(kubeconfig, context)
+        apply_parser_resource_quota(
+            kubeconfig,
+            context,
+            memory_limit_mib=Settings().parser_job_memory_limit_mib,
+        )
 
         host_endpoint, compose_endpoint = cluster_endpoint_and_ca(
             kubeconfig, context, credential_dir

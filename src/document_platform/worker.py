@@ -61,7 +61,7 @@ from document_platform.domain.processing import (
     ProcessingTextSelectionPolicy,
 )
 from document_platform.logging_configuration import configure_json_logging
-from document_platform.settings import Settings
+from document_platform.settings import Settings, kubernetes_memory_quantity_from_mib
 from document_platform.workflows import ProcessBusinessDocumentWorkflow
 
 
@@ -261,7 +261,7 @@ def _create_parser_runtime(
             cpu_request="250m",
             cpu_limit="1",
             memory_request="512Mi",
-            memory_limit="1Gi",
+            memory_limit=kubernetes_memory_quantity_from_mib(settings.parser_job_memory_limit_mib),
             ephemeral_storage_request="64Mi",
             ephemeral_storage_limit="128Mi",
             scratch_limit="64Mi",

@@ -35,6 +35,7 @@ def test_uses_safe_local_defaults(
     assert settings.parser_kubernetes_ca_file is None
     assert settings.parser_kubernetes_token_file is None
     assert settings.parser_job_image is None
+    assert settings.parser_job_memory_limit_mib == 1024
     assert settings.database_url.scheme == "postgresql+asyncpg"
     assert settings.database_pool_size == 5
     assert settings.database_max_overflow == 5
@@ -121,6 +122,20 @@ def test_reads_the_ocr_pixel_limit_from_environment(monkeypatch: pytest.MonkeyPa
     monkeypatch.setenv("DOCUMENT_PLATFORM_TESSERACT_MAX_PAGE_PIXELS", "10000000")
 
     assert Settings().tesseract_max_page_pixels == 10_000_000
+
+
+def test_reads_the_parser_job_memory_limit_from_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("DOCUMENT_PLATFORM_PARSER_JOB_MEMORY_LIMIT_MIB", "512")
+
+    assert Settings().parser_job_memory_limit_mib == 512
+
+
+@pytest.mark.parametrize("value", [511, 2049])
+def test_rejects_parser_job_memory_limits_outside_the_supported_range(value: int) -> None:
+    with pytest.raises(ValidationError):
+        Settings(parser_job_memory_limit_mib=value)
 
 
 def test_rejects_a_non_positive_extracted_text_limit() -> None:
