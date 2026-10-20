@@ -232,9 +232,11 @@ Every Job should use:
   worker processes share the same aggregate compute and ephemeral-storage
   budget. A quota rejection is classified as temporary runtime unavailability
   for Temporal retry. The bootstrap checks the installed quota values; a live
-  saturation/rejection check is still required before treating enforcement as
-  verified. Keep the quota values aligned with the per-Job settings when those
-  budgets change.
+  saturation probe is now part of `parser_runtime.py verify`: it submits three
+  restricted full-budget Pods and requires the third admission to fail for this
+  quota, then deletes the probes. The check has not completed successfully yet
+  because the host cannot resolve the pinned Calico manifest host. Keep quota
+  values aligned with the per-Job settings when those budgets change.
 
 Kubernetes configures the per-Pod process limit at the kubelet level through
 `podPidsLimit`; it is not a Pod resource limit. Configure and verify it on

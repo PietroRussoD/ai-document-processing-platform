@@ -438,7 +438,97 @@ def apply_parser_resource_quota(kubeconfig: Path, context: str) -> None:
         raise ParserRuntimeError(
             "Parser namespace resource quota does not match the configured job budget"
         )
-    print("Applied the aggregate parser Job resource quota.", flush=True)
+    names: list[str] = []
+    prefix = f"parser-quota-{secrets.token_hex(4)}"
+    try:
+        for index in range(3):
+            name = f"{prefix}-{index}"
+            pod = {
+                "apiVersion": "v1",
+                "kind": "Pod",
+                "metadata": {"name": name, "namespace": NAMESPACE},
+                "spec": {
+                    "automountServiceAccountToken": False,
+                    "terminationGracePeriodSeconds": 1,
+                    "restartPolicy": "Never",
+                    "securityContext": {
+                        "runAsNonRoot": True,
+                        "runAsUser": 10001,
+                        "runAsGroup": 10001,
+                        "seccompProfile": {"type": "RuntimeDefault"},
+                    },
+                    "containers": [
+                        {
+                            "name": "quota-probe",
+                            "image": PARSER_IMAGE,
+                            "imagePullPolicy": "Never",
+                            "command": ["python", "-c", "import time; time.sleep(300)"],
+                            "securityContext": {
+                                "allowPrivilegeEscalation": False,
+                                "readOnlyRootFilesystem": True,
+                                "capabilities": {"drop": ["ALL"]},
+                            },
+                            "resources": {
+                                "requests": {
+                                    "cpu": "250m",
+                                    "memory": "512Mi",
+                                    "ephemeral-storage": "64Mi",
+                                },
+                                "limits": {
+                                    "cpu": "1",
+                                    "memory": "1Gi",
+                                    "ephemeral-storage": "128Mi",
+                                },
+                            },
+                        }
+                    ],
+                },
+            }
+            result = run(
+                [
+                    "kubectl",
+                    "--kubeconfig",
+                    str(kubeconfig),
+                    "--context",
+                    context,
+                    "create",
+                    "-f",
+                    "-",
+                ],
+                capture=True,
+                input_text=json.dumps(pod),
+                check=False,
+                timeout=30,
+            )
+            if result.returncode == 0:
+                names.append(name)
+                if index == 2:
+                    raise ParserRuntimeError(
+                        "Parser namespace quota admitted a third full-budget Pod"
+                    )
+                continue
+            if index < 2 or "exceeded quota: parser-job-budget" not in result.stderr.lower():
+                raise ParserRuntimeError(
+                    "Parser namespace quota saturation check failed with an unexpected response"
+                )
+            print(
+                "Aggregate parser quota admitted two full-budget Pods and rejected the third.",
+                flush=True,
+            )
+            break
+    finally:
+        if names:
+            kubectl(
+                kubeconfig,
+                context,
+                "delete",
+                "pods",
+                *names,
+                f"--namespace={NAMESPACE}",
+                "--wait=true",
+                "--timeout=30s",
+                "--ignore-not-found=true",
+            )
 
 
 def cluster_endpoint_and_ca(
