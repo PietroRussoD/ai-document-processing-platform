@@ -560,3 +560,21 @@ def test_cleanup_uses_foreground_uid_precondition_and_confirms_absence(
     assert delete_options.propagation_policy == "Foreground"
     assert delete_options.preconditions.uid == "owned-uid"
     assert core.list_namespaced_pod.call_count == 1
+
+
+def test_cleanup_maps_api_connection_loss_to_bounded_runtime_unavailable(
+    controller: KubernetesParserJobController, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    batch = Mock()
+    batch.delete_namespaced_job.side_effect = ConnectionError("private endpoint detail")
+    connection = cast(Any, controller)._connection
+    monkeypatch.setattr(connection, "new_api_client", lambda: nullcontext(object()))
+    monkeypatch.setattr(controller_module.client, "BatchV1Api", lambda api: batch)
+
+    with pytest.raises(
+        ParserRuntimeUnavailable,
+        match="Kubernetes API connection is temporarily unavailable",
+    ) as raised:
+        cast(Any, controller)._cleanup(controller_module.OwnedParserJob("synthetic", "owned-uid"))
+
+    assert "private endpoint detail" not in str(raised.value)

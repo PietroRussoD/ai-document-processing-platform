@@ -1,9 +1,12 @@
 # PDF Parser Isolation Design
 
-Status: the local v1.3.0 runtime is selected and network-tested. Embedded-text
-and OCR parser Jobs have live application evidence. The current working tree
-also removes upload-time PDF parsing from the API and defers page count until
-the first isolated extraction; that change still needs live verification.
+Status: the local v1.3.0 runtime is selected and network-tested. Upload
+inspection, embedded-text extraction and OCR run through isolated Jobs in the
+current integration. A live Compose + Kind check verified asynchronous upload
+and page-count persistence. API outage recovery and TTL cleanup after stopping
+and restarting the dedicated single-node Kind control plane also have live
+evidence. Permanent node loss, multi-node behavior and broader Temporal replay
+remain open.
 
 ## Decision for the released v1.2.0
 
@@ -197,8 +200,9 @@ and [Kubernetes RuntimeClass](https://kubernetes.io/docs/concepts/containers/run
 This option was excluded from the released v1.2.0. The separate
 [v1.3.0 development scope](../releases/v1.3.0.md) now tracks this portfolio
 exercise. The selected local topology has passed the network and worker
-connection probes recorded above. Final Job-template enforcement, upload-path
-verification and some recovery cases remain open.
+connection probes recorded above. Upload-path verification is complete.
+Admission enforcement and recovery from permanent node loss or multi-node
+failures remain open.
 
 The proposed application integration, including asynchronous page-count
 validation, Job data transfer, controller permissions and acceptance criteria,

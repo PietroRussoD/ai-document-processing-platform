@@ -605,40 +605,47 @@ class KubernetesParserJobController:
 
     def _cleanup(self, job: OwnedParserJob) -> None:
         deadline = time.monotonic() + self._settings.cleanup_timeout_seconds
-        with self._connection.new_api_client() as api:
-            batch = client.BatchV1Api(api)
-            core = client.CoreV1Api(api)
-            try:
-                batch.delete_namespaced_job(
-                    job.name,
-                    self._connection.namespace,
-                    body=client.V1DeleteOptions(
-                        propagation_policy="Foreground",
-                        preconditions=client.V1Preconditions(uid=job.uid),
-                        grace_period_seconds=1,
-                    ),
-                    _request_timeout=_REQUEST_TIMEOUT,
-                )
-            except ApiException as error:
-                if getattr(error, "status", None) != 404:
-                    raise self._api_error(error) from None
-            while time.monotonic() < deadline:
+        try:
+            with self._connection.new_api_client() as api:
+                batch = client.BatchV1Api(api)
+                core = client.CoreV1Api(api)
                 try:
-                    current = batch.read_namespaced_job(
+                    batch.delete_namespaced_job(
                         job.name,
                         self._connection.namespace,
+                        body=client.V1DeleteOptions(
+                            propagation_policy="Foreground",
+                            preconditions=client.V1Preconditions(uid=job.uid),
+                            grace_period_seconds=1,
+                        ),
                         _request_timeout=_REQUEST_TIMEOUT,
                     )
-                    if self._identity(job.name, current).uid != job.uid:
-                        raise ParserRuntimeRejected(
-                            "Parser Job name was assigned to a different identity"
-                        )
                 except ApiException as error:
                     if getattr(error, "status", None) != 404:
                         raise self._api_error(error) from None
-                    if not self._owned_pods(core, job):
-                        return
-                time.sleep(_POLL_INTERVAL_SECONDS)
+                while time.monotonic() < deadline:
+                    try:
+                        current = batch.read_namespaced_job(
+                            job.name,
+                            self._connection.namespace,
+                            _request_timeout=_REQUEST_TIMEOUT,
+                        )
+                        if self._identity(job.name, current).uid != job.uid:
+                            raise ParserRuntimeRejected(
+                                "Parser Job name was assigned to a different identity"
+                            )
+                    except ApiException as error:
+                        if getattr(error, "status", None) != 404:
+                            raise self._api_error(error) from None
+                        if not self._owned_pods(core, job):
+                            return
+                    time.sleep(_POLL_INTERVAL_SECONDS)
+        except SSLError:
+            raise ParserRuntimeRejected("Kubernetes API TLS verification failed") from None
+        except (HTTPError, OSError):
+            raise ParserRuntimeUnavailable(
+                "Kubernetes API connection is temporarily unavailable"
+            ) from None
         raise ParserRuntimeUnavailable("Parser Job cleanup did not finish before its deadline")
 
     @staticmethod
