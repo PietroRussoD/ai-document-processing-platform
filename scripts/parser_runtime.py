@@ -32,6 +32,11 @@ ANCHOR = "parser-controller-session"
 PARSER_IMAGE = "document-platform-parser:dev"
 APP_IMAGE = "document-platform-api:dev"
 CALICO_BASE = f"https://raw.githubusercontent.com/projectcalico/calico/{CALICO_VERSION}/manifests"
+CALICO_IMAGES = (
+    "quay.io/tigera/operator:v1.44.0",
+    f"quay.io/calico/node:{CALICO_VERSION}",
+    f"quay.io/calico/calico:{CALICO_VERSION}",
+)
 CALICO_MANIFESTS = (
     f"{CALICO_BASE}/v3_projectcalico_org.yaml",
     f"{CALICO_BASE}/tigera-operator.yaml",
@@ -179,6 +184,67 @@ def build_images(environment: dict[str, str], parser_image: str) -> None:
         timeout=1800,
     )
     run(["docker", "tag", APP_IMAGE, parser_image], timeout=60)
+
+
+def pull_calico_images() -> None:
+    """Cache pinned Calico images in Docker so the Kind node needs no registry DNS."""
+    for image in CALICO_IMAGES:
+        inspected = run(
+            ["docker", "image", "inspect", image], capture=True, check=False, timeout=30
+        )
+        if inspected.returncode:
+            print(f"Pulling pinned infrastructure image {image}…", flush=True)
+            run(["docker", "pull", image], timeout=900)
+
+
+def kind_node_platform(cluster_name: str) -> str:
+    nodes = run(
+        ["kind", "get", "nodes", "--name", cluster_name],
+        capture=True,
+        timeout=30,
+    ).stdout.splitlines()
+    if not nodes:
+        raise ParserRuntimeError("Kind cluster has no node for image loading")
+    machine = run(["docker", "exec", nodes[0], "uname", "-m"], capture=True, timeout=30)
+    architecture = machine.stdout.strip()
+    platform = {
+        "aarch64": "linux/arm64",
+        "arm64": "linux/arm64",
+        "x86_64": "linux/amd64",
+        "amd64": "linux/amd64",
+    }.get(architecture)
+    if platform is None:
+        raise ParserRuntimeError("Kind node architecture is not supported for image loading")
+    return platform
+
+
+def load_kind_image(image: str, cluster_name: str, platform: str) -> None:
+    """Load one node-platform image archive, avoiding containerd multi-platform digest gaps."""
+    with tempfile.TemporaryDirectory(prefix="parser-kind-image-") as temporary:
+        archive = Path(temporary) / "image.tar"
+        run(
+            [
+                "docker",
+                "image",
+                "save",
+                "--platform",
+                platform,
+                "--output",
+                str(archive),
+                image,
+            ],
+            timeout=300,
+        )
+        run(
+            ["kind", "load", "image-archive", str(archive), "--name", cluster_name],
+            timeout=300,
+        )
+
+
+def preload_calico_images(cluster_name: str, platform: str) -> None:
+    for image in CALICO_IMAGES:
+        print(f"Loading pinned infrastructure image {image} into Kind…", flush=True)
+        load_kind_image(image, cluster_name, platform)
 
 
 def install_calico(kubeconfig: Path, context: str) -> None:
@@ -873,6 +939,7 @@ def bootstrap(parser_image: str, *, with_compose: bool) -> int:
             build_images(compose_env, parser_image)
         else:
             run(["docker", "image", "inspect", parser_image], capture=True, timeout=30)
+        pull_calico_images()
         existing = run(["kind", "get", "clusters"], capture=True, timeout=30)
         if cluster_name in existing.stdout.splitlines() or cluster_name == "hub":
             raise ParserRuntimeError("Generated Kind cluster name already exists; refusing reuse")
@@ -894,8 +961,10 @@ def bootstrap(parser_image: str, *, with_compose: bool) -> int:
             timeout=240,
         )
         wait_for_control_plane_api(kubeconfig, context)
+        platform = kind_node_platform(cluster_name)
+        preload_calico_images(cluster_name, platform)
         install_calico(kubeconfig, context)
-        run(["kind", "load", "docker-image", parser_image, "--name", cluster_name], timeout=180)
+        load_kind_image(parser_image, cluster_name, platform)
         verify_network_policy(kubeconfig, context, parser_image)
         apply_parser_resource_quota(
             kubeconfig,

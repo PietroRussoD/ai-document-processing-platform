@@ -20,6 +20,7 @@ DEFAULT_NAMESPACE = "pdf-parser-probe"
 PARSER_RUN_LABEL = "parser.platform/run"
 OCR_JOB_PREFIX = "pdf-parser-ocr-"
 TERMINAL_RUN_STATUSES = {"COMPLETED", "FAILED", "CANCELLED"}
+TERMINAL_DOCUMENT_STATUSES = {"REVIEW_REQUIRED", "APPROVED", "REJECTED", "UNSUPPORTED", "FAILED"}
 
 
 def emit(**event: object) -> None:
@@ -275,16 +276,25 @@ def main() -> int:
         with httpx.Client(base_url=args.api_url, timeout=10.0, headers=headers) as client_http:
             while time.monotonic() < deadline:
                 for document_id in document_ids:
-                    current = statuses.get(document_id, {}).get("current_run")
-                    current_status = current.get("status") if isinstance(current, dict) else None
-                    if current_status in TERMINAL_RUN_STATUSES:
+                    current_document = statuses.get(document_id, {})
+                    current = current_document.get("current_run")
+                    current_run_status = (
+                        current.get("status") if isinstance(current, dict) else None
+                    )
+                    if (
+                        current_run_status in TERMINAL_RUN_STATUSES
+                        or current_document.get("status") in TERMINAL_DOCUMENT_STATUSES
+                    ):
                         continue
                     response = client_http.get(f"/api/v1/documents/{document_id}")
                     response.raise_for_status()
                     statuses[document_id] = response.json()
                 if len(statuses) == 2 and all(
-                    isinstance(item.get("current_run"), dict)
-                    and item["current_run"].get("status") in TERMINAL_RUN_STATUSES
+                    (
+                        isinstance(item.get("current_run"), dict)
+                        and item["current_run"].get("status") in TERMINAL_RUN_STATUSES
+                    )
+                    or item.get("status") in TERMINAL_DOCUMENT_STATUSES
                     for item in statuses.values()
                 ):
                     break
