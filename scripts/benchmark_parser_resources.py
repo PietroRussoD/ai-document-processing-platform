@@ -314,11 +314,7 @@ def main() -> int:
             paths = [repeated] if args.repeat_only else [*paths, repeated]
         elif args.repeat_only:
             parser.error("--repeat-only requires --repeat-single-page")
-        jobs = [
-            (path, run_number)
-            for path in paths
-            for run_number in range(1, args.runs + 1)
-        ]
+        jobs = [(path, run_number) for path in paths for run_number in range(1, args.runs + 1)]
         with ThreadPoolExecutor(max_workers=args.concurrency) as executor:
             futures = [
                 executor.submit(
