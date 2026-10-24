@@ -95,10 +95,9 @@ Compose data volumes. For a stack started directly with Compose, use
   and a static interactive architecture map.
 
 The [capability table](docs/product-overview.md#capability-status) records the
-implemented and planned boundaries. The latest released version is `v1.2.0`;
-the `v1.3.0` release candidate is documented in
-[release notes](docs/releases/v1.3.0.md). The candidate supports the local
-Compose + Kind/Calico synthetic-document demo. Resource limits remain
+implemented and planned boundaries. The latest released version is `v1.3.0`,
+documented in the [release notes](docs/releases/v1.3.0.md). It supports the
+local Compose + Kind/Calico synthetic-document demo. Resource limits remain
 provisional; remote deployment and stronger kernel isolation are outside the
 supported scope.
 
