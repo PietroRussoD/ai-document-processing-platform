@@ -507,7 +507,12 @@ After adding a post-Compose cleanup recheck, a repeated interrupted run removed
 the cluster automatically, scrubbed the worker credential volume and left the
 pre-existing `hub` untouched. A controlled post-persistence worker crash has
 now shown Temporal retrying OCR without another parser Job or duplicate row.
-Historical workflow replay remains open. A host-side credential provisioner validates
+The focused replay suite passes all 16 checked-in histories through
+v1.3.0-dev. The manual Temporal retry verifier
+([`verify-temporal-parser-retries.py`](../../scripts/verify-temporal-parser-retries.py))
+checks retry after a simulated parser-runtime-unavailable error and one-attempt
+handling of a deterministic failure; a successful live run remains open. A
+host-side credential provisioner validates
 renewal and session revocation, with clock-controlled expiry checks. Current-source,
 single-run resource baselines now include representative fixtures and combined
 page/pixel-limit synthetic OCR. A separate high-entropy image stress case
@@ -537,11 +542,13 @@ A one-node Kind run also measured Job startup,
 localhost-only registry. Treat these as initial observations only; measure
 pulls from the intended deployment registry and repeat under the selected
 deployment runtime before choosing numeric Job budgets.
-Run the supervised `up` path and record credential delivery and renewal in the
-actual Compose worker, then verify historical workflow replay. The
-post-persistence crash window now has a live baseline. Keep deadline/TTL as the fallback when
-worker-driven cleanup cannot run. Preserve the explicit stdin half-close and
-bounded streaming behavior in the implementation.
+The supervised `up` path, worker credential delivery and renewal, the
+post-persistence crash window, and replay of the 16 checked-in histories now
+have evidence. Still run the manual Temporal verifier, which injects a retryable
+parser-runtime error and then success while checking the deterministic-failure
+path. Keep deadline/TTL as the fallback when worker-driven
+cleanup cannot run. Preserve the explicit stdin half-close and bounded
+streaming behavior in the implementation.
 
 ## Acceptance criteria for a later implementation
 
