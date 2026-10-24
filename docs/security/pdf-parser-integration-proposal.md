@@ -482,6 +482,7 @@ limit correction are recorded below.
 | Node stop/restart and TTL orphan cleanup | Pass in the same single-node Kind cluster, 2026-10-20 | The real controller ran a 50-page OCR Job while the dedicated Kind control-plane node container was stopped for 40 seconds. The controller returned bounded `ParserRuntimeUnavailable`. After restarting the same node and waiting for it to become Ready, the orphaned Job failed with `BackoffLimitExceeded`; its 60-second `ttlSecondsAfterFinished` removed the Job and Pod without controller deletion. The probe used a 20-second active deadline to keep the test bounded. This verifies recovery across a node-container stop/restart while retaining Kind cluster state; permanent node loss and multi-node/production recovery are not covered. The temporary cluster was removed after verification and only `hub` remained. |
 | Temporal crash after OCR persistence | Pass, one synthetic scanned invoice, 2026-10-19 | Enabled the local-only `DOCUMENT_PLATFORM_FAULT_INJECTION_CRASH_AFTER_OCR_PERSISTENCE` failpoint. It exits the worker with code 86 after `ExtractOcrTextHandler` commits its OCR row, before the activity returns. Docker restarted the worker (restart count 1); Temporal retried `extract-ocr-text` as attempt 2 about five minutes after scheduling and completed the workflow. The OCR row count and character total remained `1` and `243` before and after retry. Kind events show exactly one embedded-text Job and one OCR Job, so the retry reused the persisted extraction. Temporal history contains no OCR text payload. The workflow ended `REVIEW_REQUIRED` for the fixture's missing issue date. The focused replay suite now passes 16 histories through v1.3.0-dev as of 2026-10-24. |
 | Temporal parser retry classification | Pass, simulated activities on disposable Temporal 1.29.3, 2026-10-24 | `scripts/verify-temporal-parser-retries.py` ran against an isolated Temporal/PostgreSQL Compose project. A retryable `PARSER_RUNTIME_UNAVAILABLE` activity error on attempt 1 succeeded on attempt 2. A deterministic non-retryable OCR activity error made one attempt and recorded one terminal processing failure. This verifies Temporal retry orchestration, not recovery of a real parser runtime after Kubernetes/Compose outage. The temporary Compose project and its volume were removed. |
+| Real Compose/Kind parser outage and Temporal recovery | Pass for transient outage; prolonged outage exhausted retries, 2026-10-24 | In a fresh supervised Compose project and dedicated Kind v1.37.0/Calico 3.33.0 cluster, a synthetic scanned invoice reached an actual embedded-text parser Job. Pausing the dedicated control-plane container caused the real worker to return `PARSER_RUNTIME_UNAVAILABLE` on `extract-document-text` attempt 1. The control plane was immediately unpaused; Temporal attempt 2 completed embedded extraction, the workflow ran a real OCR Job (243 characters), and the API reached `REVIEW_REQUIRED`. A separate control-plane stop/restart during a real OCR Job exceeded the two-attempt retry window and ended `FAILED` with `ACTIVITY_RETRY_EXHAUSTED`; this confirms bounded failure during a longer outage, not recovery from permanent node loss. The Compose project, Kind cluster, credential material and temporary kubeconfig were removed; only the pre-existing `hub` remained. |
 | Compose credential bind mount | Direct host-to-worker bind remains unusable on this macOS host | With the host-owned private directory at mode 0700 and CA/token at 0600, UID 10001 in the worker could not read the CA and startup failed closed. `chown` to UID 10001 was unavailable to the unprivileged host user. The selected implementation copies those files through a network-disabled sync service into a UID-10001-owned named volume mounted read-only by the worker. The helper's live delivery check passed, as did credential availability in the supervised worker startup; orderly shutdown removed both files from the named volume. |
 
 The transport is promising enough to continue without designing an artifact
@@ -513,8 +514,11 @@ v1.3.0-dev. On 2026-10-24, the manual Temporal retry verifier
 ([`verify-temporal-parser-retries.py`](../../scripts/verify-temporal-parser-retries.py))
 passed against a disposable Temporal 1.29.3 server: a simulated
 parser-runtime-unavailable error recovered on attempt 2, and a deterministic
-failure stopped after attempt 1. This tests Temporal orchestration, not an
-actual Kubernetes/Compose parser-runtime outage and recovery. A host-side
+failure stopped after attempt 1. On the same date, a supervised Compose/Kind
+run also paused the real parser control plane during embedded-text extraction;
+Temporal attempt 1 failed with `PARSER_RUNTIME_UNAVAILABLE`, attempt 2
+succeeded after immediate recovery, and the scanned invoice completed OCR. A
+longer stop/restart during OCR exhausted both bounded attempts. A host-side
 credential provisioner validates
 renewal and session revocation, with clock-controlled expiry checks. Current-source,
 single-run resource baselines now include representative fixtures and combined
@@ -548,9 +552,11 @@ deployment runtime before choosing numeric Job budgets.
 The supervised `up` path, worker credential delivery and renewal, the
 post-persistence crash window, and replay of the 16 checked-in histories now
 have evidence, including retry orchestration against a disposable Temporal
-server with simulated parser activity errors. An actual Kubernetes/Compose
-parser-runtime outage followed by recovery remains untested. Keep deadline/TTL
-as the fallback when worker-driven
+server with simulated parser activity errors. A live Compose/Kind test then
+paused the real parser control plane during embedded-text extraction: the first
+Temporal attempt failed with `PARSER_RUNTIME_UNAVAILABLE`, and the retry
+succeeded after immediate recovery. A longer node stop/restart during OCR
+exhausted both bounded attempts. Keep deadline/TTL as the fallback when worker-driven
 cleanup cannot run. Preserve the explicit stdin half-close and bounded
 streaming behavior in the implementation.
 
