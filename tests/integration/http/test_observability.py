@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from importlib.metadata import version
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -61,7 +62,11 @@ async def test_exposes_build_and_route_metrics_without_request_identifiers() -> 
     assert health_response.status_code == 200
     assert metrics_response.status_code == 200
     assert metrics_response.headers["content-type"].startswith("text/plain")
-    assert 'document_platform_build_info{version="1.3.0.dev0"} 1.0' in (metrics_response.text)
+    application_version = version("ai-document-processing-platform")
+    assert (
+        f'document_platform_build_info{{version="{application_version}"}} 1.0'
+        in metrics_response.text
+    )
     assert (
         "document_platform_http_requests_total"
         '{method="GET",route="/health/live",status_class="2xx"} 1.0' in metrics_response.text
