@@ -257,8 +257,9 @@ the probe image from a localhost-only registry took 2.294 seconds for the
 represent a remote deployment registry. Full results and limits are recorded
 in the [integration proposal](pdf-parser-integration-proposal.md). These are
 initial local baselines, not capacity guarantees or resource-limit
-recommendations. Measure pulls from the intended deployment registry and
-repeat under the selected deployment runtime before setting numeric limits.
+recommendations. Measure pulls from a deployment registry and repeat under a
+concrete target runtime before treating these limits as workload or capacity
+recommendations.
 Do not infer a safe memory budget only from compressed PDF size or page count.
 A 50-page PDF made by repeating the repository's scanned-invoice fixture
 completed at a 288 MiB memory cap with a 135.5 MiB peak, while a deliberately

@@ -19,8 +19,8 @@ Kind checks distinguish a container OOM from an ordinary OCR error.
 This proposal refines the parser-isolation work described in the
 [isolation design](pdf-parser-isolation-design.md). The local single-operator
 v1.2.0 release is closed. The separate [v1.3.0 scope](../releases/v1.3.0.md)
-tracks the selected local runtime for the portfolio exercise; remaining
-acceptance gates are listed there.
+tracks the selected local runtime for the portfolio exercise; follow-up
+validation outside that local scope is listed there.
 
 ## Goal and scope
 
