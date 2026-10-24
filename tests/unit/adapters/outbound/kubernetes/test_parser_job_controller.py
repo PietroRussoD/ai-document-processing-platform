@@ -246,8 +246,14 @@ def test_exec_enforces_deadline_after_websocket_update(
         def connect_get_namespaced_pod_exec(self, *args: object, **kwargs: object) -> None:
             return None
 
-    monkeypatch.setattr(controller_module.client, "CoreV1Api", lambda _api: FakeCoreApi())
-    monkeypatch.setattr(controller_module.streaming, "stream", lambda *args, **kwargs: socket)
+    monkeypatch.setattr(
+        controller_module.client, "CoreV1Api", cast(Any, lambda _api: FakeCoreApi())
+    )
+    monkeypatch.setattr(
+        controller_module.streaming,
+        "stream",
+        cast(Any, lambda *args, **kwargs: socket),
+    )
     monotonic = Mock(side_effect=[0.0, 0.0, 121.0])
     monkeypatch.setattr(controller_module.time, "monotonic", monotonic)
 
@@ -332,8 +338,14 @@ def test_exec_maps_malformed_runtime_exit_status_to_bounded_parser_failure(
         def connect_get_namespaced_pod_exec(self, *args: object, **kwargs: object) -> None:
             return None
 
-    monkeypatch.setattr(controller_module.client, "CoreV1Api", lambda _api: FakeCoreApi())
-    monkeypatch.setattr(controller_module.streaming, "stream", lambda *args, **kwargs: socket)
+    monkeypatch.setattr(
+        controller_module.client, "CoreV1Api", cast(Any, lambda _api: FakeCoreApi())
+    )
+    monkeypatch.setattr(
+        controller_module.streaming,
+        "stream",
+        cast(Any, lambda *args, **kwargs: socket),
+    )
 
     with pytest.raises(ParserExecutionFailed, match="without a usable exit status") as raised:
         cast(Any, controller)._exec("pod", ["python"], stdin=None, output_limit=100)
@@ -536,7 +548,9 @@ def test_pod_oom_kill_reason_maps_to_memory_limit_before_supervisor_ready(
     core.list_namespaced_pod.return_value = client.V1PodList(items=[pod])
     connection = cast(Any, controller)._connection
     monkeypatch.setattr(connection, "new_api_client", lambda: nullcontext(object()))
-    monkeypatch.setattr(controller_module.client, "CoreV1Api", lambda _api: core)
+    monkeypatch.setattr(
+        controller_module.client, "CoreV1Api", cast(Any, lambda _api: core)
+    )
 
     with pytest.raises(
         ParserContainerMemoryLimitExceeded,
@@ -588,7 +602,7 @@ def test_resource_quota_rejection_maps_to_temporary_unavailability() -> None:
         ),
     )
 
-    mapped = KubernetesParserJobController._api_error(error)
+    mapped = cast(Any, KubernetesParserJobController)._api_error(error)
 
     assert isinstance(mapped, ParserRuntimeUnavailable)
     assert str(mapped) == "Parser namespace resource quota is exhausted"
@@ -601,7 +615,7 @@ def test_non_quota_forbidden_error_remains_a_runtime_rejection() -> None:
         body='{"reason":"Forbidden","message":"User cannot create jobs"}',
     )
 
-    mapped = KubernetesParserJobController._api_error(error)
+    mapped = cast(Any, KubernetesParserJobController)._api_error(error)
 
     assert isinstance(mapped, ParserRuntimeRejected)
     assert str(mapped) == "Kubernetes API refused the parser request (HTTP 403)"
@@ -645,7 +659,9 @@ def test_cleanup_maps_api_connection_loss_to_bounded_runtime_unavailable(
     batch.delete_namespaced_job.side_effect = ConnectionError("private endpoint detail")
     connection = cast(Any, controller)._connection
     monkeypatch.setattr(connection, "new_api_client", lambda: nullcontext(object()))
-    monkeypatch.setattr(controller_module.client, "BatchV1Api", lambda api: batch)
+    monkeypatch.setattr(
+        controller_module.client, "BatchV1Api", cast(Any, lambda api: batch)
+    )
 
     with pytest.raises(
         ParserRuntimeUnavailable,

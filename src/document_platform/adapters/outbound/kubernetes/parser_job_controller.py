@@ -457,7 +457,7 @@ class KubernetesParserJobController:
                     remaining = deadline - time.monotonic()
                     if remaining <= 0:
                         raise ParserRuntimeUnavailable("Parser command exceeded its deadline")
-                    websocket.update(timeout=min(1.0, remaining))
+                    websocket.update(timeout=max(1, int(min(1.0, remaining))))
                     if time.monotonic() >= deadline:
                         raise ParserRuntimeUnavailable("Parser command exceeded its deadline")
                     output = websocket.read_stdout()
@@ -664,12 +664,15 @@ class KubernetesParserJobController:
     @staticmethod
     def _is_quota_exceeded(error: ApiException) -> bool:
         try:
-            payload = json.loads(error.body or "")
+            payload: object = json.loads(error.body or "")
         except (TypeError, json.JSONDecodeError):
             return False
-        if not isinstance(payload, dict) or payload.get("reason") != "Forbidden":
+        if not isinstance(payload, dict):
             return False
-        message = payload.get("message")
+        typed_payload = cast(dict[str, object], payload)
+        if typed_payload.get("reason") != "Forbidden":
+            return False
+        message = typed_payload.get("message")
         return isinstance(message, str) and "exceeded quota:" in message.lower()
 
 
