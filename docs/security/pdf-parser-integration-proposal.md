@@ -490,30 +490,19 @@ limit correction are recorded below.
 | Real Compose/Kind parser outage and Temporal recovery | Pass for transient embedded-text failure; short OCR interruption tolerated; prolonged outage exhausted retries, 2026-10-24 | In a fresh supervised Compose project and dedicated Kind v1.37.0/Calico 3.33.0 cluster, a synthetic scanned invoice reached an actual embedded-text parser Job. Pausing the dedicated control-plane container caused the real worker to return `PARSER_RUNTIME_UNAVAILABLE` on `extract-document-text` attempt 1. The control plane was immediately unpaused; Temporal attempt 2 completed embedded extraction, the workflow ran a real OCR Job (243 characters), and the API reached `REVIEW_REQUIRED`. In a separate run, an automated 0.8-second pause began as a 20-page OCR Job appeared; the OCR activity completed on attempt 1 with 4,879 characters and the workflow reached `REVIEW_REQUIRED`, so the interruption did not surface as a Temporal activity failure. A separate control-plane stop/restart during a real OCR Job exceeded the two-attempt retry window and ended `FAILED` with `ACTIVITY_RETRY_EXHAUSTED`; this confirms bounded failure during a longer outage, not recovery from permanent node loss. The upload API returned `202` and left `page_count` null while processing; PDF inspection is deferred to the first embedded-text Job, so there is no separate upload-time parser call to fault. The Compose project, Kind cluster, credential material and temporary kubeconfigs were removed; only the pre-existing `hub` remained. |
 | Compose credential bind mount | Direct host-to-worker bind remains unusable on this macOS host | With the host-owned private directory at mode 0700 and CA/token at 0600, UID 10001 in the worker could not read the CA and startup failed closed. `chown` to UID 10001 was unavailable to the unprivileged host user. The selected implementation copies those files through a network-disabled sync service into a UID-10001-owned named volume mounted read-only by the worker. The helper's live delivery check passed, as did credential availability in the supervised worker startup; orderly shutdown removed both files from the named volume. |
 
-The transport is promising enough to continue without designing an artifact
-broker yet. The selected local network and worker-to-control-plane gates now
-have repeatable evidence, but this spike does not clear the full integration gate. These
-single-run measurements are baselines, not resource-limit recommendations.
-The 20 MiB file is mostly trailing padding, the 50-page PDF uses simple vector
-text, and concurrency and adversarial inputs were not measured. The
-extracted-text character-limit defect is corrected in the working source and
-verified at the exact 1,000,000-character boundary.
-The standalone connection, worker-image credential mount and synchronous
-controller cleanup contracts are validated. The Temporal worker runs both
-parser activities in Compose against Kind; workflow cancellation and restart
-retry also have live evidence. The direct host-to-worker bind remains
-unusable; the sync-service-to-named-volume path is implemented and its helper
-has live evidence. The isolated bootstrap and host-side renewal supervisor are
-implemented, `verify` passed, and supervised Compose startup and shutdown passed.
-One scanned invoice completed the upload-to-OCR workflow through the supervised
-wrapper before upload-time inspection was removed from the API. The current
-working tree stores the upload with an unknown page count and fills it from
-the first isolated extraction in the same transaction as that extraction. Its
-first interrupted run exposed a cleanup defect that left the Kind cluster behind.
-After adding a post-Compose cleanup recheck, a repeated interrupted run removed
-the cluster automatically, scrubbed the worker credential volume and left the
-pre-existing `hub` untouched. A controlled post-persistence worker crash has
-now shown Temporal retrying OCR without another parser Job or duplicate row.
+The local v1.3.0 implementation and its release gate are complete for the
+documented Compose + Kind/Calico portfolio topology. The API stores uploads
+without opening PDFs; the worker routes embedded-text extraction and OCR to
+restricted per-document Jobs, validates bounded results and persists page count
+with the first extraction. The supervised bootstrap, credential delivery and
+renewal, cleanup, workflow cancellation and restart behavior have live
+verification. These checks do not establish production capacity or strong
+kernel isolation. Resource measurements remain baselines, not final budget
+recommendations; the high-entropy input can still exhaust the configured
+container memory and fail OCR even at 1 GiB. Keep the limits provisional and
+evaluate them against a representative corpus and a concrete deployment target
+before making capacity claims.
+
 The focused replay suite passes all 16 checked-in histories through
 v1.3.0-dev. On 2026-10-24, the manual Temporal retry verifier
 ([`verify-temporal-parser-retries.py`](../../scripts/verify-temporal-parser-retries.py))
@@ -570,28 +559,23 @@ exhausted both bounded attempts. Keep deadline/TTL as the fallback when worker-d
 cleanup cannot run. Preserve the explicit stdin half-close and bounded
 streaming behavior in the implementation.
 
-## Acceptance criteria for a later implementation
+## Implementation status against acceptance criteria
 
-- The API and worker no longer instantiate PyMuPDF or Tesseract directly.
-- All PDF inspection, embedded-text extraction, rasterization and OCR happen
-  in the restricted parser Jobs.
-- The current Temporal stage sequence and small activity return contracts
-  remain compatible with recorded histories.
-- Upload still returns promptly with `202`; parser errors appear as bounded
-  asynchronous failures, and the console shows when page count is unavailable.
-- The parser receives one PDF at a time, has no application credentials or
-  network access, and cannot read the Compose data volume.
-- Results are size-checked, validated and persisted by the trusted worker;
-  document text does not enter logs or Temporal history.
-- Timeouts, container OOM, ordinary OCR failures, oversized results,
-  cancellation, bounded retries and orphan cleanup have focused tests using
-  synthetic fixtures. Where the runtime keeps the container alive and exposes
-  a cgroup counter delta, classify a process-level OOM without claiming a
-  specific PID. Under group-OOM behavior, classify the container outcome and
-  do not claim which child triggered it. Deterministic failures must not trigger
-  repeated OCR attempts for the same PDF.
-- Resource limits are based on measurements and the documentation describes
-  this as per-Job containment on `runc`, not as a kernel sandbox.
+- **Pass, verified locally:** the API and worker do not invoke PDF parsers;
+  inspection, embedded-text extraction, rasterization and OCR run in restricted
+  Jobs. The upload route returns `202`, and first-parse failures remain
+  asynchronous with an unknown page count.
+- **Pass, verified locally:** bounded worker-to-Job transfer, result validation,
+  persistence, cancellation, Job cleanup, retry behavior and replay compatibility
+  are covered by focused tests or the live checks listed above. PDF bytes and
+  extracted text stay out of logs and Temporal history.
+- **Pass with documented limitation:** parser Jobs have no application
+  credentials, network access or Compose data-volume mount. They run under
+  `runc` and share the node kernel; this is per-Job containment, not a strong
+  sandbox. Group-OOM reports do not identify the initiating process.
+- **Follow-up outside the local release gate:** numeric resource limits remain
+  provisional. Validate them against a representative corpus and the registry
+  and runtime of a concrete deployment before making capacity claims.
 
 ## References
 
