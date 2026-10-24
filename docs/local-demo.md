@@ -1,8 +1,9 @@
 # Local Demo and Operations
 
-Commands run from the repository root unless stated otherwise. The complete
-Compose demo is the shortest path. Host development runs the API, dispatcher,
-worker and console in separate terminals.
+Commands run from the repository root unless stated otherwise. The supervised
+Compose + Kind/Calico demo is the standard complete path. Host development runs
+the API, dispatcher, worker and console in separate terminals; a host worker
+still needs explicit parser-runtime credentials.
 
 - [Complete processing demo](#complete-processing-demo)
 - [Optional local model](#optional-local-model)
@@ -17,21 +18,26 @@ worker and console in separate terminals.
 
 ## Complete Processing Demo
 
-For the complete local processing path, start the separate `processing` profile:
+For the complete local processing path, use the runtime supervisor. It creates
+a disposable Kind/Calico cluster, verifies network denial and scoped access,
+provisions short-lived worker credentials, then starts the Compose processing
+profile. It removes the cluster and credentials when you stop the session.
 
 ```bash
 cp .env.example .env
 openssl rand -hex 32
 # Put the generated value in .env as DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN.
-docker compose --profile processing up --build -d
-docker compose --profile processing ps
+uv sync --all-groups
+uv run --no-sync python scripts/parser_runtime.py up
 ```
 
-This adds Temporal, its database and UI, the dispatcher, worker and a built
-operator console. Open the console at `http://localhost:8088`; its `/api`
-requests are proxied to the API within Compose. The dispatcher waits for
-migrations and a healthy Temporal server; the worker shares the API's document
-volume. The Temporal UI is at `http://localhost:8233`. Set `CONSOLE_PORT`,
+The supervisor builds and starts Temporal, its database and UI, the API,
+dispatcher, worker and operator console after its preflight succeeds. Open the
+console at `http://localhost:8088`; its `/api` requests are proxied to the API
+within Compose. The dispatcher waits for migrations and a healthy Temporal
+server. The worker controls one restricted parser Job per PDF operation; Jobs
+have no database credentials or application data mounts. The Temporal UI is at
+`http://localhost:8233`. Set `CONSOLE_PORT`,
 `API_PORT`, `POSTGRES_PORT`, `TEMPORAL_PORT` or `TEMPORAL_UI_PORT` if a host port
 is occupied. Published application, database and Temporal ports bind to
 `127.0.0.1`. This stack uses development credentials and does not provide
@@ -39,10 +45,12 @@ production authentication or deployment configuration. The review form uses
 the local token configured as `DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN` in
 `.env`. Compose will not start without this value. Generate a unique token for
 this machine with `openssl rand -hex 32`; do not commit `.env` or reuse the
-token elsewhere.
+token elsewhere. Keep the supervisor in the foreground; press Ctrl-C to stop
+the session, remove its disposable cluster and scrub the worker credential
+volume. Compose data volumes are retained.
 
-After starting the `processing` profile, verify the complete path through the
-console's reverse proxy:
+While the supervisor is running, verify the complete path through the console's
+reverse proxy:
 
 ```bash
 uv sync --all-groups
@@ -67,12 +75,12 @@ the console does not put credentials in document links.
 ## Optional Local Model
 
 Ordinary processing works without Ollama. To enable advisory proposals in
-Compose, start Ollama on the host with the configured model available, then
-recreate the processing stack from the repository root:
+Compose, start Ollama on the host with the configured model available, stop the
+current supervised session, then start a new session from the repository root:
 
 ```bash
 DOCUMENT_PLATFORM_OLLAMA_ENABLED=true \
-  docker compose --profile processing up --build -d
+  uv run --no-sync python scripts/parser_runtime.py up
 ```
 
 The default model reference is `qwen3:8b`; override
@@ -98,18 +106,18 @@ Compose stack does not start or download a model server.
 ## Host Prerequisites
 
 - Python 3.13 and `uv`;
-- Docker with the Compose plugin;
+- Docker with the Compose plugin, Kind and `kubectl` for the supervised parser
+  runtime;
 - Node.js 24 and pnpm 11.23.0 for the development console;
-- Tesseract with English language data for a host-run OCR worker. Verify the
-  installation with `tesseract --list-langs`; the default language is `eng`.
-  Command, language, raster DPI, per-page pixel limit and per-page timeout are
-  configurable in `.env` for a host-run worker.
-  The Compose image already contains Tesseract and English data.
-  `DOCUMENT_PLATFORM_TESSERACT_MAX_PAGE_PIXELS` defaults to 20,000,000 and is
-  also forwarded to the Compose worker. The limit is checked at the configured
-  DPI before allocating each page image. Pages above it fail OCR processing;
-  raise it only when the worker has sufficient resources. Ordinary A4 pages
-  at the default 200 DPI use approximately 3.9 million pixels.
+- Internet access for the initial Kind node and pinned Calico images/manifests.
+  The parser image contains Tesseract and English language data; the trusted
+  worker does not parse PDFs locally or fall back to local parsing.
+
+`DOCUMENT_PLATFORM_TESSERACT_MAX_PAGE_PIXELS` defaults to 20,000,000 and is
+forwarded to the parser Job. The limit is checked at the configured DPI before
+allocating each page image. Pages above it fail OCR processing; raise it only
+when the parser Job has sufficient resources. Ordinary A4 pages at the default
+200 DPI use approximately 3.9 million pixels.
 
 ## Host API
 
@@ -186,12 +194,20 @@ Start the processing worker in a third terminal after the API and dispatcher:
 uv run python -m document_platform.worker
 ```
 
-The worker starts the document and its processing run atomically, then extracts
-embedded text with bounded PyMuPDF processing. Each extraction is immutable and
-keyed by its processing run, so a Temporal activity retry reuses the persisted
-result instead of repeating the work. A deterministic, configurable threshold
-marks low-text documents as `OCR_RECOMMENDED`. Only those runs execute bounded
-Tesseract OCR and persist an immutable OCR result; activity retries reuse it.
+This standalone worker requires a separately provisioned parser runtime and
+explicit endpoint, namespace, CA, scoped token and parser-image settings. It
+fails startup if they are absent or refused and never falls back to parsing in
+the worker process. The supervised `parser_runtime.py up` command configures
+these values for the supported local Compose demo.
+
+The worker starts the document and its processing run atomically, then asks the
+isolated parser runtime to inspect the PDF and extract embedded text. Each
+extraction is immutable and keyed by its processing run, so a Temporal activity
+retry reuses the persisted result instead of repeating the work. The first
+successful parse records the page count. A deterministic, configurable
+threshold marks low-text documents as `OCR_RECOMMENDED`. Only those runs create
+a fresh parser Job for bounded Tesseract OCR; activity retries reuse the
+persisted result.
 The workflow then persists the selected canonical source and its reason, so
 downstream stages receive a traceable input. It classifies that selected text
 using a small deterministic, word-boundary keyword policy. For invoices, it
@@ -239,6 +255,11 @@ curl --request POST http://localhost:8000/api/v1/documents \
 Successful acceptance returns `202 Accepted`. Repeating the same request returns
 the original identifiers with `replayed: true`; reusing the key for different
 content returns `409 Conflict`.
+
+The API checks the declared media type, body and upload size, but does not open
+the PDF. Structural, encryption and page-limit errors are reported
+asynchronously by the first parser Job. A new document has no page count until
+that extraction succeeds; a failed parse leaves it unknown.
 
 The status endpoint returns public document metadata and the most recently queued
 processing run, including bounded stage/code evidence when that run has failed.
@@ -346,9 +367,10 @@ application startup never creates or modifies tables.
 
 Local document blobs are written below `data/` by default and are excluded from
 Git. Override the root with `DOCUMENT_PLATFORM_STORAGE_ROOT` and the 20 MiB
-upload limit with `DOCUMENT_PLATFORM_MAX_DOCUMENT_BYTES`. PDF inspection rejects
-invalid, encrypted and over-limit files; the default page limit is 50 and can be
-set through `DOCUMENT_PLATFORM_MAX_DOCUMENT_PAGES`.
+upload limit with `DOCUMENT_PLATFORM_MAX_DOCUMENT_BYTES`. The first isolated
+parser Job reports invalid, encrypted and over-limit PDFs asynchronously; the
+default page limit is 50 and can be set through
+`DOCUMENT_PLATFORM_MAX_DOCUMENT_PAGES`.
 
 ## Application Containers
 
@@ -392,16 +414,15 @@ registered but will not be processed until those separate processes are running.
 
 ## Local Failure Demonstration
 
-To exercise terminal retry handling without an upstream dependency, start only
-the worker with the local fault injection enabled:
+To demonstrate Temporal's parser retry policy without starting the application
+stack or a real parser Job, run the verification script:
 
 ```bash
-DOCUMENT_PLATFORM_FAULT_INJECTION_STAGE=EMBEDDED_TEXT_EXTRACTION \
-  uv run python -m document_platform.worker
+uv run --no-sync python scripts/verify-temporal-parser-retries.py
 ```
 
-The embedded-text activity fails on each of Temporal's three attempts. The
-workflow then records `ACTIVITY_RETRY_EXHAUSTED`, marks the processing run and
-document as `FAILED`, and remains failed in Temporal. Unset the variable before
-starting a normal worker, then use the authenticated reprocessing endpoint to
-create a new run.
+The script uses Temporal's SDK test environment and simulated activities. It
+confirms that a transient runtime-unavailable error succeeds on attempt two and
+that a deterministic parser failure stops after one attempt. It does not start
+Kind or test the live parser; live Compose/Kind outage and recovery evidence is
+recorded in the [v1.3.0 verification](releases/v1.3.0.md).

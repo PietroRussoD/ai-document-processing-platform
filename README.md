@@ -40,18 +40,20 @@ extraction or approves a document.
 
 ## Local demo
 
-The containerized demo needs Docker with the Compose plugin. The images include
-the application and OCR tools. From the repository root:
+The complete demo needs Docker with the Compose plugin, Kind, `kubectl` and
+`uv`. From the repository root:
 
 ```bash
 cp .env.example .env
 openssl rand -hex 32
 # Put the generated value in .env as DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN.
-docker compose --profile processing up --build -d
-docker compose --profile processing ps
+uv sync --all-groups
+uv run --no-sync python scripts/parser_runtime.py up
 ```
 
-Wait for the API and console to become healthy, then open
+The supervisor starts the disposable Kind/Calico parser runtime and the Compose
+stack, then cleans up the runtime and credentials when stopped with Ctrl-C.
+Compose data volumes remain. Open
 [http://localhost:8088](http://localhost:8088). Upload one of the supplied
 [synthetic PDFs](examples/documents/README.md):
 
