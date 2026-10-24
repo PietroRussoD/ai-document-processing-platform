@@ -194,7 +194,7 @@ async def test_accepts_and_replays_a_pdf_upload(
         "original_filename": "supplier-invoice.pdf",
         "media_type": "application/pdf",
         "size_bytes": len(content),
-        "page_count": 1,
+        "page_count": None,
         "content_sha256": sha256(content).hexdigest(),
         "status": "UPLOADED",
         "accepted_at": first["accepted_at"],
