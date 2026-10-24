@@ -359,16 +359,15 @@ The workflow uses a separate two-attempt policy for embedded-text and OCR
 activities, with a two-second initial interval and ten-second maximum
 interval. `ParserRuntimeUnavailable` maps to a retryable Temporal error; known
 PDF content, OCR engine, extraction and output-limit errors map to non-retryable
-Temporal errors. These contracts prepare the activities for the parser adapter,
-which must report temporary startup or connection failures using
-`ParserRuntimeUnavailable`. The current local adapters do not emit that error
-yet. A worker must inspect the Job/container outcome, persist a bounded failure
-once, and clean up the Job; it must not resubmit the same expensive OCR
-operation merely because the parser child returned a non-zero status. Test
-process-level OOM separately from a Job container OOM and an ordinary OCR
-error when the selected runtime exposes those as distinct outcomes. Under
-group-OOM behavior, report container OOM without attributing it to a specific
-child process.
+Temporal errors. These contracts require the parser adapter to report temporary
+startup or connection failures using `ParserRuntimeUnavailable`. The local
+adapter maps runtime startup and connection failures to this retryable outcome;
+a real Compose/Kind outage test observed it on the first embedded-text attempt
+before recovery on retry. The worker inspects the Job/container outcome,
+persists a bounded failure once and cleans up the Job; deterministic OCR
+failures do not trigger repeated parser work. The selected cgroup v2 runtime
+reports group OOM, so classify the container outcome without attributing it to
+a specific child process.
 
 Before the first failure-policy change, source inspection showed that a
 non-zero Tesseract exit became `OcrExtractionFailed` and that all three OCR
@@ -383,12 +382,12 @@ recovery baseline. The focused replay suite passes 16 checked-in histories,
 while permanent node loss and multi-node recovery remain unverified.
 
 Keep the existing upload-size, page-count, extracted-character, OCR-pixel and
-per-page timeout limits. Measure Job CPU, memory, scratch space, startup time
-and total deadlines against the synthetic fixtures before choosing numeric
-Kubernetes limits. The existing aggregate Compose limits are not a substitute
-for per-Job limits.
+per-page timeout limits. Local synthetic measurements informed the current
+per-Job requests, limits and aggregate quota, which remain provisional. Compose
+container limits are not a substitute for per-Job limits, and the local results
+do not establish capacity for a broader corpus or a deployment runtime.
 
-## Live parser Job smoke check
+## Live parser Job and integration verification
 
 The disposable infrastructure spike and application controller smoke check for
 the selected local topology ran on 2026-10-18. Existing transport and lifecycle
@@ -400,7 +399,7 @@ probes plus the current Job controller provide evidence for these behaviors:
    channel, with the correct process exit status and without placing content
    in Job logs or Temporal history;
 3. be cancelled, time out and be deleted after both success and failure;
-4. run under the proposed namespace-scoped controller permissions while the
+4. run under the selected namespace-scoped controller permissions while the
    parser Pod has no token and cannot reach another Pod or the Internet.
 
 The worker-shaped route probe reached the Kind API over the project network
@@ -521,8 +520,8 @@ reached the cgroup OOM limit at both 512 MiB and 768 MiB, despite staying under
 the configured upload and per-page pixel limits; it was a pathological noise
 image, not a representative invoice. Treat this as evidence that those input
 limits do not bound memory for every possible raster, not as a basis for
-raising the proposed Job budget without testing representative scans and the
-failure behavior in the selected runtime. A 50-page PDF made by repeating the
+raising the Job budget without broader representative workload evidence. A
+50-page PDF made by repeating the
 repository's synthetic scanned invoice completed at a 288 MiB cap with a
 135.5 MiB peak; the pages were identical and the file was only 135,456 bytes.
 A repeatable Docker benchmark script now measures the current parser function
@@ -535,19 +534,19 @@ comparison and the memory difference remains unexplained. Retain the existing
 512 MiB request and 1 GiB limit as provisional configuration, not as a budget
 recommendation. One concurrent pair completed a synthetic varied full-page
 invoice fixture at about 322–362 MiB per worker, with Docker and Kind results
-both below the 1 GiB Job limit. Later checks add three photo-style Docker runs
-at 1 GiB, a pathological high-entropy fixture across 512 MiB, 768 MiB and 1 GiB,
-and four concurrent 50-page OCR pairs per limit across varied and camera-style
-synthetic scans at 512 MiB and 768 MiB. These samples still do not establish a
-capacity budget: the high-entropy input failed OCR even at 1 GiB, and the
-photographic fixtures are synthetic. Keep the limits provisional until a
-broader representative corpus and the intended deployment registry/runtime
-have been measured.
+both below the 1 GiB Job limit. Subsequent checks added three photo-style Docker
+runs at 1 GiB, a pathological high-entropy fixture across 512 MiB, 768 MiB and
+1 GiB, and four concurrent 50-page OCR pairs per limit across varied and
+camera-style synthetic scans at 512 MiB and 768 MiB. These samples still do not
+establish a capacity budget: the high-entropy input failed OCR even at 1 GiB,
+and the photographic fixtures are synthetic. Keep the limits provisional until
+a broader representative corpus and a concrete deployment target are
+available.
 A one-node Kind run also measured Job startup,
 `/tmp`, sequential runs, two- and four-Job concurrency, and a cold pull from a
-localhost-only registry. Treat these as initial observations only; measure
-pulls from the intended deployment registry and repeat under the selected
-deployment runtime before choosing numeric Job budgets.
+localhost-only registry. Treat these as local observations only; measure pulls
+from the intended deployment registry and repeat under the target runtime
+before making capacity claims.
 The supervised `up` path, worker credential delivery and renewal, the
 post-persistence crash window, and replay of the 16 checked-in histories now
 have evidence, including retry orchestration against a disposable Temporal
