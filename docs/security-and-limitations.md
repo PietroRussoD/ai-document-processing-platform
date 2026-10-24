@@ -5,7 +5,7 @@ confidential data or untrusted users. Its trust boundary is the developer's
 machine and the private Compose network, not a public HTTP service.
 
 The released v1.2.0 remains subject to its release boundary below. In the local
-v1.3.0 development build, embedded-text parsing, OCR and structural PDF
+v1.3.0 release candidate, embedded-text parsing, OCR and structural PDF
 inspection run in per-document Kind/Calico Jobs. Upload returns `202` before
 inspection; page count stays unknown until the first isolated extraction. This
 asynchronous path has live Compose + Kind verification. The Jobs use `runc`,
