@@ -5,8 +5,9 @@
 The platform accepts synthetic business documents and processes them
 asynchronously for validation and review. Uploads are bounded, idempotent and
 stored by content hash. A dispatcher hands committed start requests to a
-Temporal workflow that extracts embedded text, falls back to OCR, selects the
-canonical text, classifies the document and validates invoices
+Temporal workflow that inspects PDFs and extracts embedded text in a restricted
+parser Job, falls back to OCR in a separate Job, selects the canonical text,
+classifies the document and validates invoices
 deterministically. Operators resolve review-required invoices with typed
 corrections that record their provenance; values taken from a model proposal
 are checked against the persisted proposal. An optional local model can propose
@@ -24,13 +25,15 @@ summarizes the same scope for a first reading.
 flowchart LR
     Console[React console and NGINX proxy] -->|HTTP| API[FastAPI API]
     API -->|commit document and pending start| PostgreSQL[(PostgreSQL)]
-    API -->|store validated PDF| Storage[(Local blob volume)]
+    API -->|store bounded uploaded bytes| Storage[(Local blob volume)]
     Dispatcher[Workflow dispatcher] -->|claim pending start| PostgreSQL
     Dispatcher -->|start workflow after commit| Temporal[Temporal]
     Temporal -->|schedule activities| Worker[Temporal worker]
-    Worker -->|read PDF| Storage
+    Worker -->|read PDF bytes| Storage
     Worker -->|persist outputs and state| PostgreSQL
-    Worker -->|extract text| PDF[PyMuPDF and Tesseract]
+    Worker -->|create Job and exec fixed parser command| Runtime[Kind + Calico parser runtime]
+    Runtime -->|restricted one-operation Job| Parser[PyMuPDF and Tesseract]
+    Parser -->|bounded result| Worker
     Worker -.->|optional invoice proposal| Ollama[Host Ollama]
     API -->|authenticated source-PDF read| Storage
     Prometheus[Prometheus] -.->|scrape /metrics| API
@@ -46,7 +49,9 @@ does not start them inside the upload transaction. The console reads business
 state through the API, not directly from Temporal or PostgreSQL. Dashed edges
 mark optional model and observability integrations. The invoice workflow invokes the
 local proposal adapter only after deterministic completion and only when the
-worker's Ollama setting is enabled.
+worker's Ollama setting is enabled. The parser runtime is a separately operated
+local Kind cluster; parser Jobs have no database access and share the node's
+`runc` kernel. This is per-Job containment, not strong kernel isolation.
 
 Liveness reports only that the API process is responding; readiness also checks
 PostgreSQL with a lightweight query and does not claim that Temporal workers are
@@ -142,6 +147,7 @@ sequenceDiagram
     participant Dispatcher
     participant Temporal
     participant Worker
+    participant Runtime as Kind/Calico parser runtime
     participant Operator
 
     API->>DB: Commit document, run, idempotency record and PENDING request
@@ -151,9 +157,11 @@ sequenceDiagram
     Dispatcher->>DB: Mark request DISPATCHED
     Temporal->>Worker: Run workflow on document-processing queue
     Worker->>DB: Start document and processing run atomically
-    Worker->>Worker: Extract bounded embedded text from local blob
-    Worker->>DB: Persist immutable text extraction per run
-    Worker->>Worker: OCR only when quality recommends it
+    Worker->>Runtime: Create restricted embedded-text Job
+    Worker->>Runtime: Stream PDF and receive bounded result
+    Worker->>DB: Persist page count and immutable text extraction per run
+    Worker->>Runtime: Create fresh OCR Job when quality recommends it
+    Worker->>Runtime: Stream PDF and receive bounded OCR result
     Worker->>DB: Persist immutable OCR extraction per run
     Worker->>DB: Persist canonical text source and selection reason
     Worker->>DB: Persist deterministic document type and classification reason
@@ -182,14 +190,17 @@ same successful handoff. A separate dispatcher process owns the Temporal
 connection and polling loop. It is independent from the HTTP API, so network
 I/O never occurs inside the upload transaction. The worker transitions
 `UPLOADED -> PROCESSING` and `QUEUED -> RUNNING` atomically, then reads the
-immutable blob and persists one bounded PyMuPDF embedded-text extraction for
+immutable blob and requests one bounded embedded-text extraction from the
+restricted parser runtime. The first parser operation checks PDF structure and
+returns the page count with the extracted text; the worker persists both for
 that run. The extraction row
 is the idempotency boundary for activity retries: a saved row is reused without
 reading or parsing the PDF again. Its persisted quality is a deterministic
 `SUFFICIENT` or `OCR_RECOMMENDED` decision based on a configured minimum count
 of non-whitespace characters. The next activity reads that decision: it skips
-all OCR I/O for `SUFFICIENT`, or persists one immutable Tesseract result for
-`OCR_RECOMMENDED`. A saved OCR row is reused on retry.
+all OCR I/O for `SUFFICIENT`, or requests one immutable Tesseract result from a
+fresh restricted parser Job for `OCR_RECOMMENDED`. A saved OCR row is reused on
+retry.
 
 The final `select-processing-text` activity persists a canonical source for
 downstream stages without duplicating document text. `SUFFICIENT` embedded text
@@ -358,12 +369,14 @@ using these persisted-state semantics, including the optional advisory invoice
 proposal after deterministic completion. It links to the implementation and
 does not read a run, report live component health or reconstruct Temporal history.
 
-The local OCR adapter rasterizes pages with PyMuPDF and invokes the configured
-Tesseract executable one page at a time. Before allocating each pixmap, it checks
+The OCR adapter runs inside the restricted parser Job, rasterizes pages with
+PyMuPDF and invokes the configured Tesseract executable one page at a time.
+Before allocating each pixmap, it checks
 the page's raster dimensions at the configured DPI against
 `DOCUMENT_PLATFORM_TESSERACT_MAX_PAGE_PIXELS` (default 20,000,000). The page's PNG
-is processed before the next page is rasterized; the document stays on one
-worker thread while subprocess I/O runs on the event loop. It also applies the
+is processed before the next page is rasterized; parser execution remains
+within the Job's bounded container resources while subprocess I/O runs on the
+event loop. It also applies the
 accepted page limit, the bounded total text limit including page separators,
 and a per-page Tesseract timeout. That timeout does not bound rasterization,
 and the pixel check is not a hard memory budget or native-parser sandbox.
@@ -647,6 +660,7 @@ erDiagram
         uuid id PK
         string content_sha256
         string status
+        int page_count "nullable until first parse succeeds"
         int version
     }
     PROCESSING_RUNS {
@@ -714,33 +728,44 @@ deletion because an upload may race the audit.
 
 ## PDF Acceptance Boundary
 
-The upload boundary treats the declared media type as untrusted. A seekable,
-size-bounded temporary file is inspected with PyMuPDF before domain registration:
+The upload boundary checks the declared media type, non-empty body and byte
+limit, but it does not parse the PDF. It stores the uploaded bytes by content
+hash, registers the document with an unknown page count and commits the
+workflow-start request. The API returns `202 Accepted`; the first isolated
+embedded-text Job performs structural inspection and extraction:
 
 ```mermaid
 flowchart LR
-    Upload[Bounded temporary upload] --> Signature[PDF signature]
-    Signature --> Structure[PyMuPDF structural parse]
-    Structure --> Encryption{Encrypted?}
-    Encryption -->|yes| Reject[Reject and clean up]
-    Encryption -->|no| Pages{Within page limit?}
-    Pages -->|no| Reject
-    Pages -->|yes| Accept[Eligible for durable storage]
+    Upload[Bounded upload] --> Request[Media, body and byte checks]
+    Request --> Blob[Publish content-addressed blob]
+    Blob --> Register[Commit document, run and workflow request; page_count null]
+    Register --> Accepted[Return 202 Accepted]
+    Register --> Workflow[Temporal workflow]
+    Workflow --> Job[Restricted embedded-text Job]
+    Job --> Inspect[PyMuPDF structure and encryption checks]
+    Inspect --> Pages{Within page limit?}
+    Pages -->|no or invalid| Failure[Record bounded asynchronous failure]
+    Pages -->|yes| Persist[Persist page count and text result]
 ```
 
-The inspector returns only trusted structural metadata such as page count. Text
-extraction and OCR are later processing stages and do not belong to upload
-acceptance. The current local parser boundary is covered with generated synthetic
-PDFs; hostile-file isolation and malware scanning remain explicit later controls.
+Structural, encrypted-file and page-limit errors therefore appear as
+asynchronous processing failures after upload acceptance. The trusted worker
+validates the bounded parser result and persists the page count with the first
+text extraction. A failed first parse leaves the count unknown. Embedded-text
+and OCR operations run in restricted per-document Jobs; generated synthetic
+PDFs and live workflow checks cover this local boundary. The runtime uses
+`runc`, shares the node kernel and is not a strong sandbox. Malware scanning
+remains outside scope.
 
-The application acceptance order is metadata validation, byte-limit check, PDF
-inspection, immutable blob publication and finally idempotent database
-registration. Invalid PDFs therefore never enter durable blob storage. The
-filesystem cannot participate in the PostgreSQL transaction: a database failure
-after publication may leave an unreferenced content-addressed blob. Immediate
-deletion would be unsafe under deduplication and concurrent uploads, so an
-age-bounded audit reports possible orphans only. Physical deletion remains
-disabled until uploads and cleanup share a database-backed per-blob lock.
+The application acceptance order is metadata validation, byte-limit check,
+immutable blob publication and finally idempotent database registration. A
+structurally invalid PDF can therefore be stored before the parser reports the
+asynchronous failure. The filesystem cannot participate in the PostgreSQL
+transaction: a database failure after publication may leave an unreferenced
+content-addressed blob. Immediate deletion would be unsafe under deduplication
+and concurrent uploads, so an age-bounded audit reports possible orphans only.
+Physical deletion remains disabled until uploads and cleanup share a
+database-backed per-blob lock.
 
 ## Upload Idempotency
 
