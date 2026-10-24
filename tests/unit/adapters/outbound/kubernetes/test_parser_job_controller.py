@@ -246,14 +246,14 @@ def test_exec_enforces_deadline_after_websocket_update(
         def connect_get_namespaced_pod_exec(self, *args: object, **kwargs: object) -> None:
             return None
 
-    monkeypatch.setattr(
-        controller_module.client, "CoreV1Api", cast(Any, lambda _api: FakeCoreApi())
-    )
-    monkeypatch.setattr(
-        controller_module.streaming,
-        "stream",
-        cast(Any, lambda *args, **kwargs: socket),
-    )
+    def fake_core_api(_api: object) -> FakeCoreApi:
+        return FakeCoreApi()
+
+    def fake_stream(*args: Any, **kwargs: Any) -> FakeExecSocket:
+        return socket
+
+    monkeypatch.setattr(controller_module.client, "CoreV1Api", fake_core_api)
+    monkeypatch.setattr(controller_module.streaming, "stream", fake_stream)
     monotonic = Mock(side_effect=[0.0, 0.0, 121.0])
     monkeypatch.setattr(controller_module.time, "monotonic", monotonic)
 
@@ -338,14 +338,14 @@ def test_exec_maps_malformed_runtime_exit_status_to_bounded_parser_failure(
         def connect_get_namespaced_pod_exec(self, *args: object, **kwargs: object) -> None:
             return None
 
-    monkeypatch.setattr(
-        controller_module.client, "CoreV1Api", cast(Any, lambda _api: FakeCoreApi())
-    )
-    monkeypatch.setattr(
-        controller_module.streaming,
-        "stream",
-        cast(Any, lambda *args, **kwargs: socket),
-    )
+    def fake_core_api(_api: object) -> FakeCoreApi:
+        return FakeCoreApi()
+
+    def fake_stream(*args: Any, **kwargs: Any) -> FakeExecSocket:
+        return socket
+
+    monkeypatch.setattr(controller_module.client, "CoreV1Api", fake_core_api)
+    monkeypatch.setattr(controller_module.streaming, "stream", fake_stream)
 
     with pytest.raises(ParserExecutionFailed, match="without a usable exit status") as raised:
         cast(Any, controller)._exec("pod", ["python"], stdin=None, output_limit=100)
@@ -548,7 +548,11 @@ def test_pod_oom_kill_reason_maps_to_memory_limit_before_supervisor_ready(
     core.list_namespaced_pod.return_value = client.V1PodList(items=[pod])
     connection = cast(Any, controller)._connection
     monkeypatch.setattr(connection, "new_api_client", lambda: nullcontext(object()))
-    monkeypatch.setattr(controller_module.client, "CoreV1Api", cast(Any, lambda _api: core))
+
+    def fake_core_api(_api: object) -> Mock:
+        return core
+
+    monkeypatch.setattr(controller_module.client, "CoreV1Api", fake_core_api)
 
     with pytest.raises(
         ParserContainerMemoryLimitExceeded,
@@ -657,7 +661,11 @@ def test_cleanup_maps_api_connection_loss_to_bounded_runtime_unavailable(
     batch.delete_namespaced_job.side_effect = ConnectionError("private endpoint detail")
     connection = cast(Any, controller)._connection
     monkeypatch.setattr(connection, "new_api_client", lambda: nullcontext(object()))
-    monkeypatch.setattr(controller_module.client, "BatchV1Api", cast(Any, lambda api: batch))
+
+    def fake_batch_api(_api: object) -> Mock:
+        return batch
+
+    monkeypatch.setattr(controller_module.client, "BatchV1Api", fake_batch_api)
 
     with pytest.raises(
         ParserRuntimeUnavailable,

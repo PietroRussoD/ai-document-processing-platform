@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from math import isfinite
 from threading import BoundedSemaphore, Event
-from typing import Protocol, cast
+from typing import Any, Protocol, cast
 from uuid import uuid4
 
 from kubernetes import client
@@ -663,8 +663,11 @@ class KubernetesParserJobController:
 
     @staticmethod
     def _is_quota_exceeded(error: ApiException) -> bool:
+        body = cast(Any, error).body
+        if not isinstance(body, str):
+            return False
         try:
-            payload: object = json.loads(error.body or "")
+            payload: object = json.loads(body)
         except (TypeError, json.JSONDecodeError):
             return False
         if not isinstance(payload, dict):
