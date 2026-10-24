@@ -548,9 +548,7 @@ def test_pod_oom_kill_reason_maps_to_memory_limit_before_supervisor_ready(
     core.list_namespaced_pod.return_value = client.V1PodList(items=[pod])
     connection = cast(Any, controller)._connection
     monkeypatch.setattr(connection, "new_api_client", lambda: nullcontext(object()))
-    monkeypatch.setattr(
-        controller_module.client, "CoreV1Api", cast(Any, lambda _api: core)
-    )
+    monkeypatch.setattr(controller_module.client, "CoreV1Api", cast(Any, lambda _api: core))
 
     with pytest.raises(
         ParserContainerMemoryLimitExceeded,
@@ -659,9 +657,7 @@ def test_cleanup_maps_api_connection_loss_to_bounded_runtime_unavailable(
     batch.delete_namespaced_job.side_effect = ConnectionError("private endpoint detail")
     connection = cast(Any, controller)._connection
     monkeypatch.setattr(connection, "new_api_client", lambda: nullcontext(object()))
-    monkeypatch.setattr(
-        controller_module.client, "BatchV1Api", cast(Any, lambda api: batch)
-    )
+    monkeypatch.setattr(controller_module.client, "BatchV1Api", cast(Any, lambda api: batch))
 
     with pytest.raises(
         ParserRuntimeUnavailable,
