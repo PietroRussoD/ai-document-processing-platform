@@ -190,8 +190,10 @@ The Temporal worker uses the isolated adapter for embedded-text extraction
 and OCR. It requires an explicit local API endpoint, namespace, CA file, scoped
 token file and parser image, verifies the API before opening the database, and
 fails startup when this configuration is missing or refused. Compose requires
-the same settings and mounts the private credentials directory read-only only
-in the worker. The API no longer performs upload-time PDF inspection in the
+the same runtime settings. The host credential directory is mounted read-only
+into the network-disabled credential-sync service, which copies the CA and
+short-lived token into a worker-owned named volume; only that named volume is
+mounted read-only in the worker. The API no longer performs upload-time PDF inspection in the
 v1.3.0 implementation; the first embedded-text Job now provides that structural
 check. The nullable page-count migration and upload flow passed a live run with
 a fresh isolated Compose database: a valid synthetic PDF was accepted with
@@ -203,15 +205,16 @@ cache. Focused replay now passes 16 histories, and live Compose/Kind evidence
 covers transient parser-runtime recovery; permanent node loss, multi-node
 recovery and deployment-runtime validation remain outside the local checks.
 
-The Job container runs a small supervisor as PID 1. After it has validated
-and persisted the result, the controller invokes a fixed job-control command
-with a `success` or `failure` value. The command writes a completion marker to
-the private scratch volume; the supervisor exits with the corresponding
-status, allowing the Job to complete and `ttlSecondsAfterFinished` to clean it
-up. If the worker disappears, `activeDeadlineSeconds` terminates the Job and
-TTL provides fallback cleanup. The worker also deletes the Job in a `finally`
-path when it can. Both commands use fixed argument vectors and never execute a
-shell.
+The Job container runs a small supervisor as PID 1. The parser emits its
+bounded result over the exec stream; the controller sends a fixed completion
+command and waits for the Job to become terminal, then deletes it in a `finally`
+path when it can. Only after the controller returns does the trusted adapter
+validate the result and the application persist it. Job completion therefore
+means the parser process finished; it does not mean the result was accepted or
+committed. A retry after validation or persistence failure may create another
+Job, while a previously persisted extraction is reused. If the worker
+disappears, `activeDeadlineSeconds` and TTL provide fallback cleanup. The
+commands use fixed argument vectors and never execute a shell.
 
 The Kubernetes Python client requires its streaming helper for exec calls. The
 official client also warns that streaming changes the API client's protocol
@@ -298,9 +301,10 @@ controller removed each Job and Pod. The probe ran from the host using the
 namespace token, not from the Compose worker or Temporal. The embedded-text and
 OCR results were then wired into the Temporal worker. The current Job settings
 use 512 MiB memory request and 1 GiB limit; this smoke run is not a resource
-stress test or a final budget. At the time of this smoke check, upload-time
-inspection still ran locally; the current source has since removed that API
-call, but the replacement flow has not been live-verified.
+stress test or a final budget. This 2026-10-18 standalone controller smoke
+check preceded the asynchronous upload-path change and did not verify it. The
+2026-10-19 live Compose/Kind upload verification is recorded above and in the
+release evidence.
 
 The prototype passed host-side live checks with a namespace-scoped controller
 identity, and rejected an untrusted CA, invalid token, insufficient permissions
@@ -411,7 +415,9 @@ network policy. The workflow persisted OCR text and completed with
 markers were absent from Temporal history and API/worker logs.
 
 Cancellation and worker restart were tested against active OCR Jobs. A workflow
-cancel removed its Job in 4.8 seconds after activity heartbeats were added. A
+cancel removed its Job in 4.8 seconds after activity heartbeats were added. This
+check establishes parser Job cleanup; it does not by itself establish a
+persisted `CANCELLED` status for the document or processing run. A
 worker stop left the Job for deadline/TTL cleanup (observed within 185 seconds);
 the five-minute activity timeout then caused Temporal to retry on the restarted
 worker and persist one OCR row. A separate controlled crash after OCR persistence

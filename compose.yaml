@@ -222,7 +222,7 @@ services:
       - /tmp:rw,noexec,nosuid,nodev,size=4m
     restart: unless-stopped
     volumes:
-      - ${DOCUMENT_PLATFORM_PARSER_CREDENTIALS_DIR:?Provision private parser CA and token files}:/run/parser-source:ro
+      - ${DOCUMENT_PLATFORM_PARSER_CREDENTIALS_DIR:-./.parser-runtime-credentials}:/run/parser-source:ro
       - parser-runtime-credentials:/run/parser-runtime
     healthcheck:
       test:
@@ -255,11 +255,11 @@ services:
     environment:
       DOCUMENT_PLATFORM_DATABASE_URL: postgresql+asyncpg://document_platform:local-development-only@postgres:5432/document_platform
       DOCUMENT_PLATFORM_TEMPORAL_TARGET_HOST: temporal:7233
-      DOCUMENT_PLATFORM_PARSER_KUBERNETES_ENDPOINT: ${DOCUMENT_PLATFORM_PARSER_KUBERNETES_ENDPOINT:?Bootstrap the isolated parser runtime before starting processing}
-      DOCUMENT_PLATFORM_PARSER_KUBERNETES_NAMESPACE: ${DOCUMENT_PLATFORM_PARSER_KUBERNETES_NAMESPACE:?Set the dedicated parser namespace}
+      DOCUMENT_PLATFORM_PARSER_KUBERNETES_ENDPOINT: ${DOCUMENT_PLATFORM_PARSER_KUBERNETES_ENDPOINT:-https://127.0.0.1:1}
+      DOCUMENT_PLATFORM_PARSER_KUBERNETES_NAMESPACE: ${DOCUMENT_PLATFORM_PARSER_KUBERNETES_NAMESPACE:-pdf-parser-probe}
       DOCUMENT_PLATFORM_PARSER_KUBERNETES_CA_FILE: /run/parser-runtime/ca.pem
       DOCUMENT_PLATFORM_PARSER_KUBERNETES_TOKEN_FILE: /run/parser-runtime/token
-      DOCUMENT_PLATFORM_PARSER_JOB_IMAGE: ${DOCUMENT_PLATFORM_PARSER_JOB_IMAGE:?Build and load the parser image before starting processing}
+      DOCUMENT_PLATFORM_PARSER_JOB_IMAGE: ${DOCUMENT_PLATFORM_PARSER_JOB_IMAGE:-document-platform-parser:dev}
       DOCUMENT_PLATFORM_PARSER_JOB_MEMORY_LIMIT_MIB: ${DOCUMENT_PLATFORM_PARSER_JOB_MEMORY_LIMIT_MIB:-1024}
       DOCUMENT_PLATFORM_TESSERACT_MAX_PAGE_PIXELS: ${DOCUMENT_PLATFORM_TESSERACT_MAX_PAGE_PIXELS:-20000000}
       DOCUMENT_PLATFORM_FAULT_INJECTION_CRASH_AFTER_OCR_PERSISTENCE: ${DOCUMENT_PLATFORM_FAULT_INJECTION_CRASH_AFTER_OCR_PERSISTENCE:-false}

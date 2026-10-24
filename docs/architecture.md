@@ -394,9 +394,10 @@ blobs and internal storage paths.
 Optional AI proposal and terminal provider-failure records are joined by the
 current processing-run ID and returned separately from deterministic output.
 The read model includes only structured proposed fields, issue codes and model
-provenance; it excludes source text, prompts and raw provider responses. This
-local demo does not authenticate status reads, so only synthetic documents
-should be uploaded.
+provenance; it excludes source text, prompts and raw provider responses. Every
+document API route, including status and work-queue reads, requires the shared
+local bearer token. The token is a single-operator demo control, not per-user
+authorization; only synthetic documents should be uploaded.
 The operator console renders recorded advisory fields beside the original
 rule-based extraction. An operator can explicitly adopt a field as a correction;
 the API checks that it matches the persisted proposal before resolving review.

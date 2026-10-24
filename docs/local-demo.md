@@ -5,6 +5,12 @@ Compose + Kind/Calico demo is the standard complete path. Host development runs
 the API, dispatcher, worker and console in separate terminals; a host worker
 still needs explicit parser-runtime credentials.
 
+For direct Compose commands, copy `.env.example` to `.env` and set the local
+operator token first. Compose resolves variables from services across profiles;
+the parser values in `.env.example` are placeholders that do not connect to a
+runtime. Use the supervised `parser_runtime.py up` command for the complete
+processing profile.
+
 - [Complete processing demo](#complete-processing-demo)
 - [Optional local model](#optional-local-model)
 - [Host prerequisites](#host-prerequisites), [API](#host-api),
@@ -244,10 +250,13 @@ this repository. Those links require repository access while it is private.
 
 ## HTTP Upload and Status
 
-Upload a PDF with a client-generated idempotency key:
+Export the same operator token configured for the API (for example, the value
+from `.env`) in this terminal, then upload a PDF with a client-generated
+idempotency key:
 
 ```bash
 curl --request POST http://localhost:8000/api/v1/documents \
+  --header "Authorization: Bearer $DOCUMENT_PLATFORM_REVIEW_OPERATOR_TOKEN" \
   --header 'Idempotency-Key: example-upload-001' \
   --form 'document=@supplier-invoice.pdf;type=application/pdf'
 ```

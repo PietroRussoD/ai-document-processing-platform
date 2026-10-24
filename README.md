@@ -72,7 +72,10 @@ Ollama is disabled by default. To try advisory proposals, run the configured
 model on the host and follow the [local-model setup](docs/local-demo.md#optional-local-model).
 The [demo and operations guide](docs/local-demo.md) also covers host development,
 Temporal, port overrides, metrics, retention and failure demonstrations.
-Stop the stack with `docker compose down`; named volumes retain the demo data.
+Stop the supervised session with Ctrl-C. The supervisor stops its Compose
+services, removes its disposable Kind cluster and credentials, and retains the
+Compose data volumes. For a stack started directly with Compose, use
+`docker compose down` without `-v` to retain its named volumes.
 
 ## Main capabilities
 
