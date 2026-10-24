@@ -1,0 +1,105 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: parser-job-template
+  annotations:
+    kubernetes.io/description: >-
+      Restricts parser namespace Jobs to the application-generated isolated
+      parser template.
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    matchPolicy: Equivalent
+    resourceRules:
+      - apiGroups: ["batch"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["jobs"]
+  validations:
+    - expression: >-
+        object.metadata.name.matches('^pdf-parser-(embedded|ocr)-[0-9a-f]{16}$') &&
+        has(object.metadata.labels) &&
+        'parser.platform/run' in object.metadata.labels &&
+        object.metadata.labels['parser.platform/run'] == object.metadata.name &&
+        has(object.spec.template.metadata.labels) &&
+        'parser.platform/run' in object.spec.template.metadata.labels &&
+        object.spec.template.metadata.labels['parser.platform/run'] == object.metadata.name
+      message: Job and Pod must carry the generated parser run identity.
+    - expression: >-
+        has(object.spec.backoffLimit) && object.spec.backoffLimit == 0 &&
+        has(object.spec.activeDeadlineSeconds) && object.spec.activeDeadlineSeconds == 120 &&
+        has(object.spec.ttlSecondsAfterFinished) && object.spec.ttlSecondsAfterFinished == 60 &&
+        (!has(object.spec.parallelism) || object.spec.parallelism == 1) &&
+        (!has(object.spec.completions) || object.spec.completions == 1) &&
+        (!has(object.spec.suspend) || object.spec.suspend == false) &&
+        (!has(object.spec.manualSelector) || object.spec.manualSelector == false) &&
+        (!has(object.metadata.annotations) || size(object.metadata.annotations) == 0) &&
+        (!has(object.metadata.finalizers) || size(object.metadata.finalizers) == 0)
+      message: Job retries, duration, parallelism and metadata must match the parser contract.
+    - expression: >-
+        has(object.spec.template.spec.automountServiceAccountToken) &&
+        object.spec.template.spec.automountServiceAccountToken == false &&
+        (!has(object.spec.template.spec.serviceAccountName) || object.spec.template.spec.serviceAccountName == 'default') &&
+        object.spec.template.spec.restartPolicy == 'Never' &&
+        object.spec.template.spec.terminationGracePeriodSeconds == 1 &&
+        (!has(object.spec.template.spec.hostNetwork) || object.spec.template.spec.hostNetwork == false) &&
+        (!has(object.spec.template.spec.hostPID) || object.spec.template.spec.hostPID == false) &&
+        (!has(object.spec.template.spec.hostIPC) || object.spec.template.spec.hostIPC == false) &&
+        (!has(object.spec.template.spec.hostAliases) || size(object.spec.template.spec.hostAliases) == 0) &&
+        (!has(object.spec.template.spec.imagePullSecrets) || size(object.spec.template.spec.imagePullSecrets) == 0) &&
+        (!has(object.spec.template.spec.initContainers) || size(object.spec.template.spec.initContainers) == 0) &&
+        (!has(object.spec.template.spec.nodeName) || object.spec.template.spec.nodeName == '') &&
+        (!has(object.spec.template.spec.nodeSelector) || size(object.spec.template.spec.nodeSelector) == 0) &&
+        (!has(object.spec.template.spec.tolerations) || size(object.spec.template.spec.tolerations) == 0) &&
+        !has(object.spec.template.spec.affinity) &&
+        (!has(object.spec.template.spec.runtimeClassName) || object.spec.template.spec.runtimeClassName == '') &&
+        (!has(object.spec.template.spec.priorityClassName) || object.spec.template.spec.priorityClassName == '') &&
+        has(object.spec.template.spec.securityContext) &&
+        object.spec.template.spec.securityContext.runAsNonRoot == true &&
+        object.spec.template.spec.securityContext.runAsUser == 10001 &&
+        object.spec.template.spec.securityContext.runAsGroup == 10001 &&
+        object.spec.template.spec.securityContext.fsGroup == 10001 &&
+        object.spec.template.spec.securityContext.seccompProfile.type == 'RuntimeDefault'
+      message: Pod identity, scheduling, token and security settings must match the parser contract.
+    - expression: >-
+        size(object.spec.template.spec.containers) == 1 &&
+        object.spec.template.spec.containers[0].name == 'parser' &&
+        object.spec.template.spec.containers[0].image == __PARSER_IMAGE_CEL__ &&
+        object.spec.template.spec.containers[0].imagePullPolicy == 'Never' &&
+        object.spec.template.spec.containers[0].command == ['python', '-m', 'document_platform.parser_supervisor', 'wait'] &&
+        (!has(object.spec.template.spec.containers[0].args) || size(object.spec.template.spec.containers[0].args) == 0) &&
+        (!has(object.spec.template.spec.containers[0].envFrom) || size(object.spec.template.spec.containers[0].envFrom) == 0) &&
+        size(object.spec.template.spec.containers[0].env) == 3 &&
+        object.spec.template.spec.containers[0].env[0].name == 'TMPDIR' && object.spec.template.spec.containers[0].env[0].value == '/scratch' &&
+        object.spec.template.spec.containers[0].env[1].name == 'TMP' && object.spec.template.spec.containers[0].env[1].value == '/scratch' &&
+        object.spec.template.spec.containers[0].env[2].name == 'TEMP' && object.spec.template.spec.containers[0].env[2].value == '/scratch' &&
+        (!has(object.spec.template.spec.containers[0].ports) || size(object.spec.template.spec.containers[0].ports) == 0) &&
+        size(object.spec.template.spec.containers[0].volumeMounts) == 1 &&
+        object.spec.template.spec.containers[0].volumeMounts[0].name == 'scratch' &&
+        object.spec.template.spec.containers[0].volumeMounts[0].mountPath == '/scratch' &&
+        (!has(object.spec.template.spec.containers[0].volumeMounts[0].readOnly) || object.spec.template.spec.containers[0].volumeMounts[0].readOnly == false) &&
+        object.spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation == false &&
+        object.spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem == true &&
+        object.spec.template.spec.containers[0].securityContext.capabilities.drop == ['ALL'] &&
+        (!has(object.spec.template.spec.containers[0].securityContext.capabilities.add) || size(object.spec.template.spec.containers[0].securityContext.capabilities.add) == 0) &&
+        (!has(object.spec.template.spec.containers[0].securityContext.privileged) || object.spec.template.spec.containers[0].securityContext.privileged == false)
+      message: Parser container image, command, environment, mounts and security settings are restricted.
+    - expression: >-
+        size(object.spec.template.spec.volumes) == 1 &&
+        object.spec.template.spec.volumes[0].name == 'scratch' &&
+        has(object.spec.template.spec.volumes[0].emptyDir) &&
+        (!has(object.spec.template.spec.volumes[0].emptyDir.medium) || object.spec.template.spec.volumes[0].emptyDir.medium == '')
+      message: The parser may use only a disk-backed scratch emptyDir; ephemeral storage is bounded below.
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: parser-job-template
+spec:
+  policyName: parser-job-template
+  validationActions:
+    - Deny
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        parser.platform/admission: restricted

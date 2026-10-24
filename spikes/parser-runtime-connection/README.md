@@ -60,8 +60,12 @@ The probe requests no Secret contents and does not create Jobs or exec into
 Pods. These selected denials do not enumerate every possible privilege.
 Permission to create Jobs can provide indirect access to resources in their
 namespace. Keep application Secrets and privileged service accounts out of the
-parser namespace. These checks do not enforce parser Job templates, token
-automount settings or network isolation.
+parser namespace. The Role's RBAC rules do not constrain Job fields. The local
+runtime bootstrap separately binds a fail-closed `ValidatingAdmissionPolicy`
+to the labeled parser namespace; it checks the generated parser Job template.
+Calico's default-deny policy separately enforces the tested egress boundary.
+Neither mechanism protects against a Kubernetes cluster administrator who can
+remove or change those controls.
 
 ## Run against a disposable cluster
 

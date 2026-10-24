@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import copy
 import json
 import os
 import re
@@ -17,6 +18,7 @@ import tempfile
 import time
 from pathlib import Path
 from types import FrameType
+from typing import Any, cast
 
 from document_platform.settings import (
     Settings,
@@ -466,8 +468,250 @@ def probe_egress(kubeconfig: Path, context: str, *, should_connect: bool) -> Non
         print("Default-deny policy blocked the same external TLS connection.", flush=True)
 
 
-def verify_network_policy(kubeconfig: Path, context: str, parser_image: str) -> None:
+def parser_job_admission_policy(parser_image: str) -> str:
+    policy = (SPIKE / "parser-job-admission.yaml").read_text()
+    image_token = "__PARSER_IMAGE_CEL__"
+    if policy.count(image_token) != 1:
+        raise ParserRuntimeError("Parser Job admission policy template is incomplete")
+    policy = policy.replace(image_token, json.dumps(parser_image))
+    return policy
+
+
+def wait_for_parser_admission_policy(
+    kubeconfig: Path,
+    context: str,
+    *,
+    timeout_seconds: float = 30,
+) -> None:
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        policy = json.loads(
+            kubectl(
+                kubeconfig,
+                context,
+                "get",
+                "validatingadmissionpolicy",
+                "parser-job-template",
+                "-o",
+                "json",
+            )
+        )
+        metadata = policy.get("metadata", {})
+        status = policy.get("status", {})
+        if (
+            status.get("observedGeneration") == metadata.get("generation")
+            and "typeChecking" in status
+        ):
+            warnings = status["typeChecking"].get("expressionWarnings", [])
+            if warnings:
+                warning = warnings[0].get("warning", "unknown CEL type-check warning")
+                raise ParserRuntimeError(
+                    f"Parser Job CEL policy has a type-check warning: {warning}"
+                )
+            binding = json.loads(
+                kubectl(
+                    kubeconfig,
+                    context,
+                    "get",
+                    "validatingadmissionpolicybinding",
+                    "parser-job-template",
+                    "-o",
+                    "json",
+                )
+            )
+            binding_spec = binding.get("spec", {})
+            if (
+                binding_spec.get("policyName") != "parser-job-template"
+                or binding_spec.get("validationActions") != ["Deny"]
+                or binding_spec.get("matchResources", {})
+                .get("namespaceSelector", {})
+                .get("matchLabels", {})
+                .get("parser.platform/admission")
+                != "restricted"
+            ):
+                raise ParserRuntimeError(
+                    "Parser Job admission binding is not enforcing its namespace"
+                )
+            namespace = json.loads(
+                kubectl(kubeconfig, context, "get", "namespace", NAMESPACE, "-o", "json")
+            )
+            if (
+                namespace.get("metadata", {}).get("labels", {}).get("parser.platform/admission")
+                != "restricted"
+            ):
+                raise ParserRuntimeError("Parser namespace is outside the admission policy scope")
+            return
+        time.sleep(0.2)
+    raise ParserRuntimeError("Parser Job admission policy did not finish type checking")
+
+
+def parser_pod_spec(manifest: dict[str, object]) -> dict[str, object]:
+    job_spec = cast(dict[str, object], manifest["spec"])
+    template = cast(dict[str, object], job_spec["template"])
+    return cast(dict[str, object], template["spec"])
+
+
+def parser_job_template(manifest: dict[str, object]) -> dict[str, object]:
+    return cast(dict[str, object], cast(dict[str, object], manifest["spec"])["template"])
+
+
+def dry_run_parser_job(
+    kubeconfig: Path,
+    context: str,
+    manifest: dict[str, object],
+) -> subprocess.CompletedProcess[str]:
+    return run(
+        [
+            "kubectl",
+            "--kubeconfig",
+            str(kubeconfig),
+            "--context",
+            context,
+            "create",
+            "--dry-run=server",
+            "--namespace",
+            NAMESPACE,
+            "-o",
+            "json",
+            "-f",
+            "-",
+        ],
+        capture=True,
+        input_text=json.dumps(manifest),
+        check=False,
+        timeout=30,
+    )
+
+
+def verify_parser_job_admission(
+    kubeconfig: Path,
+    context: str,
+    *,
+    parser_image: str,
+    memory_limit_mib: int,
+) -> None:
+    from document_platform import worker
+
+    runtime_settings = Settings(
+        parser_kubernetes_endpoint="https://127.0.0.1:1",
+        parser_kubernetes_namespace=NAMESPACE,
+        parser_kubernetes_ca_file=Path("/unused/parser-ca.pem"),
+        parser_kubernetes_token_file=Path("/unused/parser-token"),
+        parser_job_image=parser_image,
+        parser_job_memory_limit_mib=memory_limit_mib,
+    )
+    _, controller = cast(Any, worker)._create_parser_runtime(runtime_settings)
+    run_id = secrets.token_hex(8)
+    accepted_count = 0
+    for operation in ("embedded", "ocr"):
+        name = f"pdf-parser-{operation}-{run_id}"
+        manifest = controller._job_manifest(name)
+        metadata = cast(dict[str, object], manifest["metadata"])
+        metadata["namespace"] = NAMESPACE
+        mutations: list[tuple[str, dict[str, object]]] = []
+        bad_image = copy.deepcopy(manifest)
+        cast(list[dict[str, object]], parser_pod_spec(bad_image)["containers"])[0]["image"] = (
+            "busybox:latest"
+        )
+        mutations.append(("unapproved image", bad_image))
+
+        extra_container = copy.deepcopy(manifest)
+        containers = cast(list[dict[str, object]], parser_pod_spec(extra_container)["containers"])
+        additional = copy.deepcopy(containers[0])
+        additional["name"] = "unexpected"
+        containers.append(additional)
+        mutations.append(("additional container", extra_container))
+
+        host_path = copy.deepcopy(manifest)
+        host_path_volume = cast(list[dict[str, object]], parser_pod_spec(host_path)["volumes"])[0]
+        host_path_volume["hostPath"] = {
+            "path": "/var/run/docker.sock",
+            "type": "Socket",
+        }
+        host_path_volume.pop("emptyDir")
+        mutations.append(("hostPath volume", host_path))
+
+        service_account_token = copy.deepcopy(manifest)
+        parser_pod_spec(service_account_token)["automountServiceAccountToken"] = True
+        mutations.append(("service-account token", service_account_token))
+
+        command_override = copy.deepcopy(manifest)
+        cast(list[dict[str, object]], parser_pod_spec(command_override)["containers"])[0][
+            "command"
+        ] = ["sh", "-c", "sleep 3600"]
+        mutations.append(("command override", command_override))
+
+        for reason, rejected_manifest in mutations:
+            rejected_metadata = cast(dict[str, object], rejected_manifest["metadata"])
+            rejected_metadata["name"] = f"pdf-parser-{operation}-{secrets.token_hex(8)}"
+            rejected_metadata["labels"] = {"parser.platform/run": rejected_metadata["name"]}
+            rejected_template = parser_job_template(rejected_manifest)
+            cast(dict[str, object], rejected_template["metadata"])["labels"] = {
+                "parser.platform/run": rejected_metadata["name"]
+            }
+            deadline = time.monotonic() + 10
+            while True:
+                result = dry_run_parser_job(kubeconfig, context, rejected_manifest)
+                diagnostic = f"{result.stdout}\n{result.stderr}".lower()
+                if result.returncode != 0 and "parser-job-template" in diagnostic:
+                    break
+                if result.returncode != 0:
+                    details = result.stderr.strip().splitlines()
+                    detail = details[-1][:300] if details else "admission failed outside the policy"
+                    raise ParserRuntimeError(
+                        f"Admission policy rejected {reason} outside its own rule: {detail}"
+                    )
+                if time.monotonic() >= deadline:
+                    accepted_object = json.loads(result.stdout)
+                    accepted_pod_spec = parser_pod_spec(accepted_object)
+                    accepted_containers = cast(
+                        list[dict[str, object]], accepted_pod_spec["containers"]
+                    )
+                    raise ParserRuntimeError(
+                        f"Admission policy did not reject {reason}; API admitted image "
+                        f"{accepted_containers[0].get('image', '<missing>')}"
+                    )
+                time.sleep(0.2)
+
+        accepted = dry_run_parser_job(kubeconfig, context, manifest)
+        if accepted.returncode:
+            details = accepted.stderr.strip().splitlines()
+            detail = details[-1][:300] if details else "no diagnostic output"
+            raise ParserRuntimeError(
+                f"Admission policy rejected the production {operation} Job: {detail}"
+            )
+        accepted_count += 1
+
+    print(
+        f"Parser Job admission accepted {accepted_count} production manifests and "
+        "rejected 10 unsafe variants.",
+        flush=True,
+    )
+
+
+def verify_network_policy(
+    kubeconfig: Path,
+    context: str,
+    parser_image: str,
+    *,
+    memory_limit_mib: int,
+) -> None:
     kubectl(kubeconfig, context, "apply", "-f", str(SPIKE / "controller-rbac.yaml"))
+    kubectl(
+        kubeconfig,
+        context,
+        "apply",
+        "-f",
+        "-",
+        input_text=parser_job_admission_policy(parser_image),
+    )
+    wait_for_parser_admission_policy(kubeconfig, context)
+    verify_parser_job_admission(
+        kubeconfig,
+        context,
+        parser_image=parser_image,
+        memory_limit_mib=memory_limit_mib,
+    )
     create_baseline_pod(kubeconfig, context, parser_image)
     probe_egress(kubeconfig, context, should_connect=True)
     kubectl(kubeconfig, context, "apply", "-f", str(SPIKE / "parser-default-deny.yaml"))
@@ -965,7 +1209,12 @@ def bootstrap(parser_image: str, *, with_compose: bool) -> int:
         preload_calico_images(cluster_name, platform)
         install_calico(kubeconfig, context)
         load_kind_image(parser_image, cluster_name, platform)
-        verify_network_policy(kubeconfig, context, parser_image)
+        verify_network_policy(
+            kubeconfig,
+            context,
+            parser_image,
+            memory_limit_mib=Settings().parser_job_memory_limit_mib,
+        )
         apply_parser_resource_quota(
             kubeconfig,
             context,
