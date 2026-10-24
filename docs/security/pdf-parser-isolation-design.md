@@ -1,12 +1,13 @@
 # PDF Parser Isolation Design
 
 Status: the local v1.3.0 runtime is selected and network-tested. Upload
-inspection, embedded-text extraction and OCR run through isolated Jobs in the
-current integration. A live Compose + Kind check verified asynchronous upload
-and page-count persistence. API outage recovery and TTL cleanup after stopping
-and restarting the dedicated single-node Kind control plane also have live
-evidence. Permanent node loss, multi-node behavior and broader Temporal replay
-remain open.
+inspection is asynchronous through the first embedded-text Job; the API does
+not open PDFs. Embedded-text extraction and OCR run through isolated Jobs. Live
+Compose + Kind checks cover upload persistence, transient parser outage and
+Temporal retry, OCR during a brief control-plane pause, and TTL cleanup after a
+node-container restart. The focused Temporal replay suite passes 16 checked-in
+histories. Permanent node loss, multi-node behavior and unrecorded workflow
+histories remain unverified.
 
 ## Decision for the released v1.2.0
 
@@ -200,9 +201,9 @@ and [Kubernetes RuntimeClass](https://kubernetes.io/docs/concepts/containers/run
 This option was excluded from the released v1.2.0. The separate
 [v1.3.0 development scope](../releases/v1.3.0.md) now tracks this portfolio
 exercise. The selected local topology has passed the network and worker
-connection probes recorded above. Upload-path verification is complete.
-Admission enforcement and recovery from permanent node loss or multi-node
-failures remain open.
+connection probes recorded above. Upload-path verification and admission
+enforcement are complete in the local single-node topology. Recovery from
+permanent node loss and multi-node failures remains unverified.
 
 The proposed application integration, including asynchronous page-count
 validation, Job data transfer, controller permissions and acceptance criteria,

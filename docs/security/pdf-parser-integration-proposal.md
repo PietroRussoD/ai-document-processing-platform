@@ -105,9 +105,10 @@ workflow but repeated OCR work. A separate live test now crashes the worker
 immediately after OCR persistence but before activity completion. Temporal
 retries the activity as attempt 2 after the five-minute start-to-close timeout;
 the handler reuses the persisted row, does not create another parser Job, and
-the workflow completes with one OCR row. Historical workflow replay remains
-untested. Keep the activity names and order, persist only small activity
-summaries, and keep PDF bytes and extracted text out of Temporal history. The
+the workflow completes with one OCR row. The focused replay suite passes 16
+checked-in histories from v0.6.0 through v1.3.0-dev; it does not cover every
+possible execution history. Keep the activity names and order, persist only
+small activity summaries, and keep PDF bytes and extracted text out of Temporal history. The
 cancellation test added lightweight activity
 heartbeats and confirmed that explicit workflow cancellation removed an active
 parser Job in 4.8 seconds.
@@ -196,10 +197,11 @@ check. The nullable page-count migration and upload flow passed a live run with
 a fresh isolated Compose database: a valid synthetic PDF was accepted with
 `202`, first observed without a page count, then persisted with one page; a
 malformed PDF was accepted with `202` and failed asynchronously while its page
-count remained unknown. The host runtime could not resolve the pinned Calico
-manifest host, so the same pinned manifests were supplied from a temporary
-local cache for this run. Historical workflow replay and other fault cases
-remain open.
+count remained unknown. The host could not resolve the pinned Calico manifest
+host during that run, so the pinned manifests came from a temporary local
+cache. Focused replay now passes 16 histories, and live Compose/Kind evidence
+covers transient parser-runtime recovery; permanent node loss, multi-node
+recovery and deployment-runtime validation remain outside the local checks.
 
 The Job container runs a small supervisor as PID 1. After it has validated
 and persisted the result, the controller invokes a fixed job-control command
@@ -214,8 +216,9 @@ shell.
 The Kubernetes Python client requires its streaming helper for exec calls. The
 official client also warns that streaming changes the API client's protocol
 handling; recreate the API client before subsequent ordinary API calls. The
-exact stdin/stdout behavior, exit status, cancellation and memory use must be
-proven in a standalone spike before this transport is accepted. See the
+exact stdin/stdout behavior, exit status, cancellation and memory use were
+proven in the standalone spike and exercised in the integrated controller.
+Retain the bounded streaming behavior. See the
 [Kubernetes Pod exec API](https://kubernetes.io/docs/reference/kubernetes-api/core/pod-v1/)
 and the [official Python client guidance](https://github.com/kubernetes-client/python).
 
@@ -308,14 +311,15 @@ network. Its directory used mode 0700 and its files mode 0600; the same SDK
 client picked up atomic token replacements and refused a missing token. A
 different UID could not read the token.
 
-This runs the standalone prototype in a derivative of the worker image, not
+This section records the standalone prototype before it was integrated into
 the actual Temporal worker. The subsequent
 [credential lifecycle companion](../../spikes/parser-runtime-connection/CREDENTIALS.md)
-implements host-side token renewal and session revocation. Delivery into the
-Docker volume and deployment supervision remain unimplemented. Neither the
-connection checks nor the Role enforce parser Job templates or network
-isolation. The namespace admission policy and Calico checks documented below
-now enforce and verify those separate boundaries in the local runtime.
+implements host-side token renewal and session revocation. The later supervised
+Compose runtime now delivers credentials through the UID-10001 volume and
+manages startup and shutdown. Neither the original connection checks nor the
+Role enforce parser Job templates or network isolation; the namespace admission
+policy and Calico checks documented below enforce those separate boundaries in
+the local runtime.
 
 ## Result contract
 
@@ -375,7 +379,8 @@ the bounded parser retry policy and that a terminal non-retryable OCR failure
 is recorded once with the OCR stage and bounded failure code, then stops
 processing. They verify policy configuration and terminal handling; Compose +
 Kind now provides a live retry, cancellation and post-persistence crash
-recovery baseline. Historical workflow replay remains to be verified.
+recovery baseline. The focused replay suite passes 16 checked-in histories,
+while permanent node loss and multi-node recovery remain unverified.
 
 Keep the existing upload-size, page-count, extracted-character, OCR-pixel and
 per-page timeout limits. Measure Job CPU, memory, scratch space, startup time
@@ -541,9 +546,14 @@ comparison and the memory difference remains unexplained. Retain the existing
 512 MiB request and 1 GiB limit as provisional configuration, not as a budget
 recommendation. One concurrent pair completed a synthetic varied full-page
 invoice fixture at about 322–362 MiB per worker, with Docker and Kind results
-both below the 1 GiB Job limit. Keep budgets provisional: measure photographic
-and high-entropy scans, repeat concurrent runs, and test the chosen deployment
-runtime before finalizing per-Job budgets.
+both below the 1 GiB Job limit. Later checks add three photo-style Docker runs
+at 1 GiB, a pathological high-entropy fixture across 512 MiB, 768 MiB and 1 GiB,
+and four concurrent 50-page OCR pairs per limit across varied and camera-style
+synthetic scans at 512 MiB and 768 MiB. These samples still do not establish a
+capacity budget: the high-entropy input failed OCR even at 1 GiB, and the
+photographic fixtures are synthetic. Keep the limits provisional until a
+broader representative corpus and the intended deployment registry/runtime
+have been measured.
 A one-node Kind run also measured Job startup,
 `/tmp`, sequential runs, two- and four-Job concurrency, and a cold pull from a
 localhost-only registry. Treat these as initial observations only; measure
