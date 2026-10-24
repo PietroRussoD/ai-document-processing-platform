@@ -74,7 +74,7 @@ Stop the stack with `docker compose down`; named volumes retain the demo data.
 
 ## Main capabilities
 
-- PDF byte/page limits, structural validation, idempotent uploads and
+- PDF byte limits, asynchronous structural validation, idempotent uploads and
   content-addressed local storage.
 - Durable workflow handoff, bounded processing retries and reuse of persisted
   stage results.

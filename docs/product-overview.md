@@ -63,11 +63,12 @@ for an advisory role, not a measure of real-world accuracy. See
 
 ```mermaid
 flowchart TB
-    Upload["Upload a PDF with an idempotency key"] --> Accept["Check limits and PDF structure, store by content hash"]
+    Upload["Upload a PDF with an idempotency key"] --> Accept["Check request limits and store by content hash"]
     Accept --> Commit["Commit document, run and a pending workflow-start request"]
     Commit --> Dispatch["Dispatcher starts the Temporal workflow"]
-    Dispatch --> Text["Extract embedded text"]
-    Text -->|"too little text"| OCR["OCR with Tesseract"]
+    Dispatch --> Inspect["Inspect PDF and extract embedded text in a restricted parser Job"]
+    Inspect --> Text["Use embedded text"]
+    Text -->|"too little text"| OCR["OCR in a restricted parser Job"]
     Text -->|"enough text"| Select["Select the canonical text"]
     OCR --> Select
     Select --> Classify["Classify the document"]
@@ -144,7 +145,8 @@ Why Temporal is used is recorded in
 
 | Capability | Status |
 | --- | --- |
-| Bounded, idempotent PDF upload with structural validation and content-addressed storage | Implemented |
+| Bounded, idempotent PDF upload with asynchronous structural validation and content-addressed storage | Implemented; PDF structure is checked in the first restricted parser Job after HTTP 202 |
+| Per-document parser Jobs for PDF inspection, embedded text and OCR | Implemented for the local Compose + Kind/Calico demo; per-Job containment, not a strong sandbox |
 | Durable workflow handoff through committed start requests and a dispatcher | Implemented |
 | Embedded-text extraction, OCR fallback and canonical-text selection | Implemented |
 | Deterministic document classification | Implemented |
@@ -163,7 +165,7 @@ Why Temporal is used is recorded in
 | Notifications | Planned |
 | Aggregate evaluation dashboard | Not implemented; corpus reports are command-line output |
 | Production authentication, authorization and tenant isolation | Not implemented |
-| Malware scanning and parser isolation | Not implemented |
+| Malware scanning | Not implemented |
 
 ## Non-goals
 

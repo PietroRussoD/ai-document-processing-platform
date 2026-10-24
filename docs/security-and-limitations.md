@@ -4,12 +4,12 @@ This is a development fixture for synthetic documents, not a deployment for
 confidential data or untrusted users. Its trust boundary is the developer's
 machine and the private Compose network, not a public HTTP service.
 
-The released v1.2.0 remains subject to its release boundary below. In the
-v1.3.0 development tree, embedded-text and OCR parsing run in per-document
-Kind/Calico Jobs. The current upload change also removes structural PDF parsing
-from the API and leaves page count unknown until the first isolated extraction;
-that changed upload path has not yet had live verification. The Jobs use
-`runc`, share the node kernel and are per-Job containment, not a strong sandbox.
+The released v1.2.0 remains subject to its release boundary below. In the local
+v1.3.0 development build, embedded-text parsing, OCR and structural PDF
+inspection run in per-document Kind/Calico Jobs. Upload returns `202` before
+inspection; page count stays unknown until the first isolated extraction. This
+asynchronous path has live Compose + Kind verification. The Jobs use `runc`,
+share the node kernel and provide per-Job containment, not a strong sandbox.
 
 ## Data and Entry Points
 
@@ -32,20 +32,20 @@ that changed upload path has not yet had live verification. The Jobs use
   observability profile. This limits host-network exposure, but does not
   authenticate local processes or peers on the Compose network.
 - API and console images run without root. Uploads have a byte limit and
-  declared media-type check. In v1.3.0 development, PDF structure and page
-  limits are checked asynchronously by the first isolated parser Job after
-  upload acceptance; page count remains unknown until that result is stored.
-  This changed upload path is not yet live-verified. Blob paths are derived
-  from content hashes rather than client filenames.
+  declared media-type check. PDF structure and page limits are checked
+  asynchronously by the first isolated parser Job after upload acceptance;
+  page count remains unknown until that result is stored. This path has live
+  Compose + Kind verification. Blob paths are derived from content hashes
+  rather than client filenames.
 - OCR checks a configurable pixel limit before allocating each page image
   (20,000,000 pixels by default) and rasterizes the next page only after the
   current page's OCR completes. This avoids keeping all page PNGs in memory;
-  it does not bound every native allocation. In the v1.3.0 development tree,
+  it does not bound every native allocation. In the local v1.3.0 build,
   parsing runs in per-Job containers that still share the node kernel.
 - Compose application containers have explicit CPU, memory, swap and PID
   limits, drop all Linux capabilities and enable no-new-privileges. Parser Jobs
-  in the v1.3.0 development tree also have per-Job limits, but current baselines
-  do not yet establish final budgets or capacity. See
+  in the local v1.3.0 build also have per-Job limits, but current baselines do
+  not establish final budgets or capacity. See
   [runtime restrictions and verification](runbooks/v1.1-container-restrictions.md).
 - Application request logs use matched route templates and allowlisted fields.
   Routine NGINX access logging is disabled for `/api` so document IDs in URLs
@@ -69,7 +69,7 @@ that changed upload path has not yet had live verification. The Jobs use
 | Risk | Current boundary |
 | --- | --- |
 | Unauthorized local access | Health, metrics, OpenAPI and Temporal UI have no authentication; Grafana and PostgreSQL use documented development credentials. Document routes share one local token. No TLS, per-user authorization or tenant isolation exists. |
-| Hostile PDFs | The v1.3.0 development tree uses per-document parser Jobs with network policy and resource limits for embedded-text and OCR. The runtime uses `runc`, not a strong sandbox; resource exhaustion may still terminate work, and the new asynchronous upload path is not live-verified. There is no malware scan. Do not upload untrusted files. |
+| Hostile PDFs | The local v1.3.0 build uses per-document parser Jobs with network policy and resource limits for structural inspection, embedded-text extraction and OCR. The runtime uses `runc`, not a strong sandbox; resource exhaustion may still terminate work. There is no malware scan. Do not upload untrusted files. |
 | Vulnerable image packages | Fresh ARM64 scan of the v1.0 candidate on 2026-10-03: API 1 CRITICAL and 76 HIGH findings (34 distinct CVEs total); all 77 are Debian OS-package findings across 26 packages, with no fixed version listed by Trivy. Python and Rust dependency results have no HIGH/CRITICAL findings. The API contains `libxml2` `2.12.7+dfsg+really2.9.14-2.1+deb13u3`; for `CVE-2026-6653`, Trivy selects NVD CVSS v3.1 9.8 Critical, while Canonical reports CVSS v4.0 7.0 High, Ubuntu priority Medium, and Debian marks Trixie `no-dsa`/Minor. Those ratings do not make the installed package fixed. The current OCR path rasterizes PDFs with PyMuPDF and sends PNG bytes to Tesseract; runtime inspection confirms `libxml2` is loaded through `libarchive`, but the path review does not prove the CVE is unreachable. The console, rebuilt after Dependabot PR #9 on `nginxinc/nginx-unprivileged:1.31.6-alpine` (Alpine `3.24.2`), has no HIGH/CRITICAL findings. Neither scanner results nor path analysis clear the API image for untrusted documents or public exposure. See the [Debian tracker](https://security-tracker.debian.org/tracker/CVE-2026-6653), [Ubuntu advisory](https://ubuntu.com/security/CVE-2026-6653), [disclosure](https://www.openwall.com/lists/oss-security/2026/06/22/3) and [v1.0 verification record](runbooks/v1.0-verification.md). |
 | Data at rest | Local named volumes are not application-encrypted and have no managed backup or recovery policy. Database retention does not remove blob bytes. |
 | Advisory model availability | An unavailable Ollama connection records a failed AI execution without changing deterministic extraction or the human-review outcome. Later documents can succeed after connectivity returns; a failed proposal is not automatically replayed, and an in-flight Ollama process restart was not verified. |
@@ -82,9 +82,9 @@ proof that crafted XML cannot reach the package here.
 
 The [PDF parser isolation design](security/pdf-parser-isolation-design.md)
 records why a disposable per-document parser runtime was deferred from v1.2.0.
-The [v1.3.0 scope](releases/v1.3.0.md) tracks the development implementation
-and its remaining acceptance gates. These changes do not alter the released
-v1.2.0 boundary or establish a strong sandbox or public-service readiness.
+The [v1.3.0 scope](releases/v1.3.0.md) records the local implementation and
+verification. These changes do not alter the released v1.2.0 boundary or
+establish a strong sandbox or public-service readiness.
 
 ## v1.1 Image Review
 
@@ -96,9 +96,10 @@ as vulnerable. The review documents missing exploit prerequisites in several
 application paths, residual native-parser uncertainty and proposed PDF/OCR
 resource limits and container restrictions. The per-page OCR pixel limit and
 incremental rasterization and application-container resource/privilege limits
-were implemented on 2026-10-16. Disposable per-document parser isolation remains
-outside the implemented controls. The historical decision
-below is not v1.1 risk acceptance, and the OCR change does not fix package CVEs.
+were implemented on 2026-10-16. Disposable per-document parser isolation was
+added for the local v1.3.0 build. This later change does not alter the v1.1
+historical decision below, which is not v1.1 risk acceptance; the OCR change
+also does not fix package CVEs.
 
 The [final backend verification on 2026-10-16](runbooks/v1.1-final-backend-verification.md)
 rescanned the rebuilt ARM64 API image with a newly downloaded database and
