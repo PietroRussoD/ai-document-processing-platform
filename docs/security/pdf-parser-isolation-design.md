@@ -72,8 +72,10 @@ The Pod had no IPv6 route (`Network is unreachable` before policy), so the
 internet-egress result covers the available IPv4 path only. Repeat the check
 for IPv6 if the selected runtime or deployment gains IPv6 connectivity. These
 checks prove the tested routes and protocols; they do not prove denial over
-every possible protocol or host route. Repeat them against the final Job
-manifest and runtime configuration before parser integration.
+every possible protocol or host route. The integrated Job template and runtime
+also passed local egress and admission checks. IPv6 remains untested because
+the selected Kind node had no IPv6 route; revisit it only if that topology gains
+IPv6 connectivity.
 
 ## Parsing boundary in the released v1.2.0 baseline
 
@@ -87,10 +89,12 @@ PDF parsing happens in more than one service:
 3. When OCR is needed, `TesseractPdfOcrExtractor` opens the PDF with PyMuPDF,
    rasterizes each page and starts Tesseract with the generated PNG bytes.
 
-This was the v1.2.0 boundary that motivated the v1.3.0 design. In the current
-v1.3.0 working tree, upload-time inspection is folded into the existing
-embedded-text Job; the API stores the PDF without opening it. The change must
-still pass migration and live end-to-end verification.
+This was the v1.2.0 boundary that motivated the v1.3.0 design. In the local
+v1.3.0 implementation, upload-time inspection is folded into the existing
+embedded-text Job; the API stores the PDF without opening it. The nullable
+page-count migration and asynchronous upload path passed live end-to-end checks
+with a fresh Compose database and disposable Kind/Calico runtime; see the
+[integration evidence](pdf-parser-integration-proposal.md).
 
 The present size, page-count, raster-pixel and page-time limits reduce routine
 resource use. Compose CPU, memory, swap and PID limits constrain each
@@ -102,10 +106,10 @@ code running in a thread is terminated.
 
 ### Keep parsing in the existing containers
 
-This matches the current local demo and remains the smallest option. A child
-process could make native crashes and timeouts easier to recover from, but it
-would still share the worker container's identity and access. Use this only as
-a reliability improvement; do not describe it as hostile-input isolation.
+This was the v1.2.0 local demo and remains the smallest option. A child process
+could make native crashes and timeouts easier to recover from, but it would
+still share the worker container's identity and access. Use this only as a
+reliability improvement; do not describe it as hostile-input isolation.
 
 ### Add a long-lived parser service to Compose
 
@@ -114,39 +118,34 @@ temporary scratch storage, no published port and narrow resource limits would
 reduce the parser's access to application data. It would still be a persistent
 process boundary. A compromised parser could attack services reachable on its
 network, and Compose service limits would apply to the container rather than
-provide a fresh hard budget for each document. It is not sufficient by itself
-to claim per-document sandboxing.
+provide a fresh hard budget for each document. This option was not selected;
+it is not sufficient by itself to claim per-document sandboxing.
 
 ### Create a disposable container for every document
 
-This gives a clearer job lifecycle, but the current Compose application has no
-trusted job runtime that creates containers. Mounting the Docker daemon socket
-into the API or worker to create them would give that application powerful
-control over the Docker host. Docker's documentation warns that access to the
-daemon can allow host filesystem access through container mounts. Do not add a
-daemon socket to the document-processing services. See [Docker Engine
+Compose alone does not provide a trusted per-document job runtime. The local
+implementation uses a separately operated Kind cluster instead. Mounting the
+Docker daemon socket into the API or worker to create containers would give
+that application powerful control over the Docker host. Docker's documentation
+warns that access to the daemon can allow host filesystem access through
+container mounts. Do not add a daemon socket to the document-processing
+services. See [Docker Engine
 security](https://docs.docker.com/engine/security/) and [protect access to the
 Docker daemon](https://docs.docker.com/engine/security/protect-access/).
 
 ### Use an external job runtime with per-job isolation
 
-This is the only option considered here for a future claim of disposable
-per-document isolation. A trusted controller would submit a bounded job to a
-runtime configured to terminate it and enforce CPU, memory, process and wall
-time limits. The parser job would run non-root, without database credentials,
-with no network access, a read-only base filesystem and a private temporary
-directory. The controller would accept only a small, validated result and
-would treat timeout, crash, output overflow and job-start failure as explicit
-processing failures.
+This is the selected option for the local v1.3.0 implementation. A trusted
+worker submits a bounded Job to the separate Kind/Calico runtime. The parser
+runs non-root, without database credentials or network access, with a
+read-only base filesystem and private temporary storage. The worker validates
+the bounded result and treats timeout, crash, output overflow and job-start
+failure as explicit processing failures. The runtime shares the node kernel,
+so this remains per-Job containment rather than a strong sandbox.
 
-This requires selecting and operating a supported runtime first. The current
-Docker Compose/Docker Desktop setup does not provide this per-document job
-boundary on its own. Do not assume that a generic Compose sidecar or a Python
-subprocess provides equivalent isolation.
+## Selected runtime for the local implementation
 
-## Selected runtime for the local prototype
-
-The selected local prototype uses a separately named `kind` cluster with
+The selected local implementation uses a separately named `kind` cluster with
 Calico and one Kubernetes Job per parsing request. Kubernetes Jobs
 provide a one-off Pod lifecycle, a deadline and a retry limit. Calico can
 enforce the default-deny ingress and egress policy required for parser Pods.
@@ -199,15 +198,15 @@ available. See [Docker Desktop Kubernetes](https://docs.docker.com/desktop/use-d
 and [Kubernetes RuntimeClass](https://kubernetes.io/docs/concepts/containers/runtime-class/).
 
 This option was excluded from the released v1.2.0. The separate
-[v1.3.0 development scope](../releases/v1.3.0.md) now tracks this portfolio
-exercise. The selected local topology has passed the network and worker
-connection probes recorded above. Upload-path verification and admission
-enforcement are complete in the local single-node topology. Recovery from
-permanent node loss and multi-node failures remains unverified.
+[v1.3.0 scope](../releases/v1.3.0.md) records the completed local portfolio
+implementation. The selected topology has passed network, worker connection,
+upload-path and admission checks, plus live parser and Temporal recovery
+scenarios. Recovery from permanent node loss and multi-node failures remains
+unverified.
 
-The proposed application integration, including asynchronous page-count
-validation, Job data transfer, controller permissions and acceptance criteria,
-is documented in [PDF Parser Isolation Integration Proposal](pdf-parser-integration-proposal.md).
+The implementation and its verification limits, including asynchronous
+page-count validation, Job data transfer and controller permissions, are
+documented in [PDF Parser Isolation Integration Proposal](pdf-parser-integration-proposal.md).
 
 On 2026-10-18, the current application Job controller and parser CLI were run
 in a fresh Kind v1.37.0/Calico 3.33.0 cluster. Synthetic embedded-text and OCR
@@ -219,13 +218,10 @@ Pod after each run. The host-side probe did not run inside Compose or Temporal.
 See the [integration evidence table](pdf-parser-integration-proposal.md) for
 the limits of this check.
 
-## Gates before parser integration
+## Integration acceptance results
 
-The selected local topology has been validated with synthetic probes. Before
-integrating the parser, rerun network and permission checks against the final
-cluster bootstrap, namespace policy and Job template. The end-to-end proposal
-defines the vertical slice and its acceptance criteria. The implementation
-must:
+The local integration gate is complete for the documented single-node
+Compose + Kind/Calico portfolio topology. The acceptance criteria were:
 
 - remove native PDF inspection from the API request path, or route it
   through the same isolated job boundary;
@@ -242,6 +238,10 @@ must:
   repeating an expensive hostile job indefinitely;
 - record a safe, bounded failure outcome while keeping the existing document
   and processing history consistent.
+
+The selected network policy and Job template passed local probes and live
+application flows. The integration evidence table records the exact checks and
+their limits. Permanent node loss and multi-node recovery remain unverified.
 
 Single-run container baselines cover representative fixtures and combined
 synthetic 50-page/20-million-pixel OCR input. A follow-up one-node Kind run
@@ -271,8 +271,8 @@ budget. See the [integration proposal](pdf-parser-integration-proposal.md).
 
 This is a local portfolio exercise for synthetic documents. Do not use it to
 approve hostile PDFs, confidential data, shared-host execution or public
-hosting. Stop integration if the network deny, scoped credential, bounded
-transfer or cleanup behavior cannot be reproduced, or if operating the
-controller requires Docker daemon access or broad administrator credentials
-inside the API or worker. Keep the existing local-only boundary and document
-parser limitations if any of these conditions fail.
+hosting. If a future topology change breaks the network deny, scoped
+credential, bounded transfer or cleanup behavior, stop using that topology
+until the controls are restored. Never give the API or worker Docker daemon
+access or broad administrator credentials. Keep the local-only boundary and
+document parser limitations explicit.
