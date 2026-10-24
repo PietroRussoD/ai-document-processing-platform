@@ -1,9 +1,10 @@
 """Verify Temporal retries parser runtime outages but not deterministic failures."""
 
+import argparse
 import asyncio
 
 from temporalio import activity
-from temporalio.client import WorkflowFailureError
+from temporalio.client import Client, WorkflowFailureError
 from temporalio.exceptions import ApplicationError
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
@@ -73,10 +74,14 @@ ACTIVITIES = [
 ]
 
 
-async def verify() -> None:
+async def verify(target: str | None) -> None:
     _OCR_ATTEMPTS.clear()
     _RECORDED_FAILURES.clear()
-    environment = await WorkflowEnvironment.start_time_skipping()  # pyright: ignore[reportUnknownMemberType]
+    if target:
+        client = await Client.connect(target)
+        environment = WorkflowEnvironment.from_client(client)
+    else:
+        environment = await WorkflowEnvironment.start_time_skipping()  # pyright: ignore[reportUnknownMemberType]
     async with environment:
         task_queue = "parser-retry-verification"
         async with Worker(
@@ -123,5 +128,14 @@ async def verify() -> None:
     )
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--target",
+        help="connect to an existing Temporal server instead of starting the SDK test server",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    asyncio.run(verify())
+    asyncio.run(verify(parse_args().target))
