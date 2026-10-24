@@ -6,7 +6,7 @@ Kind/Calico bootstrap and issuer supervisor are implemented with a disposable
 egress baseline/deny check. The supervised Compose command passed service
 startup, orderly shutdown and a synthetic scanned-invoice workflow. The direct
 base host bind-mount credential path remains unusable; the sync-service volume
-path is implemented. In the current working tree, upload inspection no longer
+path is implemented. In the v1.3.0 implementation, upload inspection no longer
 opens PDFs in the API and page count is recorded with the first isolated text
 extraction. The migration has been applied to a fresh database and the
 asynchronous upload path has live verification. The complete unit suite passed
@@ -138,17 +138,17 @@ document status and failure stage must make that outcome clear in the console.
 
 The previous upload path required a page count before registering a document.
 The parser cannot provide that value until the worker starts the first Job.
-The current working tree now represents the count as unknown while the
-document is queued:
+The v1.3.0 implementation represents the count as unknown while the document
+is queued:
 
-- Change `Document.page_count`, `RegisterDocument` and the status API field to
-  allow `null` until embedded-text extraction succeeds.
-- Migrate the database constraint to allow `NULL` or a positive page count;
-  keep all existing counts unchanged and do not use zero as a placeholder.
-- In the same transaction that stores the first extraction, persist its page
-  count. Reject a later result if it disagrees with an already known count.
-- Show an unavailable or pending value in the console while the count is
-  unknown. Regenerate the TypeScript API client from OpenAPI.
+- `Document.page_count`, `RegisterDocument` and the status API field allow
+  `null` until embedded-text extraction succeeds.
+- The database constraint allows `NULL` or a positive page count; existing
+  counts are preserved and zero is not used as a placeholder.
+- The first extraction stores its page count in the same transaction as the
+  extraction. Later results are rejected if they disagree with a known count.
+- The console shows an unavailable value while the count is unknown, and the
+  generated TypeScript API client reflects the nullable field.
 
 Only a successfully parsed PDF receives a page count. A failed first parse
 keeps the field unknown. Reprocessing an existing document retains its known
@@ -166,7 +166,7 @@ container's normal stdout or stderr, so the result is not written to container
 logs. The worker validates the result and persists it through the existing
 application handler.
 
-The application now has a controller slice that creates one restricted Job,
+The application controller creates one restricted Job,
 waits for its owned Pod, streams the PDF to a fixed parser command and collects
 bounded binary stdout. It signals the PID 1 supervisor with a fixed completion
 command, observes the terminal Job condition and deletes the Job with a UID
@@ -186,13 +186,13 @@ other user input into a shell command. Do not use the Docker socket, host paths,
 ConfigMaps or Secrets as PDF transport, and do not use logs as the result
 channel.
 
-The Temporal worker now uses the isolated adapter for embedded-text extraction
+The Temporal worker uses the isolated adapter for embedded-text extraction
 and OCR. It requires an explicit local API endpoint, namespace, CA file, scoped
 token file and parser image, verifies the API before opening the database, and
 fails startup when this configuration is missing or refused. Compose requires
 the same settings and mounts the private credentials directory read-only only
 in the worker. The API no longer performs upload-time PDF inspection in the
-current working tree; the first embedded-text Job now provides that structural
+v1.3.0 implementation; the first embedded-text Job now provides that structural
 check. The nullable page-count migration and upload flow passed a live run with
 a fresh isolated Compose database: a valid synthetic PDF was accepted with
 `202`, first observed without a page count, then persisted with one page; a
