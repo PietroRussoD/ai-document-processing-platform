@@ -1,8 +1,6 @@
 """Verify Temporal retries parser runtime outages but not deterministic failures."""
 
-import argparse
 import asyncio
-from pathlib import Path
 
 from temporalio import activity
 from temporalio.client import WorkflowFailureError
@@ -75,12 +73,10 @@ ACTIVITIES = [
 ]
 
 
-async def verify(dev_server_path: Path | None) -> None:
+async def verify() -> None:
     _OCR_ATTEMPTS.clear()
     _RECORDED_FAILURES.clear()
-    environment = await WorkflowEnvironment.start_local(  # pyright: ignore[reportUnknownMemberType]
-        dev_server_existing_path=str(dev_server_path) if dev_server_path else None,
-    )
+    environment = await WorkflowEnvironment.start_time_skipping()  # pyright: ignore[reportUnknownMemberType]
     async with environment:
         task_queue = "parser-retry-verification"
         async with Worker(
@@ -127,16 +123,5 @@ async def verify(dev_server_path: Path | None) -> None:
     )
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--dev-server-path",
-        type=Path,
-        help="path to an installed Temporal CLI binary; avoids downloading it",
-    )
-    return parser.parse_args()
-
-
 if __name__ == "__main__":
-    args = parse_args()
-    asyncio.run(verify(args.dev_server_path))
+    asyncio.run(verify())
