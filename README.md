@@ -174,3 +174,9 @@ For vulnerability reporting, see [SECURITY.md](SECURITY.md).
 ## License
 
 Licensed under the Apache License 2.0. See [LICENSE](LICENSE).
+
+The application depends on PyMuPDF, which is available under the GNU Affero
+General Public License or a commercial license. PyMuPDF has its own license
+terms, separate from this project's Apache-2.0 license; review those terms for
+your use and distribution of the combined application. See the
+[PyMuPDF licensing information](https://pymupdf.readthedocs.io/en/latest/about.html#license-and-copyright).
