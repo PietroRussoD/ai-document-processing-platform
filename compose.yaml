@@ -75,7 +75,7 @@ services:
 
   grafana:
     profiles: ["observability"]
-    image: grafana/grafana:13.2.3
+    image: grafana/grafana:13.3.0
     depends_on:
       prometheus:
         condition: service_healthy
@@ -101,7 +101,7 @@ services:
 
   prometheus:
     profiles: ["observability"]
-    image: prom/prometheus:v3.15.0
+    image: prom/prometheus:v3.16.0
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -192,7 +192,7 @@ services:
 
   temporal-ui:
     profiles: ["temporal", "processing"]
-    image: temporalio/ui:2.54.1
+    image: temporalio/ui:2.58.0
     depends_on:
       temporal:
         condition: service_healthy
