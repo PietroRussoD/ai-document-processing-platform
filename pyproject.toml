@@ -22,7 +22,7 @@ dependencies = [
   "asyncpg>=0.31,<1",
   "fastapi>=0.137,<1",
   "iso4217>=1.16.20260101,<2",
-  "kubernetes==37.0.1",
+  "kubernetes==37.0.2",
   "prometheus-client>=0.24,<1",
   "pydantic-settings>=2.12,<3",
   "pymupdf>=1.26,<2",
